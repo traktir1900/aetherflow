@@ -1,0 +1,300 @@
+{
+    "map_name": "AetherFlow_Core",
+    "version": "0.5.2.4",
+    "seed": 1337,
+    "generation_mode": "STATIC",
+    "approved_count": 8,
+    "rejected_count": 8,
+    "layout_objects": [
+        {
+            "name": "Crown_Cover_2",
+            "cover_type": "MEDIUM",
+            "sub_type": "HalfWall",
+            "position": [
+                0.0,
+                31.0,
+                0.0
+            ],
+            "rotation": 360.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "Crown",
+            "confidence": 0.91,
+            "final_score": 0.91,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "Crown_Cover_3",
+            "cover_type": "MEDIUM",
+            "sub_type": "BrokenBarrier",
+            "position": [
+                0.0,
+                23.0,
+                0.0
+            ],
+            "rotation": 360.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "Crown",
+            "confidence": 0.89,
+            "final_score": 0.87,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "WestMonolith_Cover_2",
+            "cover_type": "MEDIUM",
+            "sub_type": "HalfWall",
+            "position": [
+                -29.48,
+                9.58,
+                0.0
+            ],
+            "rotation": 72.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "WestMonolith",
+            "confidence": 0.84,
+            "final_score": 0.75,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "WestMonolith_Cover_3",
+            "cover_type": "MEDIUM",
+            "sub_type": "BrokenBarrier",
+            "position": [
+                -21.87,
+                7.11,
+                0.0
+            ],
+            "rotation": 72.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "WestMonolith",
+            "confidence": 0.82,
+            "final_score": 0.71,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "EastMonolith_Cover_2",
+            "cover_type": "MEDIUM",
+            "sub_type": "HalfWall",
+            "position": [
+                29.48,
+                9.58,
+                0.0
+            ],
+            "rotation": 288.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "EastMonolith",
+            "confidence": 0.84,
+            "final_score": 0.75,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "EastMonolith_Cover_3",
+            "cover_type": "MEDIUM",
+            "sub_type": "BrokenBarrier",
+            "position": [
+                21.87,
+                7.11,
+                0.0
+            ],
+            "rotation": 288.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "EastMonolith",
+            "confidence": 0.82,
+            "final_score": 0.71,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "SouthRift_Cover_1",
+            "cover_type": "LOW",
+            "sub_type": "Boulder",
+            "position": [
+                0.0,
+                -28.5,
+                0.0
+            ],
+            "rotation": 135.0,
+            "height": 1.2,
+            "intent": "FLANK_SUPPORT",
+            "source_zone": "SouthRift",
+            "confidence": 0.71,
+            "final_score": 0.46,
+            "approved": true,
+            "reason": ""
+        },
+        {
+            "name": "SouthRift_Cover_2",
+            "cover_type": "LOW",
+            "sub_type": "Debris",
+            "position": [
+                0.0,
+                -20.5,
+                0.0
+            ],
+            "rotation": 135.0,
+            "height": 1.2,
+            "intent": "FLANK_SUPPORT",
+            "source_zone": "SouthRift",
+            "confidence": 0.7,
+            "final_score": 0.44,
+            "approved": true,
+            "reason": ""
+        }
+    ],
+    "rejected_objects": [
+        {
+            "name": "Crown_Cover_1",
+            "cover_type": "MEDIUM",
+            "sub_type": "L_Wall",
+            "position": [
+                0.0,
+                39.0,
+                0.0
+            ],
+            "rotation": 360.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "Crown",
+            "confidence": 0.75,
+            "final_score": 0.55,
+            "approved": false,
+            "reason": "Blocks rotation path / outside range"
+        },
+        {
+            "name": "Crown_Cover_4",
+            "cover_type": "MEDIUM",
+            "sub_type": "L_Wall",
+            "position": [
+                0.0,
+                16.0,
+                0.0
+            ],
+            "rotation": 360.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "Crown",
+            "confidence": 0.74,
+            "final_score": 0.53,
+            "approved": false,
+            "reason": "Blocks core observation"
+        },
+        {
+            "name": "WestMonolith_Cover_1",
+            "cover_type": "MEDIUM",
+            "sub_type": "L_Wall",
+            "position": [
+                -37.09,
+                12.05,
+                0.0
+            ],
+            "rotation": 72.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "WestMonolith",
+            "confidence": 0.67,
+            "final_score": 0.38,
+            "approved": false,
+            "reason": "Blocks rotation path / outside range"
+        },
+        {
+            "name": "WestMonolith_Cover_4",
+            "cover_type": "MEDIUM",
+            "sub_type": "L_Wall",
+            "position": [
+                -15.22,
+                4.94,
+                0.0
+            ],
+            "rotation": 72.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "WestMonolith",
+            "confidence": 0.67,
+            "final_score": 0.38,
+            "approved": false,
+            "reason": "Blocks core observation"
+        },
+        {
+            "name": "EastMonolith_Cover_1",
+            "cover_type": "MEDIUM",
+            "sub_type": "L_Wall",
+            "position": [
+                37.09,
+                12.05,
+                0.0
+            ],
+            "rotation": 288.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "EastMonolith",
+            "confidence": 0.67,
+            "final_score": 0.38,
+            "approved": false,
+            "reason": "Blocks rotation path / outside range"
+        },
+        {
+            "name": "EastMonolith_Cover_4",
+            "cover_type": "MEDIUM",
+            "sub_type": "L_Wall",
+            "position": [
+                15.22,
+                4.94,
+                0.0
+            ],
+            "rotation": 288.0,
+            "height": 2.0,
+            "intent": "ANTI_SNIPER",
+            "source_zone": "EastMonolith",
+            "confidence": 0.67,
+            "final_score": 0.38,
+            "approved": false,
+            "reason": "Blocks core observation"
+        },
+        {
+            "name": "SouthRift_Cover_3",
+            "cover_type": "LOW",
+            "sub_type": "RuinedPillar",
+            "position": [
+                0.0,
+                -12.5,
+                0.0
+            ],
+            "rotation": 135.0,
+            "height": 1.2,
+            "intent": "FLANK_SUPPORT",
+            "source_zone": "SouthRift",
+            "confidence": 0.5,
+            "final_score": 0.0,
+            "approved": false,
+            "reason": "Blocks rotation path / outside range"
+        },
+        {
+            "name": "SouthRift_Cover_4",
+            "cover_type": "LOW",
+            "sub_type": "Boulder",
+            "position": [
+                0.0,
+                -5.5,
+                0.0
+            ],
+            "rotation": 135.0,
+            "height": 1.2,
+            "intent": "FLANK_SUPPORT",
+            "source_zone": "SouthRift",
+            "confidence": 0.5,
+            "final_score": 0.0,
+            "approved": false,
+            "reason": "Blocks rotation path / outside range"
+        }
+    ]
+}
