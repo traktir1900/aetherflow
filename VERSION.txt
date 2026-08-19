@@ -1,9 +1,0 @@
-AetherFlow
-Version: 0.5.8
-Pipeline: 0.5.7.2
-Blender Target: 5.2 LTS
-
-Status:
-PIPELINE VERIFIED
-CONFIG MIGRATED
-BACKUP CREATED
