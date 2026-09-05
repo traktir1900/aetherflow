@@ -1,34 +1,34 @@
 """
 AetherFlow :: core/heightmap.py
-Analytic height field for the map.  Design is UNCHANGED from the original:
+Analytic height field for the map.
 
-  - central AetherCore crater (parabolic, deepest at the centre)
-  - smooth transition ring toward the sector heights
-  - SouthRift depression
-  - Crown / WestMonolith / EastMonolith raised influence domes
-
-All radii/heights come from config (already scale-driven), and the result is
-clamped to config["safety_floor_z"] so nothing can fall through the world.
+v0.6.3.1 keeps the same topology and anchor coordinates while using the shared
+terrain refinement profile to make the central depression, Crown elevation,
+monolith shoulders and South Rift readable without introducing steep combat
+slopes.
 """
 import math
 from mathutils import Vector
+
+from core.terrain_refinement import get_effective_heights, get_transition_radius
 
 
 def get_height_at_point(pos, cfg, layout):
     p2d = Vector((pos.x, pos.y))
     dist_center = p2d.length
 
-    heights = cfg["heights"]
+    heights = get_effective_heights(cfg)
     core_r = cfg["center_radius"]
 
-    # Central crater.
+    # Central AetherCore depression. The v0.6.3.1 profile increases depth,
+    # while the radius remains unchanged so gameplay topology does not drift.
     if dist_center < core_r:
         t = dist_center / core_r
         z = heights["AetherCore"] * ((1.0 - t) ** 2)
         return _clamp(z, cfg)
 
-    # Transition ring around the crater, blended toward the local sector.
-    transition_r = cfg["core_transition_radius"]
+    # Wider smooth shoulder into the surrounding sectors.
+    transition_r = get_transition_radius(cfg)
     if dist_center < core_r + transition_r:
         raw_t = (dist_center - core_r) / transition_r
         smooth_t = raw_t * raw_t * (3.0 - 2.0 * raw_t)
@@ -55,14 +55,11 @@ def get_height_at_point(pos, cfg, layout):
         z = heights["SouthRift"] * (t ** 1.5)
         return _clamp(z, cfg)
 
-    # Raised domes: Crown + both monoliths, distance-weighted.
+    # Raised sector influence around Crown and the east/west monoliths.
     crown_pos = Vector((layout["Crown"].x, layout["Crown"].y))
     west_pos = Vector((layout["WestMonolith"].x, layout["WestMonolith"].y))
     east_pos = Vector((layout["EastMonolith"].x, layout["EastMonolith"].y))
 
-    # Exact zero distance is allowed: at an anchor point the weight must be
-    # exactly 1.0 so the anchor height is reproduced with no epsilon drift
-    # (Crown must read exactly heights["Crown"]).
     d_crown = max(0.0, (p2d - crown_pos).length)
     d_west = max(0.0, (p2d - west_pos).length)
     d_east = max(0.0, (p2d - east_pos).length)
