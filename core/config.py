@@ -2,16 +2,6 @@
 AetherFlow :: core/config.py  (v0.6.0)
 
 SCALE-DRIVEN CONFIG — the single source for all map dimensions.
-
-The whole map is derived from ONE number: GROUND_HALF_SIZE.  Every spatial
-value (x / y AND z, radii, road widths, cover sizes, platform heights) is a
-fixed proportion of the historical baseline multiplied by a unified scale
-factor _S = GROUND_HALF_SIZE / _BASE_HALF.  Changing the map size therefore
-means changing a single value — no per-system manual rescaling, and Z can
-never drift out of sync with X/Y.
-
-Gameplay target: 200 x 200 m  ->  GROUND_HALF_SIZE = 100.0
-World floor target: 220 x 220 m  ->  WORLD_FLOOR_HALF_SIZE = 110.0
 """
 
 GROUND_HALF_SIZE = 100.0
@@ -43,6 +33,15 @@ CONFIG = {
         "SWMonolith": 0.0, "SEMonolith": 0.0,
         "BlueBase": 0.0, "RedBase": 0.0,
         "SouthRift": _s(-0.75), "AetherCore": _s(-2.0),
+    },
+    "terrain_refinement": {
+        "enabled": True,
+        "core_depth_multiplier": 1.65,
+        "crown_height_multiplier": 1.60,
+        "monolith_height_multiplier": 1.60,
+        "south_rift_depth_multiplier": 1.50,
+        "transition_radius_multiplier": 1.10,
+        "max_expected_slope_deg": 35.0,
     },
     "capture_platform_radius": _s(20.0),
     "capture_platform_height": _s(1.5),
@@ -78,10 +77,9 @@ CONFIG = {
         "mirror_axis": "x -> -x; y -> -y",
         "front_back_mirror": True,
         "non_blocking_navigation": True,
-        "ring_offset_from_altar_m": 3.25,
-        "protector_length_m": 3.6,
-        "protector_depth_m": 1.25,
-        "protector_height_m": 2.4,
+        "ring_offset_from_altar_m": 3.5,
+        "protector_radius_m": 0.8,
+        "protector_height_m": 2.6,
         "layout": "CARDINAL_CENTERED",
     },
     "ring_road_width": _s(12.0), "base_road_width": _s(8.0),
