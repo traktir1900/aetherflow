@@ -37,19 +37,35 @@ Decorative-only assets may vary, but they must never create a gameplay advantage
 
 ## Core rock refinement
 
-The previous central rock generator independently randomized each `Core_Rock_*` object. That is no longer allowed because central rocks affect line of sight, movement and combat space.
+The central rock system is required to be mirror-symmetric because central rocks affect line of sight, movement and combat space.
 
-The new generator:
+The intended generator contract is:
 
-- requires an even central-rock count;
-- creates canonical rocks on the +X half of the arena;
-- creates exact geometric mirrors on the -X half;
-- mirrors position, irregular silhouette and orientation across the Y axis;
-- preserves deterministic seeded generation;
-- tags every pair with a stable symmetry pair ID;
-- fails generation when the configured central-rock count is odd.
+- even central-rock count only;
+- canonical rocks on the +X half of the arena;
+- exact geometric mirrors on the -X half;
+- mirrored position, irregular silhouette and orientation across the Y axis;
+- deterministic seeded generation;
+- stable symmetry pair IDs;
+- generation failure when the configured central-rock count is odd.
 
-With the current `count_core = 6`, the central field is exactly **3 mirror pairs / 6 rocks**.
+With the current `count_core = 6`, the central field is intended to be **3 mirror pairs / 6 rocks**.
+
+## Safe failed-generation rollback
+
+The active pipeline now snapshots all managed AetherFlow objects before Stage 1 clears the managed collections.
+
+If any later generation stage raises an exception, the pipeline:
+
+- reports the generation error;
+- removes the incomplete generated managed scene;
+- restores the pre-run managed objects from the temporary snapshot;
+- leaves the user/hand-placed scene untouched;
+- re-raises the original exception so the actual code error remains visible.
+
+After a successful generation, the temporary snapshot is discarded.
+
+This prevents a failed terrain or later-stage run from leaving Blender with only a partial map such as the perimeter/fence geometry.
 
 ## Changes
 
