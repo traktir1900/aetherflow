@@ -1,0 +1,134 @@
+{
+    "meta": {
+        "version": "0.5.7.1",
+        "design_phase": "Controlled Oscillation Correction"
+    },
+    "metrics": {
+        "first_contact_sec": 92.2,
+        "total_combat_events": 9650,
+        "objective_states": {
+            "Crown": {
+                "owner": "Blue",
+                "status": "Blue Owned",
+                "progress": 100.0
+            },
+            "WestMonolith": {
+                "owner": "Red",
+                "status": "Red Owned",
+                "progress": -100.0
+            },
+            "EastMonolith": {
+                "owner": "Blue",
+                "status": "Blue Owned",
+                "progress": 100.0
+            },
+            "SouthRift": {
+                "owner": "Blue",
+                "status": "Blue Owned",
+                "progress": 100.0
+            }
+        },
+        "zone_ownership_time": {
+            "Crown": {
+                "Blue": 55.10000000000051,
+                "Red": 0.0,
+                "Neutral": 4.899999999999999
+            },
+            "WestMonolith": {
+                "Blue": 0.0,
+                "Red": 60.00000000000058,
+                "Neutral": 0.0
+            },
+            "EastMonolith": {
+                "Blue": 60.00000000000058,
+                "Red": 0.0,
+                "Neutral": 0.0
+            },
+            "SouthRift": {
+                "Blue": 42.40000000000033,
+                "Red": 2.600000000000001,
+                "Neutral": 14.999999999999963
+            }
+        },
+        "distributions": {
+            "Crown": 16.5,
+            "SouthRift": 16.1,
+            "WestWing": 25.3,
+            "EastWing": 17.4
+        }
+    },
+    "zones": {
+        "BlueBase": {
+            "traffic": 112,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 112
+        },
+        "BlueMid": {
+            "traffic": 71,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 71
+        },
+        "BlueWest": {
+            "traffic": 82,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 82
+        },
+        "BlueEast": {
+            "traffic": 65,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 65
+        },
+        "RedBase": {
+            "traffic": 81,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 81
+        },
+        "RedMid": {
+            "traffic": 45,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 45
+        },
+        "RedWest": {
+            "traffic": 84,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 84
+        },
+        "RedEast": {
+            "traffic": 42,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 42
+        },
+        "Crown": {
+            "traffic": 208,
+            "fights": 40,
+            "cover_usage": 0,
+            "occupancy": 208
+        },
+        "WestMonolith": {
+            "traffic": 152,
+            "fights": 6,
+            "cover_usage": 0,
+            "occupancy": 152
+        },
+        "EastMonolith": {
+            "traffic": 112,
+            "fights": 0,
+            "cover_usage": 0,
+            "occupancy": 112
+        },
+        "SouthRift": {
+            "traffic": 203,
+            "fights": 40,
+            "cover_usage": 0,
+            "occupancy": 203
+        }
+    }
+}

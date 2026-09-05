@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Blender
+*.blend1
+*.tmp
+
+# Generated data (regenerable from the pipeline)
+export/map_data.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
