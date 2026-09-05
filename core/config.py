@@ -53,8 +53,7 @@ CONFIG = {
         "hard_max_deg": 35.0,
         "max_step_m": 0.75,
         "min_group_width_m": 4.0,
-        "minion_corridor_width_m": 1.5,
-        "minion_radius_m": 0.65,
+        "minion_corridor_width_m": 1.30,
     },
     "gameplay_symmetry": {
         "enabled": True,
