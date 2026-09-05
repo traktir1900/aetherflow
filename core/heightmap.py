@@ -2,10 +2,10 @@
 AetherFlow :: core/heightmap.py
 Analytic height field for the map.
 
-v0.6.3.2 fixes the measured discontinuity at the AetherCore shoulder: the
-inner core bowl and the outer transition now meet continuously at
-``core_radius``. This preserves all XY anchors and topology while removing
-the artificial ~1.1 m one-cell height step that was breaking minion traversal.
+v0.6.3.2 fixes measured height-field discontinuities at both the AetherCore
+shoulder and South Rift boundary. The fields now meet continuously, preserving
+all XY anchors and gameplay topology while removing artificial one-cell steps
+that were breaking minion traversal.
 """
 import math
 from mathutils import Vector
@@ -27,9 +27,8 @@ def get_height_at_point(pos, cfg, layout):
         z = heights["AetherCore"] * ((1.0 - t) ** 2)
         return _clamp(z, cfg)
 
-    # Wider smooth shoulder into the surrounding sectors.  IMPORTANT: the
-    # outer field starts at the same z=0 boundary used by the core bowl;
-    # starting from AetherCore here would introduce a discontinuous step.
+    # Wider smooth shoulder into the surrounding sectors. IMPORTANT: the
+    # outer field starts at the same z=0 boundary used by the core bowl.
     transition_r = get_transition_radius(cfg)
     if dist_center < core_r + transition_r:
         raw_t = (dist_center - core_r) / transition_r
@@ -48,16 +47,9 @@ def get_height_at_point(pos, cfg, layout):
         z = target_h * smooth_t
         return _clamp(z, cfg)
 
-    # SouthRift depression.
-    south_mid = layout["SouthRift"]
-    dist_south = (p2d - Vector((south_mid.x, south_mid.y))).length
-    rift_r = cfg["south_rift_blend_radius"]
-    if dist_south < rift_r:
-        t = 1.0 - (dist_south / rift_r)
-        z = heights["SouthRift"] * (t ** 1.5)
-        return _clamp(z, cfg)
-
-    # Raised sector influence around Crown and the east/west monoliths.
+    # Build the smooth raised-sector field first. South Rift is then applied
+    # as a continuous depression on top of that field, so its outer edge is
+    # guaranteed to meet the surrounding terrain instead of jumping to 0m.
     crown_pos = Vector((layout["Crown"].x, layout["Crown"].y))
     west_pos = Vector((layout["WestMonolith"].x, layout["WestMonolith"].y))
     east_pos = Vector((layout["EastMonolith"].x, layout["EastMonolith"].y))
@@ -70,12 +62,21 @@ def get_height_at_point(pos, cfg, layout):
     w_west = max(0.0, 1.0 - d_west / cfg["monolith_influence_radius"])
     w_east = max(0.0, 1.0 - d_east / cfg["monolith_influence_radius"])
 
-    z = (w_crown * heights["Crown"] +
-         w_west * heights["WestMonolith"] +
-         w_east * heights["EastMonolith"])
+    base_z = (w_crown * heights["Crown"] +
+              w_west * heights["WestMonolith"] +
+              w_east * heights["EastMonolith"])
+    base_z = min(heights["Crown"], base_z)
 
-    z = min(heights["Crown"], z)
-    return _clamp(z, cfg)
+    south_mid = layout["SouthRift"]
+    dist_south = (p2d - Vector((south_mid.x, south_mid.y))).length
+    rift_r = cfg["south_rift_blend_radius"]
+    if dist_south < rift_r:
+        t = 1.0 - (dist_south / rift_r)
+        blend = t ** 1.5
+        z = base_z * (1.0 - blend) + heights["SouthRift"] * blend
+        return _clamp(z, cfg)
+
+    return _clamp(base_z, cfg)
 
 
 def _clamp(z, cfg):
