@@ -18,7 +18,7 @@ When a term refers to an implementation asset, generator module, exported field 
 
 # 1. Core Map Terms
 
-### AetherFlow Map
+### EitherFlow Map
 The complete playable arena generated in Blender and later consumed by Unreal Engine.
 
 ### Gameplay Area
@@ -30,17 +30,11 @@ The larger non-gameplay floor surrounding the gameplay area. Current target: **2
 ### Outer Boundary
 The impassable outer perimeter defining the playable-world edge.
 
-### Core
-The central strategic/combat area of the map, located around the exact world origin. The former term **Aether Altar / Altar** is retired as the gameplay area name. In all gameplay, level-design and documentation language, this area is now called **Core**.
-
-### Core Point / Core Area
-The central area associated with AetherCore and the primary central combat space. Use **Core** as the short gameplay-facing name.
+### Crown
+The **central strategic/combat objective** of the map, located around the exact world origin. Crown is the canonical gameplay name for the former Altar / Aether Altar central objective.
 
 ### AetherCore
-The central terrain/combat landmark around the exact world origin. This is the implementation/landmark name; gameplay-facing references should normally use **Core**.
-
-### Aether Crown / Crown
-The northern capture objective and central strategic landmark.
+Legacy implementation/landmark name retained for existing code compatibility. In new player-facing gameplay and design terminology, use **Crown**.
 
 ### Monolith
 A capture objective located on the eastern or western portion of the objective ring.
@@ -50,46 +44,16 @@ The central southern terrain depression between the SW and SE Monoliths.
 
 ---
 
-# 2. Capture Objectives
+# 2. Bases and Teams
 
-### Capture Point / Objective
-A strategic location that teams can capture and control.
+### Blue Core
+The home base of the Blue team.
 
-The map currently contains five objectives:
+### Red Core
+The home base of the Red team.
 
-- Crown
-- EastMonolith
-- SEMonolith
-- SWMonolith
-- WestMonolith
-
-### Objective Ring
-The five-objective structure around the center. The authoritative implementation uses `RING_NODES`.
-
-### Objective Platform
-The physical circular platform representing a capture point in the generated scene.
-
-### Objective Approach
-A route used to enter or contest an objective.
-
-### Objective Retreat Route
-A route allowing a team to disengage from an objective.
-
-### Objective Rotation
-Movement from one objective to another as part of macro gameplay.
-
-### Macro Rotation
-Strategic movement between capture points. In the current validator, adjacent objective ring edges are measured as the first macro-rotation metric.
-
----
-
-# 3. Bases and Teams
-
-### Blue Base
-The canonical base for the Blue team.
-
-### Red Base
-The canonical base for the Red team.
+### Core
+A team home base. The canonical team-specific names are **Blue Core** and **Red Core**.
 
 ### Team-Critical Geometry
 Any geometry that can affect movement, line of sight, cover, collision, pathing, access, rotation or combat balance.
@@ -108,7 +72,7 @@ Two gameplay elements that must correspond under the authoritative symmetry tran
 
 Examples:
 
-- BlueBase ↔ RedBase
+- Blue Core ↔ Red Core
 - WestMonolith ↔ EastMonolith
 - SWMonolith ↔ SEMonolith
 - WestPocket ↔ EastPocket
@@ -116,22 +80,55 @@ Examples:
 
 ---
 
+# 3. Capture Objectives
+
+### Capture Point / Objective
+A strategic location that teams can capture and control.
+
+The map currently contains five ring objectives:
+
+- Crown
+- EastMonolith
+- SEMonolith
+- SWMonolith
+- WestMonolith
+
+### Objective Ring
+The five-objective structure around the map center.
+
+### Objective Platform
+The physical circular platform representing a capture point in the generated scene.
+
+### Objective Approach
+A route used to enter or contest an objective.
+
+### Objective Retreat Route
+A route allowing a team to disengage from an objective.
+
+### Objective Rotation
+Movement from one objective to another as part of macro gameplay.
+
+### Macro Rotation
+Strategic movement between capture points. In the current validator, adjacent objective ring edges are measured as the first macro-rotation metric.
+
+---
+
 # 4. Flows and Routes
 
 ### Flow
-A persistent strategic movement corridor running from the team's base toward the upper/northern part of the map. A Flow is a gameplay movement concept, not necessarily a single road mesh or a straight line.
+A persistent strategic movement corridor running from a team's Core toward the upper/northern part of the map. A Flow is a gameplay movement concept, not necessarily a single road mesh or a straight line.
 
 ### Top Flow
-The upper base-to-north strategic movement corridor. It carries players and minions from a base toward the upper portion of the map and supports pressure and approach to the upper objectives.
+The upper base-to-north strategic movement corridor. It carries players and minions from a Core toward the upper portion of the map.
 
 ### Middle Flow
-The central base-to-north strategic movement corridor. It carries players and minions from a base through the central portion of the map toward the upper area, providing the main central rotation and access to Core.
+The central base-to-north strategic movement corridor. It carries players and minions from a Core through the central portion of the map toward the upper area and the Crown/Core combat space.
 
 ### Bottom Flow
-The lower base-to-north strategic movement corridor. It carries players and minions from a base through the lower portion of the map toward the upper area, supporting side pressure, flank movement and southern-to-northern rotation.
+The lower base-to-north strategic movement corridor. It carries players and minions from a Core through the lower portion of the map toward the upper area.
 
 ### Flow Rule
-Top Flow, Middle Flow and Bottom Flow describe **three strategic base-to-north movement corridors**. They are not intended to turn the map into three rigid classical MOBA lanes. Each Flow may contain multiple roads, branches, ramps, intersections, pockets and rotation connections.
+Top Flow, Middle Flow and Bottom Flow describe **three strategic Core-to-north movement corridors**. They are not intended to turn the map into three rigid classical MOBA lanes. Each Flow may contain multiple roads, branches, ramps, intersections, pockets and rotation connections.
 
 ### Main Road
 A primary traversable route connecting major map regions.
@@ -208,12 +205,9 @@ Cover located around a capture objective, intentionally positioned without block
 Gameplay cover placed inside a pocket to support ambush and retreat gameplay.
 
 ### Core Protector
-One of the four dedicated non-blocking barricades around Core.
+One of the four dedicated non-blocking barricades around Crown, the central objective formerly called Aether Altar.
 
 Current arrangement: N / E / S / W.
-
-### Former term: Altar Protector
-Deprecated. Use **Core Protector** in all new gameplay and design documentation.
 
 ### Central Gameplay Rock / Core Rock
 A large rock in the central combat area that can affect movement, line of sight and engagement geometry.
@@ -343,13 +337,14 @@ Unreal Engine 5 foundation and runtime integration.
 2. The authoritative symmetry transform is `(x, y, z) -> (-x, y, z)`.
 3. Symmetry tolerance is 0.25 m unless a subsystem defines a stricter rule.
 4. Decorative geometry is exempt only when it cannot affect gameplay.
-5. Existing objectives and bases must not drift during refinement stages unless the roadmap explicitly allows it.
+5. Existing objectives and Cores must not drift during refinement stages unless the roadmap explicitly allows it.
 6. Geometry changes must be validated with navigation, LOS, intersection and balance regression tests.
 7. `EXACT`, `APPROXIMATION`, `FALLBACK` and `DATA MISSING` must retain their literal meanings in reports.
 8. A version is not complete while a mandatory validation gate is failing.
-9. Top Flow, Middle Flow and Bottom Flow are strategic base-to-north corridors, not rigid three-lane MOBA lanes.
-10. **Core** is the canonical gameplay name for the former Aether Altar / Altar central area.
-11. **Core Protector** is the canonical gameplay name for the former Altar Protector.
+9. Top Flow, Middle Flow and Bottom Flow are strategic Core-to-north corridors, not rigid three-lane MOBA lanes.
+10. **Crown** is the canonical gameplay name for the central objective formerly called Aether Altar / Altar.
+11. **Blue Core** and **Red Core** are the canonical names for the two team bases.
+12. **AetherCore** remains a legacy implementation name only and is not the canonical player-facing name of the central objective.
 
 ---
 
