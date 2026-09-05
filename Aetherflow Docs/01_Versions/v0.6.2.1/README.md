@@ -2,7 +2,7 @@
 
 ## Status
 
-**IN PROGRESS — implementation pass**
+**IN PROGRESS — refinement implementation complete; Blender runtime verification pending**
 
 This version extends the existing v0.6.1 map without changing the fixed layout/topology.
 
@@ -20,56 +20,97 @@ The v0.6.1 gameplay audit reported:
 - no base spawn/shop/health-restore markers;
 - no resource or vegetation objects yet.
 
-Source audit: `Вставленный текст(20260905-161516).txt`, generated from the v0.6.1 Blender scene/export.
+## Measured v0.6.2.1 runtime baseline
 
-## Implemented
+The first real Blender 5.2 generation after the initial v0.6.2.1 implementation produced:
 
-### Gameplay Cover 2.0 foundation
+- objective cover: 10 objects across all 5 objectives (2/objective);
+- CoreCover total: 26;
+- actual evaluated-mesh intersections: 0;
+- navigation problems: 0;
+- pockets reachable: 4/4;
+- Blue/Red base fairness: 0% route-time difference;
+- overall auditor score: 88.2/100, up from 81.9/100;
+- warnings: 8, down from 20;
+- new objective-cover placement still produced **HIGH camping risk** at the four monolith objectives and the central Altar;
+- global OuterBoundary bbox warnings/errors remain and are treated as a separate pre-existing boundary task;
+- `AltarObstacles` remains data-missing;
+- resource and vegetation systems are still not integrated into the main pipeline.
 
-Added `core/gameplay_cover.py`.
+The run confirmed that the initial two-identical-rock implementation was technically active, but its visual impact was weak and its symmetric placement was tactically too camp-friendly.
 
-The module:
+## Refinement implemented on branch
 
-- reuses the existing cover architecture rather than introducing a second optimizer;
-- creates deterministic objective cover for all 5 objectives;
-- creates 2 controlled cover objects per objective (10 total);
-- registers explicit gameplay metadata for future navigation / LOS / UE5 export;
-- includes a targeted repair pass for inherited cover contacts found by the v0.6.1 audit.
+Branch: `v0-6-2-1-cover-refinement`
 
-### Inherited geometry repairs
+### Objective-cover architecture
 
-The repair pass currently addresses:
+`core/gameplay_cover.py` was rewritten so objective cover now uses the shared:
+
+`core.cover_analysis.optimize_cover(...)`
+
+instead of hard-coded identical positions.
+
+The refinement adds:
+
+- optimizer-driven candidate selection for each objective;
+- LOS, flank, movement and chokepoint weighting through the existing shared cover model;
+- a hard exclusion around the capture platform;
+- a clear radial approach/retreat lane;
+- up to 2 asymmetric flank-oriented cover pieces per objective;
+- deterministic fallback placement when optimizer thresholds reject too many candidates;
+- explicit metadata identifying `cover_source`, `cover_role`, objective ownership and optimizer score;
+- larger, more readable rock silhouettes than the first v0.6.2.1 pass.
+
+### Tactical intent
+
+The target arrangement is no longer “two equal rocks next to the point”.
+
+The intended geometry is:
+
+- cover toward the outer/flank side of the objective;
+- direct entry/retreat corridor kept open;
+- no cover inside the capture platform footprint;
+- asymmetric defensive/attacking roles rather than mirrored camping pockets;
+- enough physical mass to read clearly in the Blender viewport.
+
+### Existing repairs retained
+
+The inherited v0.6.1 repair pass remains active for:
 
 - central north pillar contact with the Aether Altar;
 - central SW/SE pocket-cover contacts;
 - central south-screen contact;
-- pocket cover vertical placement relative to the pocket floor lift.
+- pocket cover vertical placement relative to pocket floor lift.
 
-The repair pass intentionally does not modify layout, terrain, roads, ramps, pocket topology, or capture-point positions.
-
-### Pipeline integration
-
-The gameplay cover pass is integrated into the active generation pipeline after the fixed structural map is generated and before navigation/validation.
-
-## Versioning
-
-`VERSION.txt` is now `0.6.2.1` on this implementation branch.
+The refinement still does **not** change layout, terrain, roads, ramps, pocket topology, capture-point positions, or base positions.
 
 ## Verification state
 
-The code has been committed to branch `v0-6-2-1` and opened as Draft PR #1 against `main`.
+The repository connector can verify the committed source text, but this environment does not contain the user's Blender 5.2 runtime or a mounted copy of the local generated `.blend`, so the refinement has **not** been claimed as Blender-runtime verified yet.
 
-Blender 5.2 runtime verification still remains a required next step. The implementation must be validated against the real generated scene before this sub-version is considered complete.
+The previous measured run remains valid for the initial v0.6.2.1 implementation; new post-refinement values must be recorded after the user's Blender generation.
 
-## Next checks
+## Next runtime checks
 
-1. Generate the map in Blender 5.2.
-2. Run the gameplay auditor against the new `map_data.json`.
-3. Verify navigation coverage and route stability.
-4. Verify objective-cover counts and LOS impact.
-5. Verify actual mesh intersections are reduced, not merely hidden by metadata.
-6. Fix any regressions before moving to expanded rocks/environment.
+1. Generate the map from branch `v0-6-2-1-cover-refinement` in Blender 5.2.
+2. Run the existing gameplay auditor against the resulting `map_data.json`.
+3. Confirm all 5 objectives still report cover without platform intrusion.
+4. Confirm camping risk falls at Monolith and Altar objectives.
+5. Confirm navigation remains problem-free and pockets remain reachable 4/4.
+6. Confirm evaluated-mesh intersections remain zero.
+7. Record the new score, warning count, cover count, and route/camping metrics here before merge to `main`.
+8. Only after that, continue toward the vegetation/resource dressing stages.
+
+## Known separate issues
+
+The following are intentionally not mixed into this cover refinement:
+
+- global `OuterBoundary` bbox validation around the outer edge;
+- `AltarObstacles` missing data;
+- resources/pickups not yet integrated as full gameplay objects;
+- natural perimeter generation is present in code but is not yet called by the active pipeline.
 
 ## Completion criteria
 
-v0.6.2.1 is complete only when the regenerated scene passes the geometry/navigation/cover validation targets and the measured results are recorded here.
+v0.6.2.1 is complete only when the refined cover pass has been generated in Blender 5.2, the gameplay auditor has been rerun, the five objective camping risks are acceptable, and the resulting measured values are recorded here.
