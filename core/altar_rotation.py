@@ -10,7 +10,8 @@ Focused gameplay hardening for the v0.6.2.1 map:
   * compute a deterministic macro-rotation metric from the real nav routes
     between adjacent objectives, instead of treating every Base->Objective
     route as "rotation";
-  * keep secondary central rocks from re-colliding with repaired CoreCover.
+  * keep secondary central rocks from re-colliding with repaired CoreCover;
+  * enforce explicit mirror symmetry of Altar protectors for Blue/Red fairness.
 
 The altar obstacles intentionally use an unrecognised navigation/export kind
 (`altar_obstacle`), so they are exported as props and do not alter walkability.
@@ -134,27 +135,44 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
 
 
 def generate_altar_obstacles(ctx):
-    """Create four distinct non-blocking altar perimeter obstacles."""
+    """Create four explicitly team-symmetric, non-blocking altar protectors.
+
+    The Blue and Red bases are mirrored around the world Y axis (x -> -x),
+    so the altar protectors use the same symmetry plane.  Two mirrored pairs
+    are placed at equal |x| on a shared front/back y coordinate.  Every pair
+    uses identical geometry, height and footprint.  The obstacles remain
+    non-blocking for navigation; they are visual/LOS landmarks only.
+    """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
     ring_r = max(10.0, altar_r + 9.0)
     height = 2.6
     radius = 0.8
+
+    # Canonical pairs: (x, y) and (-x, y).  Because both pairs use the exact
+    # same |x| and opposite y signs, the set is mirrored across both axes and
+    # therefore cannot favour either Blue or Red approach.
+    x = ring_r / math.sqrt(2.0)
+    y = ring_r / math.sqrt(2.0)
+    specs = [
+        (1, +x, +y, "NW_SE_PAIR"),
+        (2, -x, +y, "NW_SE_PAIR"),
+        (3, -x, -y, "SW_NE_PAIR"),
+        (4, +x, -y, "SW_NE_PAIR"),
+    ]
+
     built = []
-
-    # Four diagonal positions keep the altar's cardinal sightlines usable.
-    for i, ang in enumerate((45.0, 135.0, 225.0, 315.0), 1):
-        rad = math.radians(ang)
-        pos = Vector((ring_r * math.cos(rad), ring_r * math.sin(rad),
-                      cfg["heights"]["AetherCore"]))
-
+    for i, px, py, pair_id in specs:
+        pos = Vector((px, py, cfg["heights"]["AetherCore"]))
         bm = bmesh.new()
         bmesh.ops.create_cone(
             bm, cap_ends=True, segments=8,
             radius1=radius, radius2=radius * 0.72, depth=height,
         )
-        bmesh.ops.translate(bm, verts=bm.verts,
-                            vec=pos + Vector((0.0, 0.0, height / 2.0)))
+        bmesh.ops.translate(
+            bm, verts=bm.verts,
+            vec=pos + Vector((0.0, 0.0, height / 2.0)),
+        )
 
         built.append(finalize_bmesh(
             bm,
@@ -169,6 +187,9 @@ def generate_altar_obstacles(ctx):
                 "non_blocking": True,
                 "ring_radius": round(ring_r, 3),
                 "role": "altar_perimeter_visual",
+                "symmetry_plane": "Y_AXIS",
+                "symmetry_pair": pair_id,
+                "mirror_of_blue_red": True,
             },
         ))
 
