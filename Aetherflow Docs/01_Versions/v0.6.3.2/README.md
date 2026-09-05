@@ -2,7 +2,7 @@
 
 ## Status
 
-**MINION TRAVERSAL AUDIT INTEGRATED — RUNTIME VALIDATION REQUIRED**
+**MINION TRAVERSAL AUDIT INTEGRATED — DEDICATED RUNTIME OUTPUT ENABLED**
 
 ## Baseline v0.6.3.1
 
@@ -77,6 +77,8 @@ The two scenarios use mirrored objective sequences and actual obstacle-aware Nav
 
 The report retains hop-level diagnostics and a final `passed` gate rather than hiding individual failures behind a single reachability result.
 
+The active Blender pipeline now prints a dedicated `MINION TRAVERSAL` summary during Stage 7A, including the Blue and Red scenario paths, pass/fail state, maximum slope, maximum adjacent height delta, blocker hits, ramp-base contacts, terrain-edge hits and narrow-corridor hits. Individual failing hops are printed explicitly.
+
 This is still a geometric/navigation regression, not a full Unreal minion simulation. A fresh Blender 5.2 runtime remains required to confirm the generated mesh behaves correctly for an actual minion actor.
 
 ## Repair policy
@@ -92,6 +94,14 @@ When the runtime confirms a real transition problem, the smallest suitable repai
 5. improve road/ramp continuity.
 
 Base/objective XY coordinates remain frozen and gameplay symmetry remains a hard validation gate.
+
+## Runtime result from latest user run
+
+The latest Blender 5.2 run successfully reached Stage 7A and generated the height-transition audit, but the log did not contain the dedicated `MINION TRAVERSAL` summary. The run therefore cannot be used as a final minion-traversal pass/fail result.
+
+The same run did expose concrete height-transition issues: 28 route problems, 4 pocket problems and 5 ramp problems. The repeated `corridor_below_minion_width` flag on routes is diagnostic and must be separated from actual minion traversal failure before any geometry repair is made.
+
+The next runtime must be taken from the branch after the pipeline logging change and must contain the dedicated Blue/Red minion regression output. Only those results should trigger geometry repair decisions.
 
 ## Required runtime pass
 
