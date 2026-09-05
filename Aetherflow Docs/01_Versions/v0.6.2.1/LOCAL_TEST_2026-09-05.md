@@ -19,7 +19,7 @@ Evidence:
 
 ## Problems carried into v0.6.3.1
 
-1. The six inherited `Core_Cover_*` objects cluttered the immediate Altar combat space and were removed intentionally. The four dedicated Altar barricades remain.
+1. Six inherited `Core_Cover_*` objects cluttered the immediate Altar combat space and were removed intentionally. The four dedicated Altar barricades remain.
 2. The local validator still reports legacy `OuterBoundary_*` bbox errors even though boundary generation reports collision PASS.
 3. The old auditor still reports `AltarObstacles: 0` even though live LOS sees all four protectors. This is classification/export mismatch.
 4. The old auditor's `21.6 s` rotation value is a legacy Base->CapturePoint metric; the pipeline's real adjacent-objective macro rotation is `34.07/26.55–37.50 s`.
@@ -28,15 +28,15 @@ Evidence:
 ## v0.6.3.1 terrain refinement
 
 Implemented on the SAME branch:
-- new `core/terrain_refinement.py` shared terrain profile;
-- AetherCore depression strengthened by a bounded multiplier;
-- Crown elevation strengthened by a bounded multiplier;
+- new `core/terrain_refinement.py` with bounded shared profile;
+- AetherCore depression strengthened;
+- Crown elevation strengthened;
 - West/East Monolith elevation strengthened equally;
-- South Rift depression strengthened by a bounded multiplier;
-- central transition radius widened slightly to keep slopes gradual;
-- terrain audit added to the pipeline with landmark heights and sampled max/average slope;
-- design slope target is `< 35°`;
-- objective coordinates, base coordinates and topology remain unchanged;
+- SouthRift depression strengthened;
+- central transition radius widened slightly for gradual slopes;
+- pipeline terrain audit added with landmark heights and sampled max/average slope;
+- target maximum sampled terrain slope `< 35°`;
+- objective/base XY coordinates and topology remain unchanged;
 - VERSION bumped to `0.6.3.1`.
 
 ## Current status
