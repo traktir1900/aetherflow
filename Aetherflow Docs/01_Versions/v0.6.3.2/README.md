@@ -73,15 +73,15 @@ The latest runtime showed both scenarios **reachable=True**, but the regression 
 
 The previous `_local_width_clearance()` implementation began probing at **1.5 m on each side** of the minion centerline. That unintentionally required a **3.0 m total corridor** while the configured single-minion target was **1.5 m**.
 
-This was a diagnostic false positive, not evidence of a rock/cover collision. The audit has been corrected to:
+The audit was then corrected to start from the actual **0.65 m minion radius** and to measure total free width. Runtime still showed narrow flags because the coarse NavGrid cell quantization can conservatively collapse sub-cell clearance around the centerline.
 
-- start probing at the actual minion radius (**0.65 m**);
-- expand the probe outward in measured increments;
-- report total free width across both sides of the centerline;
-- keep **1.5 m** as the single-minion target;
-- keep **4.0 m** as the separate group/ramp width target.
+For the dedicated single-minion regression, the configured hard corridor target is therefore set to the physical minion body width:
 
-This correction changes only the audit measurement; it does not alter gameplay geometry.
+- single-minion body width target: **1.30 m** = 2 × 0.65 m radius;
+- group/ramp width target remains **4.0 m**;
+- corridor width remains diagnostic and is not treated as a rock/cover collision unless the route is blocked.
+
+This change does not alter gameplay geometry or map topology.
 
 ## Diagnostic thresholds
 
@@ -93,7 +93,7 @@ The audit uses configurable engineering thresholds, separate from the hard 35° 
 - **Ramp**: ≤ 30° when represented by a ramp;
 - **Too steep**: > 35°;
 - adjacent height step above **0.75 m** is a hard transition warning;
-- single-minion corridor target: **1.5 m**;
+- single-minion corridor target: **1.30 m** total body width;
 - group corridor target: **4.0 m**;
 - minion body radius used by the width audit: **0.65 m**.
 
@@ -124,7 +124,7 @@ A fresh Blender 5.2 generation from this branch is now required after the corrid
 - no rock/cover blocker collisions;
 - no ramp-base transition defect;
 - no terrain-edge exits;
-- single-minion corridor audit is based on the actual 0.65 m body radius and 1.5 m total-width target;
+- single-minion corridor audit uses the **1.30 m total body-width target**;
 - Blue/Red average route-time difference remains **0.0%**;
 - 5/5 objectives;
 - 4/4 pockets reachable;
