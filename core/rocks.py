@@ -61,7 +61,7 @@ def _build_rock_mesh(ctx, radius, seed_rng):
 
 def make_rock(ctx, name, position, radius, collection_key="Rocks", material=None,
               element=None, rng=None):
-    """Create a rock whose mesh remains local and whose center is exact."""
+    """Create a rock with a local mesh and an exact world-space center."""
     cfg = ctx.config
     rng = rng or ctx.rng
     bm, sx, sy, sz, yaw = _build_rock_mesh(ctx, radius, rng)
@@ -92,21 +92,24 @@ def make_rock(ctx, name, position, radius, collection_key="Rocks", material=None
 
 
 def _mirror_rock_object(ctx, source, name, collection_key="Rocks"):
-    """Create an exact Y-axis mirror of a canonical rock."""
+    """Create an exact geometric Y-axis mirror of a canonical rock."""
     src_mesh = source.data
     mesh = src_mesh.copy()
 
-    # Mirror LOCAL geometry so the irregular silhouette itself is mirrored.
+    # The source mesh is local and centered. Mirroring its local X coordinate
+    # gives an exact silhouette mirror without any extra world-space offset.
     for vert in mesh.vertices:
         vert.co.x = -float(vert.co.x)
     mesh.update()
 
     obj = bpy.data.objects.new(name, mesh)
-    src_pos = source.location.copy()
-    obj.location = Vector((-float(src_pos.x), float(src_pos.y), float(src_pos.z)))
-    obj.rotation_euler = Vector((source.rotation_euler.x,
-                                 source.rotation_euler.y,
-                                 math.radians((180.0 - math.degrees(source.rotation_euler.z)) % 360.0)))
+    obj.location = Vector((-float(source.location.x),
+                           float(source.location.y),
+                           float(source.location.z)))
+    # The source geometry already contains its yaw. Do not rotate the mirrored
+    # object again; rotation here would introduce a second transform and make
+    # the apparent footprint drift relative to the source.
+    obj.rotation_euler = source.rotation_euler.copy()
     obj.scale = source.scale.copy()
     ctx.get_collection(collection_key).objects.link(obj)
 
@@ -147,9 +150,9 @@ def _tag_symmetry(ctx, names, pair_id):
 def scatter_core_rocks(ctx, count=None, ring_radius=None):
     """Generate central gameplay rocks as exact mirror pairs.
 
-    Exactly one canonical rock is randomized for each pair. The mirrored rock
-    receives the exact mirrored world center and a mirrored mesh. Both members
-    therefore have identical size, height and gameplay footprint.
+    Exactly one canonical rock is randomized for each pair. The opposite side
+    receives the exact mirror center and mirrored mesh, eliminating positional
+    drift and independent randomization between the teams.
     """
     cfg = ctx.config
     rock_cfg = cfg.get("rock", {})
@@ -169,8 +172,7 @@ def scatter_core_rocks(ctx, count=None, ring_radius=None):
         step = span / float(pair_count - 1)
         angles = [start + step * i for i in range(pair_count)]
 
-    # Keep canonical rocks comfortably away from the mirror plane so each pair
-    # remains visibly distinct and cannot overlap the center line.
+    # Keep canonical rocks visibly away from the mirror plane.
     min_x = max(5.0, ring * 0.42)
 
     for pair_index, ang in enumerate(angles, 1):
@@ -180,8 +182,8 @@ def scatter_core_rocks(ctx, count=None, ring_radius=None):
         radius = ctx.rand(rock_cfg.get("radius_min", 1.0), rock_cfg.get("radius_max", 2.0))
         right_pos = Vector((x, y, 0.0))
 
-        # One source of randomness only. The opposite side is never generated
-        # independently, eliminating the old visible positional drift.
+        # Only the canonical +X rock consumes random geometry. Its counterpart
+        # is never independently randomized.
         right = make_rock(
             ctx,
             "Core_Rock_{:02d}".format(pair_index + pair_count),
