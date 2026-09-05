@@ -1,5 +1,5 @@
 """
-AetherFlow :: core/config.py  (v0.6.0)
+AetherFlow :: core/config.py  (v0.6.3.2)
 SCALE-DRIVEN CONFIG — the single source for all map dimensions.
 """
 
@@ -44,6 +44,15 @@ CONFIG = {
         "require_team_symmetry": True,
         "symmetry_plane": "Y_AXIS",
         "mirror_axis": "x -> -x",
+    },
+    "height_transitions": {
+        "combat_max_deg": 15.0,
+        "minion_safe_max_deg": 18.0,
+        "walkable_max_deg": 25.0,
+        "ramp_max_deg": 30.0,
+        "hard_max_deg": 35.0,
+        "max_step_m": 0.75,
+        "min_group_width_m": 4.0,
     },
     "gameplay_symmetry": {
         "enabled": True,
@@ -130,7 +139,6 @@ CONFIG = {
         "enabled": True,
         "center_radius": _s(153.0), "entry_width": _s(30.0),
         "entry_gate": {"target_width": 10.0, "rock_radius": 1.3, "irregularity": 0.04, "height": 2.4},
-        "floor_lift": _s(0.45), "floor_skirt": _s(1.5),
         "rock_arc": {
             "span_deg": 168.0, "target_spacing": _s(7.95), "min_segments": 22, "max_segments": 30,
             "large_ratio": 0.18, "small_ratio": 0.18, "gap_min": _s(0.45), "gap_max": _s(1.05),
