@@ -1,6 +1,5 @@
 """
 AetherFlow :: core/config.py  (v0.6.0)
-
 SCALE-DRIVEN CONFIG — the single source for all map dimensions.
 """
 
@@ -42,6 +41,23 @@ CONFIG = {
         "south_rift_depth_multiplier": 1.50,
         "transition_radius_multiplier": 1.10,
         "max_expected_slope_deg": 35.0,
+        "require_team_symmetry": True,
+        "symmetry_plane": "Y_AXIS",
+        "mirror_axis": "x -> -x",
+    },
+    "gameplay_symmetry": {
+        "enabled": True,
+        "rule": "ALL_TEAM_CRITICAL_GEOMETRY_MUST_BE_MIRROR_SYMMETRIC",
+        "plane": "Y_AXIS",
+        "transform": "(x,y,z) -> (-x,y,z)",
+        "tolerance_m": 0.25,
+        "apply_to": [
+            "bases", "capture_points", "roads", "ramps", "pockets",
+            "gameplay_cover", "altar_protectors", "terrain_heights",
+            "gameplay_markers", "future_spawns", "future_shops"
+        ],
+        "decorative_exempt": True,
+        "validation_is_hard_gate": True,
     },
     "capture_platform_radius": _s(20.0),
     "capture_platform_height": _s(1.5),
@@ -103,6 +119,8 @@ CONFIG = {
         "bounds_margin": _s(6.0), "max_object_height": _s(30.0),
         "overlap_tolerance": _s(0.2), "require_all_capture_points": True,
         "require_both_bases": True, "reject_duplicate_names": True,
+        "require_gameplay_symmetry": True,
+        "gameplay_symmetry_tolerance_m": 0.25,
     },
     "scene": {
         "allow_scene_reset": False,
