@@ -31,19 +31,22 @@ Evidence:
 
 - `core/altar_rotation.py`: closest-vertex iterative Altar clearance repair;
 - `core/altar_rotation.py`: central `Core_Rock_*` outward repair;
-- `core/altar_rotation.py`: Altar protectors are generated from explicit mirrored coordinate pairs across the Y axis, matching the Blue/Red base symmetry plane. Paired protectors have identical geometry, footprint, height and radial distance to the Altar centre;
+- `core/altar_rotation.py`: Altar protectors are generated as explicit mirrored coordinate pairs. The Blue/Red symmetry plane is the Y axis (`x -> -x`), with identical geometry, height, footprint and distance to the Altar centre for every mirrored pair;
+- `core/config.py`: explicit `altar_protectors` balance contract (`count=4`, Y-axis mirror, front/back mirror, non-blocking navigation);
 - `core/pipeline.py`: explicit reload of `gameplay_cover`, `altar_rotation` and `validation` before each Blender pipeline rerun, eliminating stale-module mixing;
-- `core/config.py`: restored full scale-driven configuration after the development write check; no gameplay constants were changed by the protector-symmetry pass;
 - branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
 
 ## Altar protector balance contract
 
-The four `Altar_Obstacle_*` objects are a dedicated visual/LOS layer. Their placement is a strict balance invariant:
-- Blue and Red approaches use the same mirror plane (`Y_AXIS`, `x -> -x`);
-- each protector has an exact mirrored partner;
-- paired protectors use identical geometry, dimensions, height and distance to the Altar centre;
-- the set is symmetric in the front/back direction as well, so neither team gets a unique LOS blocker;
-- protectors remain non-blocking for navigation.
+This is a gameplay invariant, not merely a visual preference:
+
+- exactly **4** Altar protectors;
+- exactly **2 mirror pairs**;
+- Blue and Red approaches are mirror-equivalent under `x -> -x`;
+- front/back placement is also mirrored, so the full set is symmetric around the Altar;
+- every mirror pair has identical geometry, footprint, height and radius from the Altar centre;
+- no protector may exist only on one team's side;
+- protectors are non-blocking for navigation.
 
 ## Merge gate
 
@@ -57,5 +60,5 @@ Required:
 - objective gameplay cover = `10`;
 - minimum CoreCover-to-Altar clearance >= `8.0 m`;
 - four `Altar_Obstacle_*` objects present;
-- all four Altar protectors remain exactly team-symmetric;
+- strict team symmetry of all four Altar protectors;
 - `navigation.macro_rotation.all_reachable == true`.
