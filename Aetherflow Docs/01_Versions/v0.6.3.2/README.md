@@ -2,7 +2,7 @@
 
 ## Status
 
-**AUDIT INTEGRATED — RUNTIME VALIDATION REQUIRED**
+**MINION TRAVERSAL AUDIT INTEGRATED — RUNTIME VALIDATION REQUIRED**
 
 ## Baseline v0.6.3.1
 
@@ -60,6 +60,25 @@ These numbers are diagnostic controls for v0.6.3.2, not a justification for chan
 
 Every registered ramp is inspected for width, run length, height delta, graded/terrain-following mode, reachability and sampled slope where endpoints are available. Capture-point ramps already expose authoritative endpoints in metadata; the northern Crown access ramp remains a terrain-following ramp and is audited separately.
 
+## Minion traversal regression
+
+A dedicated deterministic scenario now runs for both teams:
+
+`Base → Objective → Objective → enemy Base`
+
+The two scenarios use mirrored objective sequences and actual obstacle-aware NavGrid paths. Every hop is checked for:
+
+- slope above the configured **Minion-safe** threshold;
+- adjacent height step above **0.75 m**;
+- direct contact with rocks or gameplay cover represented as blocked navigation cells;
+- ramp-base proximity and associated height discontinuity;
+- terrain-edge exits;
+- corridor clearance below the configured minimum for a minion.
+
+The report retains hop-level diagnostics and a final `passed` gate rather than hiding individual failures behind a single reachability result.
+
+This is still a geometric/navigation regression, not a full Unreal minion simulation. A fresh Blender 5.2 runtime remains required to confirm the generated mesh behaves correctly for an actual minion actor.
+
 ## Repair policy
 
 The audit module is read-only. It never changes geometry automatically.
@@ -76,7 +95,7 @@ Base/objective XY coordinates remain frozen and gameplay symmetry remains a hard
 
 ## Required runtime pass
 
-A fresh Blender 5.2 generation from this branch is required before declaring any height-transition problem confirmed or any repair necessary. Source inspection cannot prove hero/minion traversal, LOS readability or evaluated-mesh behaviour.
+A fresh Blender 5.2 generation from this branch is required before declaring any height-transition or minion-traversal problem confirmed or any repair necessary. Source inspection cannot prove hero/minion traversal, LOS readability or evaluated-mesh behaviour.
 
 The runtime report must then be compared with the baseline for:
 
@@ -87,7 +106,8 @@ The runtime report must then be compared with the baseline for:
 - evaluated-mesh intersections = 0;
 - gameplay symmetry = PASS;
 - terrain slope limit = 35°;
-- base/objective XY unchanged.
+- base/objective XY unchanged;
+- **minion traversal scenario passes for both teams**.
 
 ## Next stage
 
