@@ -2,7 +2,7 @@
 
 ## Status
 
-**BASELINE LOCKED — WORK STARTED**
+**AUDIT INTEGRATED — RUNTIME VALIDATION REQUIRED**
 
 ## Baseline v0.6.3.1
 
@@ -23,156 +23,70 @@ These values are the control set. Any v0.6.3.2 change must be compared against t
 
 v0.6.3.2 improves **height transitions** and traversal quality without redesigning the map topology.
 
-The stage evaluates:
+The stage evaluates terrain transitions by actual obstacle-aware navigation paths instead of relying only on a global maximum slope.
 
-- terrain height changes;
-- slopes;
-- ramps;
-- hero walkability;
-- minion traversal;
-- line-of-sight changes caused by elevation;
-- combat readability of high/low ground;
-- transition quality between Core/Altar, Crown, Monolith platforms and SouthRift;
-- regression impact on Blue/Red fairness.
+## Implemented audit system
 
-## Hard rules
+`core/height_transitions.py` is now part of the active pipeline.
 
-1. Do not move base or objective XY coordinates.
-2. Preserve the authoritative Y-axis gameplay symmetry: `(x,y,z) -> (-x,y,z)`.
-3. Do not introduce a team-critical asymmetry greater than **0.25 m**.
-4. Do not create new gameplay-breaking chokepoints.
-5. Fix only measured problems; do not redesign geometry by visual preference alone.
-6. Every geometry change requires regression validation.
+It measures:
 
-## Work sequence
+- Base → nearest objective;
+- Base → farthest objective;
+- every Base → Objective route;
+- every Objective → Objective route;
+- Altar/AetherCore → every objective;
+- SouthRift → southern Monoliths;
+- Main/Pocket transitions in both directions;
+- every generated ramp.
 
-### 1. Terrain transition audit
+Each measured transition reports reachability, route length, total height delta, maximum local slope, average local slope, maximum adjacent height delta and concrete problem flags.
 
-Measure representative routes:
+## Gameplay slope categories
 
-- Core → Crown;
-- Core → East/West Monolith;
-- Core → SE/SW Monolith;
-- SouthRift → southern objectives;
-- Flow routes through elevated/depressed areas;
-- pocket ↔ main-route transitions.
+The audit uses configurable engineering thresholds, separate from the hard 35° terrain ceiling:
 
-Record local slope, height delta and transition length.
+- **Combat slope**: ≤ 15°;
+- **Minion-safe**: ≤ 18°;
+- **Walkable**: ≤ 25°;
+- **Ramp**: ≤ 30° when represented by a ramp;
+- **Too steep**: > 35°.
 
-### 2. Walkability classification
+Adjacent height changes above **0.75 m** are also flagged as possible hard transition steps.
 
-Classify transitions as:
+These numbers are diagnostic controls for v0.6.3.2, not a justification for changing the map when no problem is measured.
 
-- Walkable;
-- Minion-safe;
-- Ramp-required;
-- Combat-readable;
-- Too steep / problematic.
+## Ramp inspection
 
-The goal is not simply to stay below 35°: the transition must also remain practical for the intended gameplay agents.
+Every registered ramp is inspected for width, run length, height delta, graded/terrain-following mode, reachability and sampled slope where endpoints are available. Capture-point ramps already expose authoritative endpoints in metadata; the northern Crown access ramp remains a terrain-following ramp and is audited separately.
 
-### 3. Ramp inspection
+## Repair policy
 
-Audit every existing ramp for:
+The audit module is read-only. It never changes geometry automatically.
 
-- height delta;
-- longitudinal slope;
-- width;
-- entry/exit continuity;
-- alignment with roads;
-- hero traversal;
-- minion traversal;
-- group traversal;
-- collision/intersection safety.
+When the runtime confirms a real transition problem, the smallest suitable repair is applied in this order:
 
-### 4. Height transition refinement
+1. increase transition radius;
+2. smooth the local height profile;
+3. reduce the local height difference;
+4. adjust an existing ramp;
+5. improve road/ramp continuity.
 
-Where a real problem is confirmed, apply the smallest suitable correction:
+Base/objective XY coordinates remain frozen and gameplay symmetry remains a hard validation gate.
 
-- increase transition radius;
-- smooth a local height change;
-- reduce excessive local slope;
-- adjust an existing ramp;
-- improve road/ramp continuity.
+## Required runtime pass
 
-Objective/base coordinates and map topology remain fixed.
+A fresh Blender 5.2 generation from this branch is required before declaring any height-transition problem confirmed or any repair necessary. Source inspection cannot prove hero/minion traversal, LOS readability or evaluated-mesh behaviour.
 
-### 5. Minion traversal regression
+The runtime report must then be compared with the baseline for:
 
-Test a representative continuous path:
-
-`Core → objectives → opposing side`
-
-Confirm no unacceptable steep section, height discontinuity, ramp failure or navigation break prevents a minion wave from traversing the route.
-
-### 6. LOS regression
-
-After every material height change, re-check objective and route LOS for:
-
-- Crown;
-- East/West Monoliths;
-- SE/SW Monoliths;
-- Core/Altar;
-- elevated approaches;
-- defensive high-ground positions.
-
-Avoid creating a one-sided high-ground advantage.
-
-### 7. Combat readability
-
-Confirm that elevation changes communicate clearly where:
-
-- high ground begins;
-- low ground begins;
-- ramps start/end;
-- routes remain traversable;
-- objectives remain visually readable.
-
-### 8. Symmetry validation
-
-All team-critical terrain and transition edits must remain mirrored across the Y axis. Corresponding ramps and route transitions must receive equivalent corrections.
-
-### 9. Navigation regression
-
-Required result:
-
-- navigation problems = **0**;
-- pockets reachable = **4/4**;
-- no new dead-end gameplay zones;
-- no loss of key routes.
-
-### 10. Geometry regression
-
-Required result:
-
-- evaluated-mesh intersections = **0**;
-- no new terrain/ramp/road/cover collisions;
-- no invalid overlap introduced by transition repair.
-
-### 11. Balance regression
-
-Compare against v0.6.3.1 baseline:
-
-- Blue/Red average route difference must remain **0.0%** or any deviation must be explicitly measured and judged acceptable;
-- nearest-objective equivalence must remain intact;
-- pocket route symmetry must remain intact;
-- macro rotation must not become disproportionately worse for one team.
-
-## Exit criteria
-
-v0.6.3.2 is complete only when all mandatory gates pass:
-
-- terrain transitions PASS;
-- walkability PASS;
-- minion traversal PASS;
-- ramps PASS;
-- LOS regression PASS;
-- combat readability PASS;
-- gameplay symmetry PASS;
-- navigation problems = **0**;
-- pockets = **4/4 reachable**;
-- evaluated-mesh intersections = **0**;
-- Blue/Red fairness preserved against baseline;
+- Blue/Red route difference = 0.0%;
+- 5/5 objectives;
+- 4/4 pockets reachable;
+- navigation problems = 0;
+- evaluated-mesh intersections = 0;
+- gameplay symmetry = PASS;
+- terrain slope limit = 35°;
 - base/objective XY unchanged.
 
 ## Next stage
