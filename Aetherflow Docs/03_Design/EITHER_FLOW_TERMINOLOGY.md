@@ -30,11 +30,14 @@ The larger non-gameplay floor surrounding the gameplay area. Current target: **2
 ### Outer Boundary
 The impassable outer perimeter defining the playable-world edge.
 
-### AetherCore
-The central terrain/combat landmark around the exact world origin.
+### Core
+The central strategic/combat area of the map, located around the exact world origin. The former term **Aether Altar / Altar** is retired as the gameplay area name. In all gameplay, level-design and documentation language, this area is now called **Core**.
 
-### Aether Altar
-The central altar/combat area associated with AetherCore.
+### Core Point / Core Area
+The central area associated with AetherCore and the primary central combat space. Use **Core** as the short gameplay-facing name.
+
+### AetherCore
+The central terrain/combat landmark around the exact world origin. This is the implementation/landmark name; gameplay-facing references should normally use **Core**.
 
 ### Aether Crown / Crown
 The northern capture objective and central strategic landmark.
@@ -119,13 +122,13 @@ Examples:
 A persistent strategic movement corridor running from the team's base toward the upper/northern part of the map. A Flow is a gameplay movement concept, not necessarily a single road mesh or a straight line.
 
 ### Top Flow
-The upper of the three base-to-north strategic movement corridors. It carries players and minions from a base toward the upper portion of the map and is used for rotation, pressure and approach to northern objectives.
+The upper base-to-north strategic movement corridor. It carries players and minions from a base toward the upper portion of the map and supports pressure and approach to the upper objectives.
 
 ### Middle Flow
-The central of the three base-to-north strategic movement corridors. It carries players and minions from a base through the central portion of the map toward the upper area, providing the most direct central rotation and access to contested central space.
+The central base-to-north strategic movement corridor. It carries players and minions from a base through the central portion of the map toward the upper area, providing the main central rotation and access to Core.
 
 ### Bottom Flow
-The lower of the three base-to-north strategic movement corridors. It carries players and minions from a base through the lower portion of the map toward the upper area, supporting side pressure, flank movement and southern-to-northern rotation.
+The lower base-to-north strategic movement corridor. It carries players and minions from a base through the lower portion of the map toward the upper area, supporting side pressure, flank movement and southern-to-northern rotation.
 
 ### Flow Rule
 Top Flow, Middle Flow and Bottom Flow describe **three strategic base-to-north movement corridors**. They are not intended to turn the map into three rigid classical MOBA lanes. Each Flow may contain multiple roads, branches, ramps, intersections, pockets and rotation connections.
@@ -204,10 +207,13 @@ Cover located around a capture objective, intentionally positioned without block
 ### Pocket Cover
 Gameplay cover placed inside a pocket to support ambush and retreat gameplay.
 
-### Altar Protector
-One of the four dedicated non-blocking barricades around Aether Altar.
+### Core Protector
+One of the four dedicated non-blocking barricades around Core.
 
 Current arrangement: N / E / S / W.
+
+### Former term: Altar Protector
+Deprecated. Use **Core Protector** in all new gameplay and design documentation.
 
 ### Central Gameplay Rock / Core Rock
 A large rock in the central combat area that can affect movement, line of sight and engagement geometry.
@@ -342,9 +348,13 @@ Unreal Engine 5 foundation and runtime integration.
 7. `EXACT`, `APPROXIMATION`, `FALLBACK` and `DATA MISSING` must retain their literal meanings in reports.
 8. A version is not complete while a mandatory validation gate is failing.
 9. Top Flow, Middle Flow and Bottom Flow are strategic base-to-north corridors, not rigid three-lane MOBA lanes.
+10. **Core** is the canonical gameplay name for the former Aether Altar / Altar central area.
+11. **Core Protector** is the canonical gameplay name for the former Altar Protector.
 
 ---
 
 # 12. Terminology Growth Rule
 
 Whenever a new gameplay system introduces a project-specific term, its definition must be added here before the term becomes part of the canonical design vocabulary.
+
+Deprecated gameplay terms must be explicitly marked and must not be used for new design or implementation naming unless required for backwards-compatible code identifiers.
