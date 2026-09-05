@@ -96,8 +96,11 @@ def _pick_objective_cover(ctx, pname, point):
     near = [s for s in usable if _valid_tactical(s, scale, OBJECTIVE_NEAR_MIN, OBJECTIVE_NEAR_MAX)]
     far = [s for s in usable if _valid_tactical(s, scale, OBJECTIVE_FAR_MIN, OBJECTIVE_FAR_MAX)]
 
-    near.sort(key=lambda s: (-float(s.get("optimizer_score", stats.get("gameplay_score", 0.0))), _dist_local(s)))
-    far.sort(key=lambda s: (-float(s.get("optimizer_score", stats.get("gameplay_score", 0.0))), -_dist_local(s)))
+    def quality(s):
+        return float(s.get("optimizer_score", stats.get("gameplay_score", 0.0)))
+
+    near.sort(key=lambda s: (-quality(s), _dist_local(s)))
+    far.sort(key=lambda s: (-quality(s), -_dist_local(s)))
 
     selected = []
     if near:
@@ -109,31 +112,26 @@ def _pick_objective_cover(ctx, pname, point):
     if far:
         selected.append(far[0])
 
-    # Deterministic fallback guarantees the second piece is DEEP, never another
-    # near-ring piece. If optimizer supplies no valid near candidate, use a near
-    # fallback first; if it supplies no valid far candidate, use the deep fallback.
+    # Hard invariant: every objective gets exactly two pieces. If the optimizer
+    # cannot provide the second valid candidate, add a deterministic deep-flank
+    # fallback on the opposite tangent side. This fallback is NEVER another
+    # near-ring piece.
     if not selected:
         selected.append(_make_fallback((-15.0 * scale, 4.5 * scale), 0, scale))
 
-    if len(selected) < OBJECTIVE_COVER_MAX:
-        deep_pool = [(-24.0 * scale, 7.0 * scale), (24.0 * scale, 7.0 * scale)]
-        deep_xy = None
-        for xy in deep_pool:
-            if math.hypot(xy[0] - selected[0]["local"][0], xy[1] - selected[0]["local"][1]) >= OBJECTIVE_COVER_PAIR_MIN * scale:
-                deep_xy = xy
-                break
-        if deep_xy is not None:
-            selected.append(_make_fallback(deep_xy, 1, scale))
+    if len(selected) < 2:
+        first_x = selected[0]["local"][0]
+        deep_x = -24.0 * scale if first_x >= 0.0 else 24.0 * scale
+        selected.append(_make_fallback((deep_x, 7.0 * scale), 1, scale))
 
-    # Absolute safety: if optimizer selected two pieces, enforce the intended
-    # near/deep order. This does not change the optimiser source score; it only
-    # chooses which role each accepted piece receives.
-    if len(selected) >= 2:
-        selected.sort(key=_dist_local)
-        if _dist_local(selected[0]) > OBJECTIVE_NEAR_MAX * scale:
-            selected[0] = _make_fallback((-15.0 * scale, 4.5 * scale), 0, scale)
-        if _dist_local(selected[1]) < OBJECTIVE_FAR_MIN * scale:
-            selected[1] = _make_fallback((24.0 * scale, 7.0 * scale), 1, scale)
+    # Absolute safety: force one near ring + one deep ring while preserving the
+    # optimizer's chosen candidates whenever they satisfy the tactical bands.
+    selected.sort(key=_dist_local)
+    if not _valid_tactical(selected[0], scale, OBJECTIVE_NEAR_MIN, OBJECTIVE_NEAR_MAX):
+        selected[0] = _make_fallback((-15.0 * scale, 4.5 * scale), 0, scale)
+    if not _valid_tactical(selected[1], scale, OBJECTIVE_FAR_MIN, OBJECTIVE_FAR_MAX):
+        second_x = 24.0 * scale if selected[0]["local"][0] < 0.0 else -24.0 * scale
+        selected[1] = _make_fallback((second_x, 7.0 * scale), 1, scale)
 
     return selected[:OBJECTIVE_COVER_MAX], stats
 
@@ -192,7 +190,7 @@ def _make_cover(ctx, name, objective_name, point, local_x, local_y,
 
 
 def _repair_known_cover_contacts(ctx):
-    """Repair exact inherited contacts reported by the v0.6.1 audit."""
+    """Repair inherited contacts and open the central Altar fighting space."""
     cfg = ctx.config
     scale = float(cfg.get("ground_half_size", 100.0)) / 100.0
     lift = cfg.get("pockets", {}).get("floor_lift", 0.0)
@@ -203,11 +201,17 @@ def _repair_known_cover_contacts(ctx):
         if name.startswith(("WestPocket_Cover", "EastPocket_Cover", "SWPocket_Cover", "SEPocket_Cover")):
             obj.location.z += lift
 
+    # Move the inherited central cover away from the Altar. The original
+    # arrangement was designed around the older 600 m layout and was too tight
+    # after the unified 200 m map scaling. Keep a ring of meaningful combat cover
+    # while restoring a readable fighting radius around the Altar.
     moves = {
-        "Core_Cover_Pillar_North": (0.0, 1.0 * scale),
-        "Core_Cover_Pocket_SW": (-0.8 * scale, -0.4 * scale),
-        "Core_Cover_Pocket_SE": (0.8 * scale, -0.4 * scale),
-        "Core_Cover_SouthScreen": (0.0, -0.6 * scale),
+        "Core_Cover_Pillar_North": (0.0, 6.5 * scale),
+        "Core_Cover_LCover_West": (-6.8 * scale, 1.8 * scale),
+        "Core_Cover_LCover_East": (6.8 * scale, 1.8 * scale),
+        "Core_Cover_Pocket_SW": (-5.2 * scale, -3.0 * scale),
+        "Core_Cover_Pocket_SE": (5.2 * scale, -3.0 * scale),
+        "Core_Cover_SouthScreen": (0.0, -6.0 * scale),
     }
     for rec in ctx.generated_objects:
         if rec["name"] in moves:
@@ -217,7 +221,7 @@ def _repair_known_cover_contacts(ctx):
 
 
 def generate_objective_cover(ctx):
-    """Create two tactical cover pieces for all five objectives."""
+    """Create exactly two tactical cover pieces for all five objectives."""
     built = []
     analyses = {}
 
