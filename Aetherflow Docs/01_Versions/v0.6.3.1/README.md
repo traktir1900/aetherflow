@@ -2,117 +2,63 @@
 
 ## Status
 
-**IMPLEMENTED — RUNTIME VALIDATION PENDING**
+**BALANCE VALIDATED — CLOSED; TECHNICAL PERIMETER/EXPORT WARNINGS REMAIN**
 
-## Purpose
+## Result
 
-Strengthen the readability of the existing terrain profile without rebuilding the map. The existing 5-objective layout, 2 bases, roads, ramps and 4 pockets remain fixed.
+Fresh Blender 5.2 runtime validated the gameplay-balance targets:
 
-## NEW HARD PROJECT RULE — TEAM SYMMETRY
+- Blue/Red average route time: **19.1 s / 19.1 s**;
+- Blue/Red fairness difference: **0.0% — BALANCED**;
+- nearest objective distance: **45.3 m / 45.3 m**;
+- 4/4 gameplay pockets reachable and mirrored;
+- objective cover symmetry: **PASS** for West↔East, SW↔SE and Crown;
+- 4 live Altar_Obstacle_* objects present and symmetric;
+- evaluated-mesh intersections: **0**;
+- navigation problems: **0**;
+- Deathball risk: **LOW**;
+- Snowball risk: **LOW**;
+- 4 flank/comeback pockets available.
 
-From v0.6.3 onward, **all team-critical gameplay geometry must be symmetric for both teams**.
+Overall auditor score: **89.0/100**. The remaining deductions/warnings are technical validation/export issues, not team-balance asymmetry.
 
-The authoritative mirror is the world Y axis:
+## Remaining technical warnings
+
+The generation still reports legacy bbox warnings for the decorative outer boundary sections extending beyond the old 200 m gameplay bbox. The live boundary itself is outside the playable envelope by design.
+
+The auditor also reports the four live Altar obstacles as absent from `map_data.json`; the live-scene scan simultaneously confirms all four exist. This is an export/inspection mismatch and must be cleaned up before final MAP LOCK.
+
+## Hard symmetry rule
+
+All team-critical gameplay geometry must be mirrored across the world Y axis:
 
 `(x, y, z) -> (-x, y, z)`
 
-This is a balance invariant, not a visual preference.
+Tolerance: `0.25 m`.
 
-The hard symmetry gate covers:
-
-- Blue Base ↔ Red Base;
-- WestMonolith ↔ EastMonolith;
-- SWMonolith ↔ SEMonolith;
-- roads and ramps that form team-critical routes;
-- gameplay cover;
-- pockets and pocket entrances;
-- Altar protectors;
-- central Core_Rock_* gameplay rocks;
-- terrain height field;
-- gameplay markers and future spawn/shop locations.
-
-Allowed geometric tolerance: `0.25 m` unless a stricter subsystem-specific rule applies.
-
-Decorative-only assets may vary, but they must never create a gameplay advantage. Any gameplay-critical asymmetry is a **validation error** and blocks a clean generation.
+This applies to bases, objectives, roads, ramps, gameplay cover, pockets, Altar protectors, central gameplay rocks, terrain and future gameplay markers. Decorative assets may vary only when they cannot affect movement, LOS, cover, collision, pathing or access.
 
 ## Core rock refinement
 
-The central rock system is required to be mirror-symmetric because central rocks affect line of sight, movement and combat space.
-
-The intended generator contract is now stricter:
-
-- even central-rock count only;
-- one canonical rock per pair on the +X half of the arena;
-- exact world-center mirror on the -X half;
-- mirrored irregular silhouette;
-- identical dimensions and gameplay footprint for both members;
-- deterministic seeded generation;
-- stable symmetry pair IDs;
-- generation failure when the configured central-rock count is odd.
-
-The rock mesh is kept in local coordinates and the world position is assigned separately. This prevents hidden mesh-space translation from producing the visible positional drift that was observed between the two sides.
-
-With the current `count_core = 6`, the central field is **3 mirror pairs / 6 large gameplay rocks**.
+Central gameplay rocks are generated as exact geometric mirror pairs. With `count_core = 6`, the center contains **3 pairs / 6 large gameplay rocks**. Each pair shares the same dimensions, irregular silhouette and gameplay footprint, with world-space mirror placement.
 
 ## Objective-cover symmetry hardening
 
-The fresh v0.6 auditor run exposed a real objective-cover symmetry defect. The generator was independently selecting cover in each objective-local tangent basis, which could produce different world-space positions after the Y-axis mirror.
-
-The fix now selects one canonical cover plan for each mirrored objective pair and derives the other side from the exact world-space mirror `(x,y) -> (-x,y)`. Crown uses the same rule as a self-mirrored objective.
+Each mirrored objective pair now uses one canonical cover plan, then derives the opposite side from the exact world-space Y-axis mirror. Crown is self-mirrored. This removes local-basis handedness drift.
 
 ## Safe failed-generation rollback
 
-The active pipeline now snapshots all managed AetherFlow objects before Stage 1 clears the managed collections.
+The pipeline snapshots managed AetherFlow objects before destructive regeneration and restores them if a later stage fails. The snapshot is discarded after successful generation.
 
-If any later generation stage raises an exception, the pipeline:
-
-- reports the generation error;
-- removes the incomplete generated managed scene;
-- restores the pre-run managed objects from the temporary snapshot;
-- leaves the user/hand-placed scene untouched;
-- re-raises the original exception so the actual code error remains visible.
-
-After a successful generation, the temporary snapshot is discarded.
-
-## Changes
-
-The shared analytic terrain profile applies bounded multipliers to the existing anchors:
+## Terrain changes
 
 - AetherCore depression: `×1.65`;
 - Crown elevation: `×1.60`;
-- West/East Monolith elevation: `×1.60`, identically;
+- West/East Monolith elevation: `×1.60`;
 - SouthRift depression: `×1.50`;
-- central transition radius: `×1.10`.
+- central transition radius: `×1.10`;
+- maximum sampled terrain slope validated at **26.14°**, below the **35°** design limit.
 
-These multipliers are applied at height evaluation time; the original spatial radii and layout coordinates remain unchanged.
+## Closure
 
-The pipeline runs a dedicated `gameplay_symmetry` hard gate after normal validation. The result is exported inside the validation report and printed as `GAMEPLAY SYMMETRY: PASS/FAIL`.
-
-## Terrain audit
-
-The pipeline reports:
-
-- effective height at AetherCore/Crown/WestMonolith/EastMonolith/SouthRift;
-- sampled minimum and maximum terrain height;
-- maximum sampled slope;
-- average sampled slope;
-- pass/fail against the `35°` design limit;
-- explicit symmetry validation for the analytic terrain;
-- explicit core-rock symmetry validation;
-- explicit flags confirming topology, objective and base coordinates remain unchanged.
-
-## Next test
-
-Run the complete pipeline in Blender 5.2 and inspect:
-
-1. central AetherCore slope/readability;
-2. Crown and monolith elevation readability;
-3. South Rift depression;
-4. **large central rock pairs from top view — both sides must be exact Y-axis mirrors**;
-5. terrain slope audit;
-6. **GAMEPLAY SYMMETRY: PASS**;
-7. navigation reachability;
-8. existing Altar/objective cover composition;
-9. mesh intersections and validation errors.
-
-Do not mark v0.6.3.1 complete until the fresh runtime confirms both gameplay balance symmetry and the existing gameplay metrics remain valid.
+The **balance-validation objective of v0.6.3.1 is complete**. The project now moves to **v0.6.3.2 — HEIGHT TRANSITIONS**. The outer-boundary bbox and Altar export mismatch remain tracked technical cleanup items and must be resolved before final MAP LOCK.
