@@ -2,7 +2,8 @@
 AetherFlow :: core/pipeline.py  (v0.6.2.1)
 
 The SINGLE active generation pipeline.
-v0.6.2.1 adds the gameplay-cover pass without rebuilding map topology.
+v0.6.2.1 adds gameplay cover, altar hardening and deterministic rotation metrics
+without rebuilding map topology.
 """
 import os
 import time
@@ -20,6 +21,7 @@ from core.validation import run_validation
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
 from core.gameplay_cover import run_gameplay_cover_pass, repair_outer_boundary_for_legacy_bounds
+from core.altar_rotation import ensure_altar_clearance, generate_altar_obstacles, analyze_macro_rotation
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -74,14 +76,27 @@ def run_pipeline(ctx=None, export=True):
     rocks = scatter_core_rocks(ctx)
     print("  -> rocks built: {}".format(len(rocks)))
 
+    print("[STAGE 5A/10] Altar hardening")
+    altar_built = generate_altar_obstacles(ctx)
+    altar_repairs = ensure_altar_clearance(ctx)
+    print("  -> altar obstacles: {} (non-blocking)".format(len(altar_built)))
+    for name, before, after in altar_repairs:
+        print("  -> altar clearance repair: {} {:.2f}m -> {:.2f}m".format(name, before, after))
+
     print("[STAGE 6/10] Gameplay pockets (4 symmetrical)")
     pkts = pockets.generate_pockets(ctx)
     print("  -> pockets built: {} ({} objects)".format(len(ctx.pockets), len(pkts)))
 
     print("[STAGE 6A/10] Gameplay Cover 2.0")
     cover = run_gameplay_cover_pass(ctx)
+    # Cover generation can move central cover; re-enforce the real mesh
+    # clearance after the final cover pass as well.
+    altar_repairs_after_cover = ensure_altar_clearance(ctx)
     print("  -> objective gameplay cover: {} across {} objectives".format(
         cover["objective_cover_count"], cover["objectives_covered"]))
+    for name, before, after in altar_repairs_after_cover:
+        print("  -> post-cover altar clearance repair: {} {:.2f}m -> {:.2f}m".format(
+            name, before, after))
 
     print("[STAGE 6B/10] Global outer elliptical perimeter")
     boundary.generate_outer_boundary(ctx)
@@ -93,12 +108,18 @@ def run_pipeline(ctx=None, export=True):
     print("[STAGE 7/10] Navigation (obstacle-aware grid)")
     grid = build_grid(ctx)
     nav = run_navigation_checks(ctx, grid)
+    nav["macro_rotation"] = analyze_macro_rotation(ctx, nav)
     for prob in nav["problems"]:
         print("  [NAV] " + prob)
     print("  -> chokepoints detected: {}".format(len(nav["chokepoints"])))
     print("  -> pockets reachable: {}/{}".format(
         sum(1 for p in nav.get("pockets", []) if p["reachable"]),
         len(nav.get("pockets", []))))
+
+    mr = nav["macro_rotation"]
+    if mr["variance_s"] is not None:
+        print("  -> macro rotation (adjacent objectives): avg {:.2f}s | min {:.2f}s | max {:.2f}s | variance {:.2f}s".format(
+            mr["average_time_s"], mr["min_time_s"], mr["max_time_s"], mr["variance_s"]))
 
     print("[STAGE 8/10] Combat simulation (5/5 capture points, nav-driven)")
     sim = simulation.run_simulation(ctx, grid, nav_report=nav)
