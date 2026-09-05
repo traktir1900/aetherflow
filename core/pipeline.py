@@ -1,9 +1,9 @@
 """
-AetherFlow :: core/pipeline.py  (v0.6.2.1)
+AetherFlow :: core/pipeline.py  (v0.6.3.1)
 
 The SINGLE active generation pipeline.
-v0.6.2.1 adds gameplay cover, altar hardening and deterministic rotation metrics
-without rebuilding map topology.
+v0.6.3.1 adds bounded terrain refinement while preserving map topology,
+objective/base anchors, roads, ramps and pocket layout.
 """
 import importlib
 import os
@@ -24,6 +24,7 @@ from core.rocks import scatter_core_rocks
 import core.gameplay_cover as gameplay_cover_module
 import core.altar_rotation as altar_rotation_module
 import core.validation as validation_module
+import core.terrain_refinement as terrain_refinement_module
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -38,15 +39,15 @@ def _project_root():
 
 
 def _reload_runtime_modules():
-    """Reload project modules that are intentionally edited between Blender runs.
-
-    Blender keeps imported Python modules in sys.modules. Without an explicit
-    reload, a second Run Script in the same Blender session can execute stale
-    versions of gameplay_cover / altar_rotation / validation even though the
-    files on disk were updated.  This is the reason earlier local logs showed
-    new pipeline banners mixed with old validation behaviour.
-    """
+    """Reload modules intentionally edited during iterative Blender runs."""
     global gameplay_cover_module, altar_rotation_module, validation_module
+    global terrain_refinement_module, terrain
+    terrain_refinement_module = importlib.reload(terrain_refinement_module)
+    # heightmap reads terrain_refinement at import time, so reload it before
+    # terrain generation on every Run Script.
+    import core.heightmap as heightmap_module
+    heightmap_module = importlib.reload(heightmap_module)
+    terrain = importlib.reload(terrain)
     gameplay_cover_module = importlib.reload(gameplay_cover_module)
     altar_rotation_module = importlib.reload(altar_rotation_module)
     validation_module = importlib.reload(validation_module)
@@ -80,6 +81,19 @@ def run_pipeline(ctx=None, export=True):
 
     print("[STAGE 3/10] Terrain + safety floor")
     terrain.generate_terrain(ctx, debug_tint=cfg.get("debug_sightlines", True))
+    profile = terrain_refinement_module.analyze_height_profile(cfg, ctx.layout)
+    p = terrain_refinement_module.get_profile(cfg)
+    print("  -> terrain refinement: enabled={} | core_depth x{:.2f} | Crown x{:.2f} | monolith x{:.2f} | SouthRift x{:.2f}".format(
+        profile["enabled"], p["core_depth_multiplier"], p["crown_height_multiplier"],
+        p["monolith_height_multiplier"], p["south_rift_depth_multiplier"]))
+    print("  -> terrain anchors: Core={:.3f}m Crown={:.3f}m West={:.3f}m East={:.3f}m SouthRift={:.3f}m".format(
+        profile["landmark_heights_m"]["AetherCore"], profile["landmark_heights_m"]["Crown"],
+        profile["landmark_heights_m"]["WestMonolith"], profile["landmark_heights_m"]["EastMonolith"],
+        profile["landmark_heights_m"]["SouthRift"]))
+    print("  -> terrain slope audit: max {:.2f}° | avg {:.2f}° | limit {}° | {}".format(
+        profile["max_slope_deg"], profile["average_slope_deg"],
+        p["max_expected_slope_deg"],
+        "PASS" if profile["slope_within_design_limit"] else "FAIL"))
     terrain.generate_safety_floor(ctx)
 
     print("[STAGE 4/10] Structures (altar/crown, points, bases, cover, roads, ramps)")
@@ -108,8 +122,6 @@ def run_pipeline(ctx=None, export=True):
 
     print("[STAGE 6A/10] Gameplay Cover 2.0")
     cover = gameplay_cover_module.run_gameplay_cover_pass(ctx)
-    # Cover generation can move central cover; re-enforce the real mesh
-    # clearance after the final cover pass as well.
     altar_repairs_after_cover = altar_rotation_module.ensure_altar_clearance(ctx)
     print("  -> objective gameplay cover: {} across {} objectives".format(
         cover["objective_cover_count"], cover["objectives_covered"]))
@@ -173,5 +185,6 @@ def run_pipeline(ctx=None, export=True):
         "navigation": nav,
         "simulation": sim,
         "gameplay_cover": cover,
+        "terrain_refinement": profile,
         "map_data": out_path,
     }
