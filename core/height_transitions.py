@@ -34,7 +34,7 @@ DEFAULT_RULES = {
     "hard_max_deg": 35.0,
     "max_step_m": 0.75,
     "min_group_width_m": 4.0,
-    "minion_corridor_width_m": 2.5,
+    "minion_corridor_width_m": 1.5,
     "ramp_base_tolerance_m": 0.20,
     "terrain_edge_margin_m": 0.25,
     "minion_radius_m": 0.65,
@@ -87,15 +87,27 @@ def _ramp_base_proximity(ctx, p, tolerance):
     return best
 
 
-def _local_width_clearance(ctx, grid, p, direction, probe_length=1.5):
-    """Estimate lateral free width by probing both sides of the minion centerline."""
+def _local_width_clearance(ctx, grid, p, direction):
+    """Estimate usable corridor width around a minion centerline.
+
+    The previous implementation started probing at 1.5 m on EACH side, which
+    unintentionally required a 3.0 m corridor for a 1.5 m target. That created
+    false minion failures on otherwise traversable routes. The probe now starts
+    at the actual minion radius and expands outward, so the returned value is
+    the total free width around the centerline.
+    """
     if direction.length <= 1e-6:
         return None
+    rules = _rules(ctx.config)
     d = Vector((direction.x, direction.y, 0.0)).normalized()
     n = Vector((-d.y, d.x, 0.0))
     center = Vector((p.x, p.y, 0.0))
+
+    # Keep the body itself clear first, then measure additional margin.
+    start = max(0.0, float(rules["minion_radius_m"]))
+    offsets = [start, start + 0.25, start + 0.50, start + 0.75, start + 1.25, start + 1.75, start + 2.35]
     max_free = 0.0
-    for offset in (1.5, 2.0, 2.5, 3.0):
+    for offset in offsets:
         left = center + n * offset
         right = center - n * offset
         left_blocked = not _terrain_inside(ctx, left) or grid.cell_of(left) in grid.blocked
@@ -339,9 +351,6 @@ def _route_blocker_report(ctx, grid, cells):
     for i, p in enumerate(pts):
         if not _terrain_inside(ctx, p):
             terrain_edge_hits.append({"segment": i, "point": [round(p.x, 3), round(p.y, 3)]})
-        # The NavGrid already models rocks and gameplay cover as blocked cells.
-        # We nevertheless keep a separate audit channel so the minion scenario
-        # says exactly why a route is unsafe.
         if grid.cell_of(Vector((p.x, p.y, 0.0))) in grid.blocked:
             blocker_hits.append({"segment": i, "point": [round(p.x, 3), round(p.y, 3)]})
         ramp = _ramp_base_proximity(ctx, p, rules["ramp_base_tolerance_m"])
@@ -375,8 +384,6 @@ def _minion_hop(ctx, grid, a_name, b_name):
     if blockers["solid_blocker_hits"]:
         problems.append("minion_blocker_collision")
     if blockers["ramp_base_contacts"]:
-        # Endpoint contact itself is not a defect; the route is only rejected
-        # when the recorded ramp base is accompanied by a bad transition.
         if any(s.get("dz_m", 0.0) > _rules(ctx.config)["max_step_m"] for s in analysis.get("sampled_segments", [])):
             problems.append("ramp_base_or_height_step")
     if blockers["terrain_edge_hits"]:
