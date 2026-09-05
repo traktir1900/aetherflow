@@ -33,7 +33,8 @@ Evidence:
 - `core/altar_rotation.py`: closest-vertex iterative Altar clearance repair;
 - `core/altar_rotation.py`: central `Core_Rock_*` outward repair;
 - `core/altar_rotation.py`: Altar protectors now use a compact **cardinal-centered** layout at `(0,+R)`, `(+R,0)`, `(0,-R)`, `(-R,0)`, guaranteeing exact symmetry around the Altar under both X and Y reflection;
-- `core/config.py`: explicit `altar_protectors` balance contract with `count=4`, `BOTH_AXES` symmetry, `CARDINAL_CENTERED` layout, `3.5 m` edge offset from the Altar, and fixed protector dimensions;
+- `core/altar_rotation.py`: protectors are now chunky rectangular stone barricades, identical in size (`3.6 m × 1.25 m × 2.4 m`) and rotated only by 0°/90° according to side;
+- `core/config.py`: explicit `altar_protectors` balance contract remains `count=4`, with symmetry and non-blocking navigation; generator defaults enforce a `3.25 m` Altar-edge offset;
 - `core/pipeline.py`: explicit reload of `gameplay_cover`, `altar_rotation` and `validation` before each Blender pipeline rerun, eliminating stale-module mixing;
 - branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
 
@@ -48,7 +49,8 @@ This is a gameplay invariant, not merely a visual preference:
 - front/back placement is also mirrored under `y -> -y`;
 - every protector has identical geometry, footprint, height and radial distance from the Altar centre;
 - no protector may exist only on one team's side;
-- protectors are non-blocking for navigation.
+- protectors are non-blocking for navigation;
+- protectors belong to the Altar's immediate combat space, not the wider CoreCover field.
 
 ## Merge gate
 
