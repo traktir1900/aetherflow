@@ -88,7 +88,7 @@ def generate_altar_obstacles(ctx):
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
     ring_r = max(10.0, altar_r + 9.0)
-    height = max(2.0, cfg["heights"]["AetherCore"] * 0.0 + 2.6)
+    height = 2.6
     radius = 0.8
     built = []
 
@@ -128,17 +128,20 @@ def generate_altar_obstacles(ctx):
 def analyze_macro_rotation(ctx, nav_report):
     """Measure the real 5-objective ring rotation from obstacle-aware nav data."""
     routes = nav_report.get("routes", {}) if nav_report else {}
+    points = list(RING_NODES)
+    speed = float(ctx.config.get("simulation", {}).get("agent_speed", 6.0))
+    speed = speed if speed > 0.0 else 6.0
     rows = []
 
-    for i, a in enumerate(RING_NODES):
-        b = RING_NODES[(i + 1) % len(RING_NODES)]
+    for i, a in enumerate(points):
+        b = points[(i + 1) % len(points)]
         key_ab = "{}->{}".format(a, b)
         key_ba = "{}->{}".format(b, a)
         d = routes.get(key_ab)
         if d is None:
             d = routes.get(key_ba)
         rows.append({"from": a, "to": b, "distance_m": d,
-                     "time_s": None if d is None else round(float(d) / 6.0, 2)})
+                     "time_s": None if d is None else round(float(d) / speed, 2)})
 
     valid = [r["time_s"] for r in rows if r["time_s"] is not None]
     result = {
@@ -149,6 +152,7 @@ def analyze_macro_rotation(ctx, nav_report):
         "min_time_s": None,
         "max_time_s": None,
         "variance_s": None,
+        "agent_speed_mps": speed,
     }
     if valid:
         result["average_time_s"] = round(sum(valid) / len(valid), 2)
