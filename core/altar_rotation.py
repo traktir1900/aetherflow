@@ -127,38 +127,44 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
         }
         moved.append((name, before, after))
 
-    # The central secondary rocks are decorative tactical blockers. Shift them
-    # outward as part of the same repair stage so a later cover move cannot
-    # recreate a solid overlap inside the Aether fight space.
     _repair_central_rocks(ctx)
     return moved
 
 
 def generate_altar_obstacles(ctx):
-    """Create four explicitly team-symmetric, non-blocking altar protectors.
+    """Create four compact, strictly symmetric Altar protectors.
 
-    The Blue and Red bases are mirrored around the world Y axis (x -> -x),
-    so the altar protectors use the same symmetry plane.  Two mirrored pairs
-    are placed at equal |x| on a shared front/back y coordinate.  Every pair
-    uses identical geometry, height and footprint.  The obstacles remain
-    non-blocking for navigation; they are visual/LOS landmarks only.
+    The protectors are centered on the Altar and arranged on the four
+    cardinal axes (north/east/south/west).  This creates exact symmetry under
+    both X and Y reflections, so neither Blue nor Red receives a unique piece
+    of cover.  The group stays close to the Altar rather than forming a remote
+    diagonal ring.
+
+    The obstacles remain non-blocking for navigation; they are visual/LOS
+    landmarks only.
     """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
-    ring_r = max(10.0, altar_r + 9.0)
-    height = 2.6
-    radius = 0.8
+    protector_cfg = cfg.get("altar_protectors", {})
+    count = int(protector_cfg.get("count", 4))
+    if count != 4:
+        raise ValueError("Altar protectors require exactly 4 pieces for symmetry")
 
-    # Canonical pairs: (x, y) and (-x, y).  Because both pairs use the exact
-    # same |x| and opposite y signs, the set is mirrored across both axes and
-    # therefore cannot favour either Blue or Red approach.
-    x = ring_r / math.sqrt(2.0)
-    y = ring_r / math.sqrt(2.0)
+    # Keep the four pieces immediately around the Altar.  The configured
+    # offset is measured from the Altar base edge, while the piece footprint
+    # is also included so geometry cannot intrude into the altar surface.
+    offset = float(protector_cfg.get("ring_offset_from_altar_m", 3.5))
+    radius = float(protector_cfg.get("protector_radius_m", 0.8))
+    height = float(protector_cfg.get("protector_height_m", 2.6))
+    ring_r = max(altar_r + offset, altar_r + radius + 0.35)
+
+    # Exact cardinal arrangement around the center.  The ordering is fixed so
+    # exported names and symmetry pairs are deterministic across runs.
     specs = [
-        (1, +x, +y, "NW_SE_PAIR"),
-        (2, -x, +y, "NW_SE_PAIR"),
-        (3, -x, -y, "SW_NE_PAIR"),
-        (4, +x, -y, "SW_NE_PAIR"),
+        (1, 0.0, +ring_r, "NORTH_SOUTH"),
+        (2, +ring_r, 0.0, "EAST_WEST"),
+        (3, 0.0, -ring_r, "NORTH_SOUTH"),
+        (4, -ring_r, 0.0, "EAST_WEST"),
     ]
 
     built = []
@@ -186,10 +192,12 @@ def generate_altar_obstacles(ctx):
                 "landmark": "AetherAltar",
                 "non_blocking": True,
                 "ring_radius": round(ring_r, 3),
+                "offset_from_altar_edge_m": round(offset, 3),
                 "role": "altar_perimeter_visual",
-                "symmetry_plane": "Y_AXIS",
+                "symmetry_plane": "BOTH_AXES",
                 "symmetry_pair": pair_id,
                 "mirror_of_blue_red": True,
+                "cardinal_centered": True,
             },
         ))
 
