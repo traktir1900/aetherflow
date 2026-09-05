@@ -2,99 +2,80 @@
 
 ## Status
 
-**IN PROGRESS — refinement implementation complete; Blender runtime verification pending**
+**IN PROGRESS — anti-camping refinement requires final Blender verification**
 
 This version extends the existing v0.6.1 map without changing the fixed layout/topology.
 
-## Measured v0.6.2.1 runtime baseline
+## Runtime evidence received
 
-The first real Blender 5.2 generation after the initial v0.6.2.1 implementation produced:
+The latest Blender 5.2 run confirmed:
 
-- objective cover: 10 objects across all 5 objectives;
-- CoreCover total: 26;
-- actual evaluated-mesh intersections: 0;
-- navigation problems: 0;
-- pockets reachable: 4/4;
-- Blue/Red base fairness: 0% route-time difference;
-- overall auditor score: 88.2/100;
-- warnings: 8;
-- HIGH camping risk at the four monolith objectives and central Altar;
-- OuterBoundary bbox validation errors in the submitted local run.
+- map: 200 x 200 m gameplay area;
+- 5 capture points and 2 bases;
+- 4 gameplay pockets, all reachable;
+- 10 objective-cover objects across 5 objectives;
+- objective cover nearest distance improved to approximately 15.5 m;
+- objective cover heuristic scores remain high (approximately 0.87 for the far/strongest candidates);
+- navigation problems: none;
+- simulated zero-traffic zones: none;
+- Blue/Red route fairness: 0.0%;
+- deathball risk: LOW;
+- snowball risk: LOW;
+- comeback route availability: LOW risk;
+- evaluated-mesh intersection count: 0 in the supplied audit.
 
-The runtime log confirms the cover pass executed successfully and produced valid objective-cover entries. filecite is intentionally not embedded here because repository docs must remain standalone.
+The run still reported HIGH camping risk at EastMonolith, SEMonolith, SWMonolith, WestMonolith and Altar. The audit output also reports 6 approaches for every objective, so the camping rule is clearly more restrictive than the raw approach count and needs to be treated separately from navigation health.
 
-## Refinement implemented on branch
+The supplied run calculated an overall score of 82.0/100. The major negative scoring items were the existing Altar validation/data-missing state and warnings; the score is not a direct playtest result.
 
-Branch: `v0-6-2-1-cover-refinement`
+## Anti-camping refinement
 
-### Objective-cover architecture
+`core/gameplay_cover.py` now uses two tactical cover rings:
 
-`core/gameplay_cover.py` uses the shared `core.cover_analysis.optimize_cover(...)` model rather than fixed identical positions.
+- near flank: 13–18 m from the objective center;
+- deep flank: 21–28 m from the objective center;
+- pair separation: at least 10 m;
+- direct radial approach/retreat lane remains open;
+- capture platform receives a hard exclusion zone;
+- cover remains selected through the shared `core.cover_analysis.optimize_cover` system, with tactical filtering applied afterward.
 
-The refinement now adds:
+The latest code intentionally avoids the previous 15.5 m + 15.5 m symmetric pair behavior. The second cover piece is designed as a deeper flank/retreat asset rather than a second camping anchor beside the point.
 
-- optimizer-driven candidate selection;
-- LOS, flank, movement and chokepoint weighting;
-- capture-platform hard exclusion;
-- an explicit radial stand-off zone around the objective;
-- a clear direct approach/retreat lane;
-- at most 2 objective cover pieces;
-- minimum separation between the two cover pieces;
-- larger silhouettes for stronger viewport readability;
-- explicit gameplay metadata for role, objective and optimizer source.
+## Current open issues
 
-### Current tactical constraints
+### 1. OuterBoundary validation mismatch in local runtime
 
-Objective cover is deliberately kept outside the immediate capture fight:
+The supplied Blender console still reports `OUT OF MAP BOUNDS (bbox)` for `OuterBoundary_Segment...` objects around x/y = 100–102 m.
 
-- minimum stand-off target: **13 m** from objective centre;
-- maximum stand-off target: **18 m**;
-- minimum cover-to-cover separation: **10 m**;
-- centreline cover is rejected;
-- fallback pieces are also subject to the same stand-off and separation rules.
+The repository version of `core/validation.py` contains a dedicated `outer_boundary` validation path that allows the wall's exterior footprint to sit on the world edge while checking the inner face separately. Therefore, the supplied runtime output indicates that Blender executed an older/stale validation script or Text Block rather than the current repository source.
 
-The intended pattern is no longer “two rocks beside the point”. It is a pair of flank shelters positioned outside the capture ring, preserving a readable contest corridor.
+This must be rechecked by opening the actual repository file `core/validation.py` from the downloaded branch and running the pipeline from repository files, not a pasted legacy Text Block.
 
-### Existing repairs retained
+### 2. Altar data model
 
-The inherited repair pass remains active for known v0.6.1 cover contacts and pocket-cover vertical placement.
+The audit still reports `AltarObstacles: 0` and an approximate Altar clear radius below the target threshold. The current generator intentionally uses central `CoreCover_*` geometry instead of a separate `Altar_Obstacle_*` category. This is a data-model gap and should be solved explicitly rather than hidden by renaming unrelated geometry.
 
-No capture-point, base, terrain, road, ramp or pocket topology changes were introduced by this refinement.
+### 3. Macro rotation
 
-## Validation note
+Base-to-objective route variance remains 21.6 s (15.5 s average, 6.2 s fastest, 27.9 s slowest). Full point-to-point Dominion macro-rotation simulation is not implemented yet.
 
-The uploaded Blender run showed `OuterBoundary_*` bbox errors, but the repository version of `core/validation.py` contains a dedicated outer-boundary path that treats the perimeter as a world-edge system instead of a normal gameplay object. The next local regeneration must therefore be done from the current branch ZIP so the runtime source and repository source are synchronized.
+### 4. Resources / vegetation
 
-## Verification state
+Resources are still not generated by the current pipeline, and natural perimeter generation remains available in code but is not yet integrated into the active pipeline.
 
-The refinement is **not yet runtime-verified**. The user's Blender run before this latest change showed:
+## Verification gate
 
-- objective cover 10/10;
-- 0 navigation problems;
-- 0 evaluated-mesh intersections;
-- 4/4 reachable pockets;
-- but HIGH camping risk around the monoliths and Altar.
+Do not merge this refinement to `main` until one fresh Blender 5.2 run confirms:
 
-These values remain the baseline until a new Blender 5.2 run is completed from the latest branch.
-
-## Next runtime checks
-
-1. Download the latest `v0-6-2-1-cover-refinement` branch ZIP.
-2. Regenerate the map in Blender 5.2.
-3. Run `tools/aetherflow_gameplay_auditor.py` against the resulting export.
-4. Verify objective cover is 13–18 m from objective centres and separated by at least 10 m.
-5. Verify the five objective camping risks improve without creating new choke points.
-6. Verify navigation remains problem-free and pockets remain reachable 4/4.
-7. Verify evaluated-mesh intersections remain zero.
-8. Record the new measured score/warnings/routes in this document before merge.
-
-## Known separate issues
-
-- `AltarObstacles` is still a separate missing category in the current generator.
-- Resources and vegetation are not yet integrated into the active pipeline.
-- Natural perimeter generation exists in code but is not yet called by the main pipeline.
-- Full Dominion macro-rotation simulation is not yet implemented.
+1. objective cover count remains 10/10;
+2. at least one objective cover is in the deep 21–28 m ring where applicable;
+3. objective camping risk is reduced or the auditor's camping heuristic is corrected to use real approach data consistently;
+4. navigation problems remain 0;
+5. pockets remain reachable 4/4;
+6. evaluated-mesh intersections remain 0;
+7. validation no longer reports stale `OuterBoundary` bbox failures;
+8. new score/warnings and tactical metrics are recorded here.
 
 ## Completion criteria
 
-v0.6.2.1 is complete only when the refined cover pass has been regenerated in Blender 5.2, the objective camping-risk result is acceptable, validation/navigation remain clean, and the measured results are recorded here.
+v0.6.2.1 is complete only when the refined cover pass has been generated in Blender 5.2, the auditor has been rerun from the current repository source, the camping/Altar findings are resolved or explicitly accepted as separate tracked work, and the measured values are recorded here.
