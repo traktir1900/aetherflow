@@ -1,7 +1,7 @@
 """AetherFlow :: v0.6.2.1 gameplay cover refinement.
 
 Objective cover is selected with the shared cover-analysis optimiser instead of
-using a hard-coded symmetric pair.  The objective arena stays open while cover
+using a hard-coded symmetric pair. The objective arena stays open while cover
 moves toward side/flank positions that are useful for approach and retreat,
 not for permanent point camping.
 """
@@ -15,9 +15,9 @@ from core.utils import finalize_bmesh
 from core.cover_analysis import optimize_cover
 
 
-OBJECTIVE_ARENA_WIDTH = 34.0
-OBJECTIVE_ARENA_DEPTH = 34.0
-OBJECTIVE_WALL_CLEAR = 5.0
+OBJECTIVE_ARENA_WIDTH = 38.0
+OBJECTIVE_ARENA_DEPTH = 38.0
+OBJECTIVE_WALL_CLEAR = 2.5
 OBJECTIVE_COVER_MAX = 2
 OBJECTIVE_COVER_MIN_SCORE = 0.35
 OBJECTIVE_COVER_COVER_PCT = 0.12
@@ -38,9 +38,10 @@ def _pick_objective_cover(ctx, pname, point):
     """Choose up to two asymmetric cover positions around an objective.
 
     The shared optimiser evaluates LOS, flank value, defensive value, movement
-    penalty and choke risk.  The capture platform itself is a hard exclusion so
+    penalty and choke risk. The capture platform itself is a hard exclusion so
     cover never invades the interactable objective footprint.
     """
+    del pname, point  # basis is applied after the local optimisation
     cfg = ctx.config
     scale = float(cfg.get("ground_half_size", 100.0)) / 100.0
     ccfg = {
@@ -60,28 +61,26 @@ def _pick_objective_cover(ctx, pname, point):
     arena_d = OBJECTIVE_ARENA_DEPTH * scale
     wall_clear = OBJECTIVE_WALL_CLEAR * scale
 
-    exclusions = [(0.0, 0.0, platform_r + wall_clear)]
+    exclusions = [(0.0, 0.0, platform_r + 1.0 * scale)]
     kept, stats = optimize_cover(arena_w, arena_d, wall_clear, ccfg, exclusions=exclusions)
 
-    # Reject candidates that would sit too close to the radial centreline.
-    # This keeps the direct approach / retreat lane visibly open.
+    # Reject candidates that sit on the radial centreline. This keeps the
+    # direct approach / retreat lane visually and tactically open.
     filtered = []
-    centre_clear = max(platform_r + 0.75 * scale, 7.0 * scale)
+    centre_clear = max(7.0 * scale, platform_r + 0.25 * scale)
     for spec in kept:
         x, y = spec["local"]
         if abs(x) < centre_clear:
             continue
         filtered.append(spec)
 
-    # A deterministic fallback guarantees that every objective still gets a
-    # useful pair even when future optimiser tuning becomes stricter.
+    # Deterministic fallback guarantees two useful flank pieces if optimiser
+    # thresholds are tightened later. Both pieces remain outside the platform
+    # exclusion and leave a broad direct lane toward the objective.
     if len(filtered) < OBJECTIVE_COVER_MAX:
-        tangent = 8.0 * scale
-        outward = 5.0 * scale
-        fallback = [
-            (-tangent, outward),
-            (tangent, outward),
-        ]
+        tangent = 10.5 * scale
+        outward = 4.5 * scale
+        fallback = [(-tangent, outward), (tangent, outward)]
         existing = {(round(s["local"][0], 2), round(s["local"][1], 2)) for s in filtered}
         for idx, (x, y) in enumerate(fallback):
             if len(filtered) >= OBJECTIVE_COVER_MAX:
@@ -195,12 +194,8 @@ def generate_objective_cover(ctx):
             x, y = spec["local"]
             radius = float(spec.get("radius", 1.6))
             height = float(spec.get("height", 2.7))
-            if index == 0:
-                role = "flank_defensive"
-                yaw = 90.0
-            else:
-                role = "flank_attack"
-                yaw = -90.0
+            role = "flank_defensive" if index == 0 else "flank_attack"
+            yaw = 90.0 if index == 0 else -90.0
             score = float(spec.get("optimizer_score", stats.get("gameplay_score", 0.0)))
             built.append(_make_cover(
                 ctx,
