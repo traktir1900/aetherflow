@@ -1,9 +1,8 @@
 """AetherFlow :: v0.6.2.1 gameplay cover pass.
 
-Extends the existing cover concept to capture objectives.  This module deliberately
-creates only gameplay cover: small deterministic rock-like blockers placed outside
-the capture platform, with explicit metadata for navigation, LOS and future UE5
-export.  No layout/topology is changed.
+Extends the existing cover concept to capture objectives.  The pass repairs
+known inherited cover contacts, then adds deterministic objective cover without
+changing layout/topology.
 """
 import math
 import bmesh
@@ -51,27 +50,22 @@ def _make_cover(ctx, name, objective_name, point, local_x, local_y, radius, heig
 
 
 def _repair_known_cover_contacts(ctx):
-    """Repair the exact contacts reported by the v0.6.1 auditor.
-
-    This is intentionally small and named: it fixes inherited geometry contacts
-    without changing layout, terrain, roads, ramps or pocket topology.
-    """
+    """Repair exact inherited contacts reported by the v0.6.1 auditor."""
     cfg = ctx.config
+    scale = float(cfg.get("ground_half_size", 100.0)) / 100.0
     lift = cfg.get("pockets", {}).get("floor_lift", 0.0)
+
     for rec in ctx.generated_objects:
         obj = rec["object"]
         name = rec["name"]
-        if name.startswith("WestPocket_Cover") or name.startswith("EastPocket_Cover") \
-                or name.startswith("SWPocket_Cover") or name.startswith("SEPocket_Cover"):
+        if name.startswith(("WestPocket_Cover", "EastPocket_Cover", "SWPocket_Cover", "SEPocket_Cover")):
             obj.location.z += lift
 
     moves = {
-        "Core_Cover_Pillar_North": (0.0, cfg.get("core_cover_repair_north_y", 1.0)),
-        "Core_Cover_Pocket_SW": (-cfg.get("core_cover_repair_pocket_x", 0.8),
-                                 -cfg.get("core_cover_repair_pocket_y", 0.4)),
-        "Core_Cover_Pocket_SE": (cfg.get("core_cover_repair_pocket_x", 0.8),
-                                 -cfg.get("core_cover_repair_pocket_y", 0.4)),
-        "Core_Cover_SouthScreen": (0.0, -cfg.get("core_cover_repair_screen_y", 0.6)),
+        "Core_Cover_Pillar_North": (0.0, 1.0 * scale),
+        "Core_Cover_Pocket_SW": (-0.8 * scale, -0.4 * scale),
+        "Core_Cover_Pocket_SE": (0.8 * scale, -0.4 * scale),
+        "Core_Cover_SouthScreen": (0.0, -0.6 * scale),
     }
     for rec in ctx.generated_objects:
         if rec["name"] in moves:
@@ -82,10 +76,11 @@ def _repair_known_cover_contacts(ctx):
 
 def generate_objective_cover(ctx):
     """Create two controlled cover pieces around each of the five objectives."""
-    radius = ctx.config.get("objective_cover_radius", 1.35)
-    height = ctx.config.get("objective_cover_height", 2.25)
-    tangent = ctx.config.get("objective_cover_tangent_offset", 8.5)
-    inward = ctx.config.get("objective_cover_inward_offset", -2.5)
+    scale = float(ctx.config.get("ground_half_size", 100.0)) / 100.0
+    radius = ctx.config.get("objective_cover_radius", 1.35 * scale)
+    height = ctx.config.get("objective_cover_height", 2.25 * scale)
+    tangent = ctx.config.get("objective_cover_tangent_offset", 8.5 * scale)
+    inward = ctx.config.get("objective_cover_inward_offset", -2.5 * scale)
     built = []
 
     for pname in RING_NODES:
@@ -99,7 +94,7 @@ def generate_objective_cover(ctx):
 
 
 def run_gameplay_cover_pass(ctx):
-    """Run repairs first, then add objective cover. Returns summary metadata."""
+    """Run repairs first, then add objective cover."""
     _repair_known_cover_contacts(ctx)
     built = generate_objective_cover(ctx)
     return {
