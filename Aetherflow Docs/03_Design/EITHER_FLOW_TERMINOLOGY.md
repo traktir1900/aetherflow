@@ -30,11 +30,14 @@ The larger non-gameplay floor surrounding the gameplay area. Current target: **2
 ### Outer Boundary
 The impassable outer perimeter defining the playable-world edge.
 
-### Crown
-The **central strategic/combat objective** of the map, located around the exact world origin. Crown is the canonical gameplay name for the former Altar / Aether Altar central objective.
-
 ### AetherCore
-Legacy implementation/landmark name retained for existing code compatibility. In new player-facing gameplay and design terminology, use **Crown**.
+The central terrain/combat landmark around the exact world origin. This is the implementation/landmark name.
+
+### Aether Altar / Altar
+The central altar/combat area at the center of the map. **The gameplay name remains Altar.** Do not rename the Altar to Core or Crown.
+
+### Crown
+The **fifth capture point at the top/northern part of the map**. Crown is a capture objective and is distinct from the central Altar.
 
 ### Monolith
 A capture objective located on the eastern or western portion of the objective ring.
@@ -44,43 +47,7 @@ The central southern terrain depression between the SW and SE Monoliths.
 
 ---
 
-# 2. Bases and Teams
-
-### Blue Core
-The home base of the Blue team.
-
-### Red Core
-The home base of the Red team.
-
-### Core
-A team home base. The canonical team-specific names are **Blue Core** and **Red Core**.
-
-### Team-Critical Geometry
-Any geometry that can affect movement, line of sight, cover, collision, pathing, access, rotation or combat balance.
-
-### Gameplay Symmetry
-The hard rule that team-critical gameplay geometry must be mirrored across the world Y axis.
-
-Authoritative transform:
-
-`(x, y, z) -> (-x, y, z)`
-
-Current acceptance tolerance: **0.25 m**.
-
-### Mirror Pair
-Two gameplay elements that must correspond under the authoritative symmetry transform.
-
-Examples:
-
-- Blue Core ↔ Red Core
-- WestMonolith ↔ EastMonolith
-- SWMonolith ↔ SEMonolith
-- WestPocket ↔ EastPocket
-- SWPocket ↔ SEPocket
-
----
-
-# 3. Capture Objectives
+# 2. Capture Objectives
 
 ### Capture Point / Objective
 A strategic location that teams can capture and control.
@@ -113,6 +80,42 @@ Strategic movement between capture points. In the current validator, adjacent ob
 
 ---
 
+# 3. Bases and Teams
+
+### Blue Core
+The home base of the Blue team.
+
+### Red Core
+The home base of the Red team.
+
+### Core
+A team home base. The canonical team-specific names are **Blue Core** and **Red Core**. In gameplay terminology, Core refers to a team base; the central altar remains **Altar**.
+
+### Team-Critical Geometry
+Any geometry that can affect movement, line of sight, cover, collision, pathing, access, rotation or combat balance.
+
+### Gameplay Symmetry
+The hard rule that team-critical gameplay geometry must be mirrored across the world Y axis.
+
+Authoritative transform:
+
+`(x, y, z) -> (-x, y, z)`
+
+Current acceptance tolerance: **0.25 m**.
+
+### Mirror Pair
+Two gameplay elements that must correspond under the authoritative symmetry transform.
+
+Examples:
+
+- Blue Core ↔ Red Core
+- WestMonolith ↔ EastMonolith
+- SWMonolith ↔ SEMonolith
+- WestPocket ↔ EastPocket
+- SWPocket ↔ SEPocket
+
+---
+
 # 4. Flows and Routes
 
 ### Flow
@@ -122,7 +125,7 @@ A persistent strategic movement corridor running from a team's Core toward the u
 The upper base-to-north strategic movement corridor. It carries players and minions from a Core toward the upper portion of the map.
 
 ### Middle Flow
-The central base-to-north strategic movement corridor. It carries players and minions from a Core through the central portion of the map toward the upper area and the Crown/Core combat space.
+The central base-to-north strategic movement corridor. It carries players and minions from a Core through the central portion of the map toward the upper area and the central Altar combat space.
 
 ### Bottom Flow
 The lower base-to-north strategic movement corridor. It carries players and minions from a Core through the lower portion of the map toward the upper area.
@@ -204,10 +207,13 @@ Cover located around a capture objective, intentionally positioned without block
 ### Pocket Cover
 Gameplay cover placed inside a pocket to support ambush and retreat gameplay.
 
-### Core Protector
-One of the four dedicated non-blocking barricades around Crown, the central objective formerly called Aether Altar.
+### Altar Protector
+One of the four dedicated non-blocking barricades around the central Altar. **This term remains the canonical name.**
 
 Current arrangement: N / E / S / W.
+
+### Core Protector
+Deprecated. Do not use this name in new gameplay or design documentation.
 
 ### Central Gameplay Rock / Core Rock
 A large rock in the central combat area that can affect movement, line of sight and engagement geometry.
@@ -342,9 +348,10 @@ Unreal Engine 5 foundation and runtime integration.
 7. `EXACT`, `APPROXIMATION`, `FALLBACK` and `DATA MISSING` must retain their literal meanings in reports.
 8. A version is not complete while a mandatory validation gate is failing.
 9. Top Flow, Middle Flow and Bottom Flow are strategic Core-to-north corridors, not rigid three-lane MOBA lanes.
-10. **Crown** is the canonical gameplay name for the central objective formerly called Aether Altar / Altar.
-11. **Blue Core** and **Red Core** are the canonical names for the two team bases.
-12. **AetherCore** remains a legacy implementation name only and is not the canonical player-facing name of the central objective.
+10. **Blue Core** and **Red Core** are the canonical names for the two team bases.
+11. **Crown** is the fifth, northern capture point.
+12. **Altar** remains the canonical name for the central altar/combat objective.
+13. **Altar Protector** remains the canonical name for its four dedicated protectors.
 
 ---
 
