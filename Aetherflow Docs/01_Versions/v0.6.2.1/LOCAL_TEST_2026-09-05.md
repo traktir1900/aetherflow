@@ -31,8 +31,18 @@ Evidence:
 
 - `core/altar_rotation.py`: closest-vertex iterative Altar clearance repair;
 - `core/altar_rotation.py`: central `Core_Rock_*` outward repair;
+- `core/altar_rotation.py`: Altar protectors are now explicitly generated as mirrored pairs about the Y axis, matching the Blue/Red base symmetry plane. Each mirrored pair uses identical footprint, height and geometry so neither team receives a different Altar LOS condition;
 - `core/pipeline.py`: explicit reload of `gameplay_cover`, `altar_rotation` and `validation` before each Blender pipeline rerun, eliminating stale-module mixing;
 - branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
+
+## Altar protector balance contract
+
+The four `Altar_Obstacle_*` objects are a dedicated visual/LOS layer. Their placement must remain deterministic and symmetric around the Blue/Red mirror plane:
+- `x -> -x` mirror pairs are mandatory;
+- paired objects must have equal dimensions and height;
+- pair distances to the Altar centre must match;
+- no protector may create a unique approach condition for only one team;
+- they remain non-blocking for navigation.
 
 ## Merge gate
 
@@ -46,4 +56,5 @@ Required:
 - objective gameplay cover = `10`;
 - minimum CoreCover-to-Altar clearance >= `8.0 m`;
 - four `Altar_Obstacle_*` objects present;
+- four Altar protectors remain explicitly team-symmetric;
 - `navigation.macro_rotation.all_reachable == true`.
