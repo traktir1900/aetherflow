@@ -11,6 +11,7 @@ Focused gameplay hardening for the v0.6.2.1 map:
 import math
 
 import bmesh
+import bpy
 from mathutils import Matrix, Vector
 
 from core.layout import RING_NODES
@@ -40,6 +41,14 @@ def _min_clearance_to_altar(obj, altar_radius):
     return radius - altar_radius
 
 
+def _sync_scene():
+    """Force Blender's dependency graph/object matrices to reflect moves."""
+    try:
+        bpy.context.view_layer.update()
+    except Exception:
+        pass
+
+
 def _repair_central_rocks(ctx, push=2.75):
     moved = []
     for rec in ctx.generated_objects:
@@ -55,6 +64,7 @@ def _repair_central_rocks(ctx, push=2.75):
             continue
         obj.location.x += (x / radius) * push
         obj.location.y += (y / radius) * push
+        _sync_scene()
         meta = rec.setdefault("meta", {})
         meta["central_space_repair_m"] = round(float(meta.get("central_space_repair_m", 0.0)) + push, 3)
         moved.append((name, push))
@@ -74,6 +84,7 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
         if obj is None:
             continue
 
+        _sync_scene()
         before = _min_clearance_to_altar(obj, altar_radius)
         if before >= min_clearance:
             continue
@@ -93,6 +104,7 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
                 break
             obj.location.x += direction.x * max(needed * 1.08, 0.05)
             obj.location.y += direction.y * max(needed * 1.08, 0.05)
+            _sync_scene()
             new_clearance = _min_clearance_to_altar(obj, altar_radius)
             if new_clearance <= last + 1e-4:
                 break
@@ -100,6 +112,7 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
             if last >= target_clearance:
                 break
 
+        _sync_scene()
         after = _min_clearance_to_altar(obj, altar_radius)
         rec.setdefault("meta", {})["altar_clearance_repair"] = {
             "before_m": round(before, 3),
@@ -120,9 +133,6 @@ def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
         bmesh.ops.create_cube(bm, size=2.0)
         sx, sy, sz = (size[0] * 0.5, size[1] * 0.5, size[2] * 0.5)
         bmesh.ops.scale(bm, vec=Vector((sx, sy, sz)), verts=bm.verts)
-        # Blender's 4D rotation matrix still requires an explicit 3D axis.
-        # Always rotate around world/local Z to keep the barricade orientation
-        # deterministic and compatible with Blender 5.2.
         bmesh.ops.rotate(
             bm,
             verts=bm.verts,
@@ -156,9 +166,6 @@ def generate_altar_obstacles(ctx):
     cardinal axes around the exact Altar center (0,0). North/South share one
     orientation; East/West are rotated 90 degrees. The arrangement is exactly
     symmetric around both world axes, guaranteeing Blue/Red fairness.
-
-    The barricades are intentionally close to the Altar rather than spread
-    across the surrounding CoreCover field.
     """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
@@ -167,8 +174,6 @@ def generate_altar_obstacles(ctx):
     if count != 4:
         raise ValueError("Altar protectors require exactly 4 pieces for symmetry")
 
-    # Compact centered layout. Offset is measured from the Altar edge to the
-    # nearest barricade face; the footprint is then included in ring_r.
     offset = float(protector_cfg.get("ring_offset_from_altar_m", 3.25))
     wall_length = float(protector_cfg.get("protector_length_m", 3.6))
     wall_depth = float(protector_cfg.get("protector_depth_m", 1.25))
