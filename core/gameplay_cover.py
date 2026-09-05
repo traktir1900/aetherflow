@@ -37,6 +37,21 @@ def _objective_basis(point):
     return u, t
 
 
+def _spec_world_xy(point, spec):
+    """Return the exact world-space XY position for a local cover spec."""
+    u, t = _objective_basis(point)
+    local_x, local_y = spec["local"]
+    world = point + t * float(local_x) + u * float(local_y)
+    return Vector((float(world.x), float(world.y), 0.0))
+
+
+def _world_to_local(point, world_xy):
+    """Convert a world-space XY position back into an objective-local basis."""
+    u, t = _objective_basis(point)
+    delta = Vector((world_xy.x - point.x, world_xy.y - point.y, 0.0))
+    return (float(delta.dot(t)), float(delta.dot(u)))
+
+
 def _dist_local(spec):
     x, y = spec["local"]
     return math.hypot(x, y)
@@ -241,15 +256,98 @@ def repair_outer_boundary_for_legacy_bounds(ctx, factor=0.94):
     return moved
 
 
-def generate_objective_cover(ctx):
-    """Create exactly two tactical cover pieces for all five objectives."""
-    built = []
+def _pair_cover_specs(ctx, source_objective, source_point, specs, target_objective, target_point):
+    """Mirror source cover positions across world Y axis for the paired objective.
+
+    Cover candidates are selected once for the canonical member of a gameplay
+    mirror pair. The target is derived from the exact world-space position via
+    x -> -x, y -> y, then converted back into the target objective basis. This
+    avoids the local-tangent sign flip that otherwise turns identical local
+    specs into non-mirrored world positions.
+    """
+    del ctx, source_objective, target_objective
+    mirrored = []
+    for spec in specs:
+        world_xy = _spec_world_xy(source_point, spec)
+        mirror_xy = Vector((-world_xy.x, world_xy.y, 0.0))
+        local_xy = _world_to_local(target_point, mirror_xy)
+        target_spec = dict(spec)
+        target_spec["local"] = local_xy
+        mirrored.append(target_spec)
+    return mirrored
+
+
+def _paired_objective_plan(ctx):
+    """Produce one canonical cover plan and exact Y-axis mirrors for every pair."""
+    layout = ctx.layout
+    plans = {}
     analyses = {}
+
+    mirror_pairs = (
+        ("WestMonolith", "EastMonolith"),
+        ("SWMonolith", "SEMonolith"),
+    )
+    for source, target in mirror_pairs:
+        source_specs, source_stats = _pick_objective_cover(ctx, source, layout[source])
+        target_specs = _pair_cover_specs(
+            ctx, source, layout[source], source_specs, target, layout[target]
+        )
+        plans[source] = source_specs
+        plans[target] = target_specs
+        analyses[source] = source_stats
+        analyses[target] = dict(source_stats)
+
+    crown_specs, crown_stats = _pick_objective_cover(ctx, "Crown", layout["Crown"])
+    # Crown lies on the mirror plane. Generate its second piece as the exact
+    # mirror of the first. The selected pair therefore has identical size and
+    # world-space dimensions but opposite X displacement from the axis.
+    crown_mirrors = []
+    if crown_specs:
+        first = crown_specs[0]
+        mirrored_world = Vector((-_spec_world_xy(layout["Crown"], first).x,
+                                 _spec_world_xy(layout["Crown"], first).y,
+                                 0.0))
+        mirrored_local = _world_to_local(layout["Crown"], mirrored_world)
+        mirror_spec = dict(first)
+        mirror_spec["local"] = mirrored_local
+        crown_mirrors.append(mirror_spec)
+
+    crown_plan = list(crown_specs[:1]) + crown_mirrors
+    # Absolute contract: Crown still gets two pieces even if the optimiser
+    # returned an empty/degenerate candidate list.
+    if not crown_plan:
+        crown_plan = _pick_objective_cover(ctx, "Crown", layout["Crown"])[0]
+    if len(crown_plan) < 2 and crown_plan:
+        first = crown_plan[0]
+        fallback_world = _spec_world_xy(layout["Crown"], first)
+        fallback_world.x = -fallback_world.x
+        fallback_local = _world_to_local(layout["Crown"], fallback_world)
+        extra = _make_fallback(fallback_local, 1, float(ctx.config.get("ground_half_size", 100.0)) / 100.0)
+        crown_plan.append(extra)
+
+    plans["Crown"] = crown_plan[:OBJECTIVE_COVER_MAX]
+    analyses["Crown"] = crown_stats
+    return plans, analyses
+
+
+def generate_objective_cover(ctx):
+    """Create exactly two tactical cover pieces for all five objectives.
+
+    Team-critical cover is generated from canonical objective plans and mirrored
+    in world space. No objective pair is independently optimised because that
+    would allow tiny local-basis differences to create real gameplay imbalance.
+    """
+    built = []
+    plans, analyses = _paired_objective_plan(ctx)
 
     for pname in RING_NODES:
         point = ctx.layout[pname]
-        specs, stats = _pick_objective_cover(ctx, pname, point)
-        analyses[pname] = stats
+        specs = list(plans.get(pname, []))
+        if len(specs) < 2:
+            # This should never happen, but preserve the hard two-piece contract.
+            specs, fallback_stats = _pick_objective_cover(ctx, pname, point)
+            analyses[pname] = fallback_stats
+        specs = specs[:OBJECTIVE_COVER_MAX]
 
         for index, spec in enumerate(specs):
             x, y = spec["local"]
@@ -289,5 +387,11 @@ def run_gameplay_cover_pass(ctx):
             "near": [OBJECTIVE_NEAR_MIN, OBJECTIVE_NEAR_MAX],
             "far": [OBJECTIVE_FAR_MIN, OBJECTIVE_FAR_MAX],
             "pair_min": OBJECTIVE_COVER_PAIR_MIN,
+        },
+        "symmetry_contract": {
+            "plane": "Y_AXIS",
+            "transform": "(x,y,z) -> (-x,y,z)",
+            "generation_mode": "canonical-plan + exact world-space mirror",
+            "crown_self_mirrored": True,
         },
     }
