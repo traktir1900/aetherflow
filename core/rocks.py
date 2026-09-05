@@ -2,11 +2,14 @@
 AetherFlow :: core/rocks.py
 Procedural rock generator.
 
-Rock generation remains seeded and varied, but team-critical / central gameplay
-rocks are now generated as exact mirror pairs across the world Y axis.
+Rock generation remains seeded and varied, but central gameplay rocks are now
+created as exact geometric mirror pairs across the world Y axis.
 """
+import math
+
 import bmesh
-from mathutils import Vector
+import bpy
+from mathutils import Matrix, Vector
 
 from core.heightmap import get_height_at_point
 from core.utils import finalize_bmesh
@@ -34,13 +37,11 @@ def make_rock(ctx, name, position, radius, collection_key="Rocks", material=None
     sz = rng.uniform(0.8, 1.2)
     bmesh.ops.scale(bm, vec=Vector((sx, sz, sy)), verts=bm.verts)
 
-    import math
-    import mathutils
     yaw = rng.uniform(0.0, math.pi * 2.0)
     bmesh.ops.rotate(
         bm,
         cent=Vector((0, 0, 0)),
-        matrix=mathutils.Matrix.Rotation(yaw, 4, 'Z'),
+        matrix=Matrix.Rotation(yaw, 4, 'Z'),
         verts=bm.verts,
     )
 
@@ -58,11 +59,38 @@ def make_rock(ctx, name, position, radius, collection_key="Rocks", material=None
     meta = {"footprint_radius": radius, "yaw_deg": yaw * 180.0 / math.pi}
     if element is not None:
         meta["element"] = element
-    obj = finalize_bmesh(
+    return finalize_bmesh(
         bm, name, collection_key, mat, ctx, kind="rock",
         dims=(radius * 2 * sx, radius * 2 * sz, radius * 2 * sy),
         meta=meta,
     )
+
+
+def _mirror_rock_object(ctx, source, name, collection_key="Rocks"):
+    """Create a true geometric mirror of a generated rock across world Y axis."""
+    src_mesh = source.data
+    mesh = src_mesh.copy()
+    for vert in mesh.vertices:
+        vert.co.x = -vert.co.x
+    mesh.update()
+
+    obj = bpy.data.objects.new(name, mesh)
+    obj.location = Vector((-source.location.x, source.location.y, source.location.z))
+    ctx.get_collection(collection_key).objects.link(obj)
+    for mat in src_mesh.materials:
+        obj.data.materials.append(mat)
+
+    src_rec = next((r for r in ctx.generated_objects if r.get("object") == source), None)
+    dims = tuple(src_rec.get("dimensions") or ()) if src_rec else ()
+    src_meta = dict(src_rec.get("meta") or {}) if src_rec else {}
+    yaw = float(src_meta.get("yaw_deg", 0.0))
+    meta = dict(src_meta)
+    meta["yaw_deg"] = (180.0 - yaw) % 360.0
+    meta["mirror_source"] = source.name
+    meta["mirror_rule"] = "(x,y,z) -> (-x,y,z)"
+    meta["gameplay_symmetry"] = True
+    meta["symmetry_axis"] = "Y_AXIS"
+    ctx.register(obj, "rock", dims=dims, meta=meta)
     return obj
 
 
@@ -81,13 +109,12 @@ def _tag_symmetry(ctx, names, pair_id):
 
 
 def scatter_core_rocks(ctx, count=None, ring_radius=None):
-    """Generate central rocks as exact mirror pairs for gameplay fairness.
+    """Generate central gameplay rocks as exact geometric mirror pairs.
 
-    The old implementation independently randomized every rock, which could
-    create a geometry advantage for one team. Central rocks are team-critical
-    because they shape the AetherCore combat space, so an even count is now a
-    hard invariant. Each pair uses one canonical seed/state, then regenerates
-    the identical mesh on the mirrored position x -> -x.
+    The previous implementation independently randomized every rock. That is
+    now prohibited for central combat geometry because it can change LOS,
+    movement cover and engagement space for one team only. An even core-rock
+    count is therefore a hard invariant.
     """
     cfg = ctx.config
     rock_cfg = cfg.get("rock", {})
@@ -99,11 +126,8 @@ def scatter_core_rocks(ctx, count=None, ring_radius=None):
     pair_count = count // 2
     objs = []
 
-    import math
-
-    # Canonical positions occupy the right half of the arena. Their exact
-    # mirrors populate the left half. This gives balanced spatial distribution
-    # without placing two rocks on the symmetry axis.
+    # Canonical positions are always on the +X half-plane. Their true geometric
+    # mirrors occupy -X. Y coordinates cover both front/back portions.
     if pair_count == 1:
         angles = [0.0]
     else:
@@ -113,8 +137,6 @@ def scatter_core_rocks(ctx, count=None, ring_radius=None):
         angles = [start + step * i for i in range(pair_count)]
 
     for pair_index, ang in enumerate(angles, 1):
-        # x is non-negative in this canonical half. Avoid the Y axis by nudging
-        # the exact midpoint slightly; its mirror would otherwise overlap it.
         if abs(math.cos(ang)) < 0.08:
             ang += math.radians(7.5 if math.sin(ang) >= 0.0 else -7.5)
 
@@ -122,16 +144,13 @@ def scatter_core_rocks(ctx, count=None, ring_radius=None):
         radius = ctx.rand(rock_cfg.get("radius_min", 1.0), rock_cfg.get("radius_max", 2.0))
         x = math.cos(ang) * r
         y = math.sin(ang) * r
-        left_pos = Vector((-x, y, 0.0))
         right_pos = Vector((x, y, 0.0))
 
-        # Generate identical geometry twice by replaying exactly the same RNG
-        # state. The terrain profile is itself symmetry-controlled, so the two
-        # mirrored anchors receive the same ground height.
-        state = ctx.rng.getstate()
-        left = make_rock(ctx, "Core_Rock_{:02d}".format(pair_index), left_pos, radius)
-        ctx.rng.setstate(state)
+        # Generate one canonical rock, then create an actual mesh mirror. This
+        # preserves identical proportions/irregularity while also mirroring the
+        # irregular silhouette itself, not merely copying the same mesh.
         right = make_rock(ctx, "Core_Rock_{:02d}".format(pair_index + pair_count), right_pos, radius)
+        left = _mirror_rock_object(ctx, right, "Core_Rock_{:02d}".format(pair_index))
 
         pair_id = "CORE_{:02d}".format(pair_index)
         _tag_symmetry(ctx, [left.name, right.name], pair_id)
