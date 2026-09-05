@@ -19,7 +19,7 @@ from core.navigation import build_grid, run_navigation_checks
 from core.validation import run_validation
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
-from core.gameplay_cover import run_gameplay_cover_pass
+from core.gameplay_cover import run_gameplay_cover_pass, repair_outer_boundary_for_legacy_bounds
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -85,6 +85,8 @@ def run_pipeline(ctx=None, export=True):
 
     print("[STAGE 6B/10] Global outer elliptical perimeter")
     boundary.generate_outer_boundary(ctx)
+    moved_boundary = repair_outer_boundary_for_legacy_bounds(ctx)
+    print("  -> legacy-bounds boundary repair: {} sections adjusted".format(moved_boundary))
 
     bpy.context.view_layer.update()
 
