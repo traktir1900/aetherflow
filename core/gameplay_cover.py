@@ -1,9 +1,8 @@
 """AetherFlow :: v0.6.2.1 gameplay cover refinement.
 
 Objective cover is selected with the shared cover-analysis optimiser instead of
-using a hard-coded symmetric pair. The objective arena stays open while cover
-moves toward side/flank positions that are useful for approach and retreat,
-not for permanent point camping.
+using a hard-coded symmetric pair. Cover is deliberately held outside a
+capture-objective stand-off ring so the point remains readable and contestable.
 """
 import math
 import bmesh
@@ -22,6 +21,9 @@ OBJECTIVE_COVER_MAX = 2
 OBJECTIVE_COVER_MIN_SCORE = 0.35
 OBJECTIVE_COVER_COVER_PCT = 0.12
 OBJECTIVE_COVER_MIN_PASSAGE = 4.5
+OBJECTIVE_COVER_MIN_STANDOFF = 13.0
+OBJECTIVE_COVER_MAX_STANDOFF = 18.0
+OBJECTIVE_COVER_MIN_SEPARATION = 10.0
 
 
 def _objective_basis(point):
@@ -34,14 +36,39 @@ def _objective_basis(point):
     return u, t
 
 
-def _pick_objective_cover(ctx, pname, point):
-    """Choose up to two asymmetric cover positions around an objective.
+def _filter_objective_specs(specs, scale, platform_r):
+    """Keep flank cover outside the capture fight, with enough separation."""
+    min_standoff = max(OBJECTIVE_COVER_MIN_STANDOFF * scale, platform_r + 5.5 * scale)
+    max_standoff = OBJECTIVE_COVER_MAX_STANDOFF * scale
+    min_sep = OBJECTIVE_COVER_MIN_SEPARATION * scale
+    centre_clear = max(6.0 * scale, platform_r + 0.25 * scale)
 
-    The shared optimiser evaluates LOS, flank value, defensive value, movement
-    penalty and choke risk. The capture platform itself is a hard exclusion so
-    cover never invades the interactable objective footprint.
-    """
-    del pname, point  # basis is applied after the local optimisation
+    ranked = []
+    for spec in specs:
+        x, y = spec["local"]
+        dist = math.hypot(x, y)
+        if dist < min_standoff or dist > max_standoff:
+            continue
+        if abs(x) < centre_clear:
+            continue
+        score = float(spec.get("score", spec.get("optimizer_score", 0.0)))
+        ranked.append((score, dist, spec))
+
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    chosen = []
+    for _score, _dist, spec in ranked:
+        x, y = spec["local"]
+        if any(math.hypot(x - ox, y - oy) < min_sep for ox, oy in [s["local"] for s in chosen]):
+            continue
+        chosen.append(spec)
+        if len(chosen) >= OBJECTIVE_COVER_MAX:
+            break
+    return chosen
+
+
+def _pick_objective_cover(ctx, pname, point):
+    """Choose up to two flank cover pieces while keeping the point open."""
+    del pname, point
     cfg = ctx.config
     scale = float(cfg.get("ground_half_size", 100.0)) / 100.0
     ccfg = {
@@ -49,11 +76,11 @@ def _pick_objective_cover(ctx, pname, point):
         "min_passage": OBJECTIVE_COVER_MIN_PASSAGE * scale,
         "max_objects": OBJECTIVE_COVER_MAX,
         "min_score": OBJECTIVE_COVER_MIN_SCORE,
-        "w_los": 2.2,
-        "w_flank": 1.5,
-        "w_defensive": 0.9,
-        "w_movement": 4.2,
-        "w_choke": 5.0,
+        "w_los": 2.0,
+        "w_flank": 1.8,
+        "w_defensive": 0.7,
+        "w_movement": 5.0,
+        "w_choke": 5.5,
     }
 
     platform_r = float(cfg.get("capture_platform_radius", 20.0))
@@ -61,42 +88,40 @@ def _pick_objective_cover(ctx, pname, point):
     arena_d = OBJECTIVE_ARENA_DEPTH * scale
     wall_clear = OBJECTIVE_WALL_CLEAR * scale
 
+    # Optimizer works in its canonical local arena.  Add a capture-zone hard
+    # exclusion, then apply the tactical stand-off and centre-lane filters.
     exclusions = [(0.0, 0.0, platform_r + 1.0 * scale)]
     kept, stats = optimize_cover(arena_w, arena_d, wall_clear, ccfg, exclusions=exclusions)
-
-    # Reject candidates that sit on the radial centreline. This keeps the
-    # direct approach / retreat lane visually and tactically open.
-    filtered = []
-    centre_clear = max(7.0 * scale, platform_r + 0.25 * scale)
     for spec in kept:
-        x, y = spec["local"]
-        if abs(x) < centre_clear:
-            continue
-        filtered.append(spec)
+        spec["score"] = float(stats.get("gameplay_score", 0.0))
 
-    # Deterministic fallback guarantees two useful flank pieces if optimiser
-    # thresholds are tightened later. Both pieces remain outside the platform
-    # exclusion and leave a broad direct lane toward the objective.
+    filtered = _filter_objective_specs(kept, scale, platform_r)
+
+    # Deterministic fallback: large flank silhouettes well outside the capture
+    # platform. No fallback is allowed to invade the direct entry lane.
     if len(filtered) < OBJECTIVE_COVER_MAX:
-        tangent = 10.5 * scale
-        outward = 4.5 * scale
-        fallback = [(-tangent, outward), (tangent, outward)]
-        existing = {(round(s["local"][0], 2), round(s["local"][1], 2)) for s in filtered}
-        for idx, (x, y) in enumerate(fallback):
+        fallback = [
+            (-15.0 * scale, 4.0 * scale, 2.25 * scale, 3.4 * scale),
+            (15.0 * scale, 4.0 * scale, 1.95 * scale, 3.0 * scale),
+        ]
+        for idx, (x, y, radius, height) in enumerate(fallback):
             if len(filtered) >= OBJECTIVE_COVER_MAX:
                 break
-            key = (round(x, 2), round(y, 2))
-            if key in existing:
+            if math.hypot(x, y) < max(OBJECTIVE_COVER_MIN_STANDOFF * scale, platform_r + 5.5 * scale):
+                continue
+            if any(math.hypot(x - sx, y - sy) < OBJECTIVE_COVER_MIN_SEPARATION * scale
+                   for sx, sy in [s["local"] for s in filtered]):
                 continue
             filtered.append({
                 "kind": "rock",
                 "cls": "large" if idx == 0 else "medium",
                 "label": "ObjectiveFallback{}".format(idx + 1),
                 "local": (x, y),
-                "radius": (2.0 if idx == 0 else 1.6) * scale,
-                "height": (3.2 if idx == 0 else 2.7) * scale,
+                "radius": radius,
+                "height": height,
                 "size": None,
                 "optimizer_score": 0.0,
+                "score": 0.0,
             })
 
     return filtered[:OBJECTIVE_COVER_MAX], stats
@@ -181,7 +206,7 @@ def _repair_known_cover_contacts(ctx):
 
 
 def generate_objective_cover(ctx):
-    """Create optimizer-driven asymmetric cover for all five objectives."""
+    """Create optimizer-driven flank cover for all five objectives."""
     built = []
     analyses = {}
 
@@ -192,11 +217,11 @@ def generate_objective_cover(ctx):
 
         for index, spec in enumerate(specs):
             x, y = spec["local"]
-            radius = float(spec.get("radius", 1.6))
-            height = float(spec.get("height", 2.7))
+            radius = float(spec.get("radius", 1.9))
+            height = float(spec.get("height", 3.0))
             role = "flank_defensive" if index == 0 else "flank_attack"
             yaw = 90.0 if index == 0 else -90.0
-            score = float(spec.get("optimizer_score", stats.get("gameplay_score", 0.0)))
+            score = float(spec.get("optimizer_score", spec.get("score", 0.0)))
             built.append(_make_cover(
                 ctx,
                 "ObjectiveCover_{}_{}".format(pname, index + 1),
@@ -224,4 +249,7 @@ def run_gameplay_cover_pass(ctx):
         "deterministic_seed": int(ctx.config.get("seed", 1337)),
         "optimizer": "shared_cover_analysis.optimize_cover",
         "objective_analyses": analyses,
+        "stand_off_min_m": OBJECTIVE_COVER_MIN_STANDOFF,
+        "stand_off_max_m": OBJECTIVE_COVER_MAX_STANDOFF,
+        "min_cover_separation_m": OBJECTIVE_COVER_MIN_SEPARATION,
     }
