@@ -49,8 +49,6 @@ def get_transition_radius(cfg):
 
 
 def _sample_height(pos, cfg, layout):
-    # Local import prevents a circular dependency because heightmap imports
-    # this module for the shared effective terrain profile.
     from core.heightmap import get_height_at_point
     return float(get_height_at_point(pos, cfg, layout))
 
@@ -91,12 +89,17 @@ def analyze_height_profile(cfg, layout, grid=65):
             samples += 1
 
     heights = get_effective_heights(cfg)
-    landmarks = {}
-    for name in ("AetherCore", "Crown", "WestMonolith", "EastMonolith", "SouthRift"):
+    # "AetherCore" is the central origin, not a layout key. Keep the
+    # named-landmark report aligned with the actual layout keys.
+    landmarks = {
+        "AetherCore": round(_sample_height(Vector((0.0, 0.0, 0.0)), cfg, layout), 3)
+    }
+    for name in ("Crown", "WestMonolith", "EastMonolith", "SouthRift"):
         p = layout[name]
         landmarks[name] = round(_sample_height(p, cfg, layout), 3)
 
-    expected = {name: round(float(heights[name]), 3) for name in heights if name in landmarks}
+    expected = {name: round(float(heights[name]), 3)
+                for name in landmarks if name in heights}
     return {
         "enabled": bool(get_profile(cfg).get("enabled", True)),
         "landmark_heights_m": landmarks,
@@ -105,7 +108,9 @@ def analyze_height_profile(cfg, layout, grid=65):
         "max_height_m": round(hi_z, 3),
         "max_slope_deg": round(max_slope, 2),
         "average_slope_deg": round(sum_slope / max(samples, 1), 2),
-        "slope_within_design_limit": bool(max_slope <= float(get_profile(cfg)["max_expected_slope_deg"])),
+        "slope_within_design_limit": bool(
+            max_slope <= float(get_profile(cfg)["max_expected_slope_deg"])
+        ),
         "topology_changed": False,
         "objectives_moved": False,
         "bases_moved": False,
