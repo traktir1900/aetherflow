@@ -1,19 +1,8 @@
 """
-AetherFlow :: core/pipeline.py  (v0.6.1)
+AetherFlow :: core/pipeline.py  (v0.6.2.1)
 
-The SINGLE active generation pipeline.  main.py is only a thin launcher that
-calls run_pipeline().  No other module may drive generation.
-
-Stages:
-  1 scene (safe) + materials
-  2 layout (5 capture points + 2 bases)
-  3 terrain + safety floor
-  4 structures (altar/crown, points, bases, cover, roads, ramps)
-  5 procedural rocks
-  6 navigation (obstacle-aware grid, reachability, chokepoints)
-  7 combat simulation (consumes the nav grid; 5/5 points; real cover_usage)
-  8 validation (real bounds, intersections, ramps, terrain sampling)
-  9 export map_data.json
+The SINGLE active generation pipeline.
+v0.6.2.1 adds the gameplay-cover pass without rebuilding map topology.
 """
 import os
 import time
@@ -30,6 +19,7 @@ from core.navigation import build_grid, run_navigation_checks
 from core.validation import run_validation
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
+from core.gameplay_cover import run_gameplay_cover_pass
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -88,6 +78,11 @@ def run_pipeline(ctx=None, export=True):
     pkts = pockets.generate_pockets(ctx)
     print("  -> pockets built: {} ({} objects)".format(len(ctx.pockets), len(pkts)))
 
+    print("[STAGE 6A/10] Gameplay Cover 2.0")
+    cover = run_gameplay_cover_pass(ctx)
+    print("  -> objective gameplay cover: {} across {} objectives".format(
+        cover["objective_cover_count"], cover["objectives_covered"]))
+
     print("[STAGE 6B/10] Global outer elliptical perimeter")
     boundary.generate_outer_boundary(ctx)
 
@@ -135,5 +130,6 @@ def run_pipeline(ctx=None, export=True):
         "validation": report,
         "navigation": nav,
         "simulation": sim,
+        "gameplay_cover": cover,
         "map_data": out_path,
     }
