@@ -55,32 +55,44 @@ def remove_legacy_core_cover(ctx):
     ObjectiveCover_* is deliberately left untouched.  The central Altar
     combat space is now dressed only by the four dedicated symmetric
     Altar_Obstacle_* barricades plus the normal map geometry.
+
+    IMPORTANT: capture the Blender object name *before* unlink/removal. A
+    StructRNA object becomes invalid immediately after bpy.data.objects.remove().
     """
     removed = 0
     removed_names = set()
 
+    # Registered generated objects.
     for rec in list(ctx.generated_objects):
-        name = rec.get("name", "")
+        name = str(rec.get("name", ""))
         if not name.startswith("Core_Cover_"):
             continue
         obj = rec.get("object")
-        if obj is not None and obj.name in bpy.data.objects:
-            bpy.data.objects.remove(obj, do_unlink=True)
-        removed_names.add(name)
-        removed += 1
+        if obj is not None:
+            try:
+                obj_name = str(obj.name)
+                if obj_name in bpy.data.objects:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                removed_names.add(name)
+                removed += 1
+            except ReferenceError:
+                # The record points to an already-removed Blender object.
+                # The metadata still needs to be purged below.
+                removed_names.add(name)
 
-    # Defensive live-scene cleanup in case an upstream stage did not leave the
-    # object registered in ctx.generated_objects.
+    # Defensive live-scene cleanup. Never access obj.name after removal.
     for obj in list(bpy.data.objects):
-        if obj.name.startswith("Core_Cover_"):
+        obj_name = str(obj.name)
+        if obj_name.startswith("Core_Cover_"):
             bpy.data.objects.remove(obj, do_unlink=True)
-            if obj.name not in removed_names:
+            if obj_name not in removed_names:
+                removed_names.add(obj_name)
                 removed += 1
 
     if removed_names:
         ctx.generated_objects[:] = [
             rec for rec in ctx.generated_objects
-            if rec.get("name", "") not in removed_names
+            if str(rec.get("name", "")) not in removed_names
         ]
     _sync_scene()
     return removed
@@ -95,7 +107,10 @@ def _repair_central_rocks(ctx, push=2.75):
         obj = rec.get("object")
         if obj is None:
             continue
-        x, y = float(obj.location.x), float(obj.location.y)
+        try:
+            x, y = float(obj.location.x), float(obj.location.y)
+        except ReferenceError:
+            continue
         radius = math.hypot(x, y)
         if radius < 1e-6:
             continue
