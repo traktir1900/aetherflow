@@ -9,7 +9,6 @@ mutated here: repairs must be evidence-driven and happen only after the audit
 identifies a real problem.
 """
 import math
-from collections import defaultdict
 
 from mathutils import Vector
 
@@ -17,8 +16,7 @@ from core.layout import BASES, RING_NODES
 
 
 DEFAULT_RULES = {
-    # These are intentionally conservative engineering thresholds, separate
-    # from the hard 35 deg terrain-design ceiling.
+    # Diagnostic engineering thresholds, separate from the hard 35 deg terrain ceiling.
     "combat_max_deg": 15.0,
     "minion_safe_max_deg": 18.0,
     "walkable_max_deg": 25.0,
@@ -56,6 +54,10 @@ def analyze_path(ctx, grid, p0, p1, label, cells=None, kind="route"):
         return {
             "label": label, "kind": kind, "reachable": False,
             "classification": "Too steep", "reason": "unreachable",
+            "problems": ["unreachable"],
+            "hero_walkable": False,
+            "minion_safe": False,
+            "group_traversable": False,
         }
 
     pts = _path_points(ctx, grid, cells)
@@ -64,9 +66,8 @@ def analyze_path(ctx, grid, p0, p1, label, cells=None, kind="route"):
     max_dz = 0.0
     high_segments = 0
     transition_len = 0.0
-    last_xy = pts[0]
-
     segments = []
+
     rules = _rules(ctx.config)
     for a, b in zip(pts, pts[1:]):
         dx = b.x - a.x
@@ -83,8 +84,11 @@ def analyze_path(ctx, grid, p0, p1, label, cells=None, kind="route"):
             high_segments += 1
         if angle > rules["combat_max_deg"]:
             transition_len += run
-        segments.append({"angle_deg": round(angle, 2), "dz_m": round(dz, 3), "run_m": round(run, 3)})
-        last_xy = b
+        segments.append({
+            "angle_deg": round(angle, 2),
+            "dz_m": round(dz, 3),
+            "run_m": round(run, 3),
+        })
 
     route_length = sum(s["run_m"] for s in segments)
     avg_angle = sum_angle / max(1, len(segments))
@@ -123,6 +127,9 @@ def analyze_path(ctx, grid, p0, p1, label, cells=None, kind="route"):
         "segments_over_combat_deg": high_segments,
         "combat_transition_length_m": round(transition_len, 2),
         "problems": problems,
+        "hero_walkable": max_angle <= rules["walkable_max_deg"] and max_dz <= rules["max_step_m"],
+        "minion_safe": max_angle <= rules["minion_safe_max_deg"] and max_dz <= rules["max_step_m"],
+        "group_traversable": True,
         "sampled_segments": segments,
     }
 
@@ -144,8 +151,49 @@ def _nearest_farthest(layout, base, points, grid, ctx):
     return (ranked[0][1] if ranked else None, ranked[-1][1] if ranked else None)
 
 
+def _vector_from(value):
+    if value is None:
+        return None
+    return Vector((float(value[0]), float(value[1]), float(value[2] if len(value) > 2 else 0.0)))
+
+
+def _inferred_ramp_endpoints(ctx, name):
+    """Recover endpoints for ramps whose metadata predates p0/p1 support."""
+    cfg = ctx.config
+    if name == "North_Ramp_Crown_Core":
+        crown = ctx.layout["Crown"].copy()
+        north_gate = Vector((0.0, cfg["center_radius"], 0.0))
+        crown.z = _ground_z(ctx, crown)
+        north_gate.z = _ground_z(ctx, north_gate)
+        return crown, north_gate
+
+    for pname in RING_NODES:
+        if name != "Ramp_{}".format(pname):
+            continue
+        pos = ctx.layout[pname].copy()
+        pos.z = _ground_z(ctx, pos)
+        flat = Vector((pos.x, pos.y, 0.0)).normalized()
+        end = pos + flat * (cfg["capture_platform_radius"] * 0.9)
+        end.z = _ground_z(ctx, end) + cfg["capture_platform_height"]
+        start = end + flat * cfg.get("ramp_run_length", 8.0)
+        start.z = _ground_z(ctx, start)
+        return start, end
+    return None, None
+
+
+def _direction_alignment_error_deg(a, b, expected_dir):
+    route = Vector((b.x - a.x, b.y - a.y, 0.0))
+    exp = Vector((expected_dir.x, expected_dir.y, 0.0))
+    if route.length <= 1e-6 or exp.length <= 1e-6:
+        return None
+    route.normalize()
+    exp.normalize()
+    dot = max(-1.0, min(1.0, route.dot(exp)))
+    return abs(math.degrees(math.acos(dot)))
+
+
 def analyze_ramps(ctx, grid):
-    """Audit every generated ramp plus the north Crown access ramp."""
+    """Audit every generated ramp, including legacy metadata without endpoints."""
     ramps = []
     rules = _rules(ctx.config)
     for rec in ctx.generated_objects:
@@ -159,6 +207,7 @@ def analyze_ramps(ctx, grid):
         drop = meta.get("drop")
         if width is None and len(dims) >= 2:
             width = min(float(dims[0]), float(dims[1]))
+
         result = {
             "name": name,
             "width_m": round(float(width), 3) if width is not None else None,
@@ -169,43 +218,49 @@ def analyze_ramps(ctx, grid):
             "classification": "DATA MISSING",
             "problems": [],
         }
+
         if width is not None and float(width) < rules["min_group_width_m"]:
             result["problems"].append("group_width_below_4m")
 
-        # Recover endpoints when recorded by the generator; otherwise use the
-        # name/layout relationship for the capture ramps.
-        p0 = meta.get("p0")
-        p1 = meta.get("p1")
-        if p0 and p1:
-            a = Vector(p0)
-            b = Vector(p1)
+        a = _vector_from(meta.get("p0"))
+        b = _vector_from(meta.get("p1"))
+        if a is None or b is None:
+            a, b = _inferred_ramp_endpoints(ctx, name)
+
+        if a is not None and b is not None:
             rp = analyze_path(ctx, grid, a, b, name, kind="ramp")
             result.update({
                 "classification": rp.get("classification"),
                 "sampled_max_slope_deg": rp.get("max_local_slope_deg"),
                 "sampled_avg_slope_deg": rp.get("average_local_slope_deg"),
                 "sampled_height_delta_m": rp.get("height_delta_m"),
+                "sampled_max_adjacent_height_delta_m": rp.get("max_adjacent_height_delta_m"),
                 "sampled_reachable": rp.get("reachable"),
-                "sampled_problems": rp.get("problems", []),
+                "hero_walkable": rp.get("hero_walkable"),
+                "minion_safe": rp.get("minion_safe"),
+                "sampled_problems": list(rp.get("problems", [])),
+                "entry_point": [round(a.x, 3), round(a.y, 3), round(a.z, 3)],
+                "exit_point": [round(b.x, 3), round(b.y, 3), round(b.z, 3)],
             })
+            result["height_delta_m"] = rp.get("height_delta_m", result["height_delta_m"])
             result["problems"].extend(rp.get("problems", []))
+            result["problems"] = sorted(set(result["problems"]))
+
+            if width is not None:
+                result["group_traversable"] = bool(width >= rules["min_group_width_m"] and rp.get("reachable"))
+            else:
+                result["group_traversable"] = False
+
+            expected_dir = Vector((b.x, b.y, 0.0))
+            if name == "North_Ramp_Crown_Core":
+                expected_dir = Vector((0.0, -1.0, 0.0))
+            result["alignment_error_deg"] = round(
+                _direction_alignment_error_deg(a, b, expected_dir), 2
+            ) if _direction_alignment_error_deg(a, b, expected_dir) is not None else None
         else:
-            for pname in RING_NODES:
-                if name == "Ramp_{}".format(pname):
-                    pos = ctx.layout[pname]
-                    flat = Vector((pos.x, pos.y, 0.0)).normalized()
-                    end = pos + flat * (ctx.config["capture_platform_radius"] * 0.9)
-                    start = end + flat * ctx.config.get("ramp_run_length", 8.0)
-                    rp = analyze_path(ctx, grid, start, end, name, kind="ramp")
-                    result.update({
-                        "classification": rp.get("classification"),
-                        "sampled_max_slope_deg": rp.get("max_local_slope_deg"),
-                        "sampled_avg_slope_deg": rp.get("average_local_slope_deg"),
-                        "sampled_reachable": rp.get("reachable"),
-                        "sampled_problems": rp.get("problems", []),
-                    })
-                    result["problems"].extend(rp.get("problems", []))
-                    break
+            result["problems"].append("endpoint_data_missing")
+            result["group_traversable"] = False
+
         ramps.append(result)
     return ramps
 
