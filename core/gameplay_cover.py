@@ -2,7 +2,7 @@
 
 Objective cover is selected with the shared cover-analysis optimiser, then
 constrained into two tactical rings: one near-flank piece and one deeper
-flank/retreat piece.  The capture platform and direct radial lane stay open.
+flank/retreat piece. The capture platform and direct radial lane stay open.
 """
 import math
 import bmesh
@@ -64,9 +64,9 @@ def _make_fallback(local_xy, idx, scale):
 def _pick_objective_cover(ctx, pname, point):
     """Choose one near-flank and one deep-flank cover piece.
 
-    The shared optimiser still scores LOS, flank, movement and choke value.
-    A post-selection tactical filter then enforces a deliberate two-ring layout
-    so the objective does not become a two-rock camping nest.
+    The shared optimiser scores LOS, flank, movement and choke value.
+    Tactical post-filtering then enforces two distinct distance bands so
+    objectives do not become two-piece camping nests.
     """
     del pname
     cfg = ctx.config
@@ -103,28 +103,37 @@ def _pick_objective_cover(ctx, pname, point):
     if near:
         selected.append(near[0])
 
-    # Pick a deeper piece that is clearly separated from the near piece.
     if selected:
         origin = selected[0]["local"]
         far = [s for s in far if math.hypot(s["local"][0] - origin[0], s["local"][1] - origin[1]) >= OBJECTIVE_COVER_PAIR_MIN * scale]
     if far:
         selected.append(far[0])
 
-    # Deterministic fallback: one near flank, one deep flank.  The direct radial
-    # lane (|x| < 7 m) stays clear and the pair remains outside the platform keep-out.
-    fallback_near = [(-15.0 * scale, 4.5 * scale), (15.0 * scale, 4.5 * scale)]
-    fallback_far = [(-24.0 * scale, 7.0 * scale), (24.0 * scale, 7.0 * scale)]
-    for pool in (fallback_near, fallback_far):
-        if len(selected) >= OBJECTIVE_COVER_MAX:
-            break
-        for xy in pool:
-            if any(math.hypot(xy[0] - s["local"][0], xy[1] - s["local"][1]) < OBJECTIVE_COVER_PAIR_MIN * scale for s in selected):
-                continue
-            if len(selected) == 0:
-                selected.append(_make_fallback(xy, 0, scale))
-            else:
-                selected.append(_make_fallback(xy, 1, scale))
-            break
+    # Deterministic fallback guarantees the second piece is DEEP, never another
+    # near-ring piece. If optimizer supplies no valid near candidate, use a near
+    # fallback first; if it supplies no valid far candidate, use the deep fallback.
+    if not selected:
+        selected.append(_make_fallback((-15.0 * scale, 4.5 * scale), 0, scale))
+
+    if len(selected) < OBJECTIVE_COVER_MAX:
+        deep_pool = [(-24.0 * scale, 7.0 * scale), (24.0 * scale, 7.0 * scale)]
+        deep_xy = None
+        for xy in deep_pool:
+            if math.hypot(xy[0] - selected[0]["local"][0], xy[1] - selected[0]["local"][1]) >= OBJECTIVE_COVER_PAIR_MIN * scale:
+                deep_xy = xy
+                break
+        if deep_xy is not None:
+            selected.append(_make_fallback(deep_xy, 1, scale))
+
+    # Absolute safety: if optimizer selected two pieces, enforce the intended
+    # near/deep order. This does not change the optimiser source score; it only
+    # chooses which role each accepted piece receives.
+    if len(selected) >= 2:
+        selected.sort(key=_dist_local)
+        if _dist_local(selected[0]) > OBJECTIVE_NEAR_MAX * scale:
+            selected[0] = _make_fallback((-15.0 * scale, 4.5 * scale), 0, scale)
+        if _dist_local(selected[1]) < OBJECTIVE_FAR_MIN * scale:
+            selected[1] = _make_fallback((24.0 * scale, 7.0 * scale), 1, scale)
 
     return selected[:OBJECTIVE_COVER_MAX], stats
 
