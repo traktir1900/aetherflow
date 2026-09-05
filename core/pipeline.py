@@ -43,8 +43,6 @@ def _reload_runtime_modules():
     global gameplay_cover_module, altar_rotation_module, validation_module
     global terrain_refinement_module, terrain
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
-    # heightmap reads terrain_refinement at import time, so reload it before
-    # terrain generation on every Run Script.
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
     terrain = importlib.reload(terrain)
