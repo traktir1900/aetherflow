@@ -5,6 +5,7 @@ The SINGLE active generation pipeline.
 v0.6.2.1 adds gameplay cover, altar hardening and deterministic rotation metrics
 without rebuilding map topology.
 """
+import importlib
 import os
 import time
 
@@ -17,11 +18,12 @@ from core.utils import clear_scene, setup_collections
 from core.materials import setup_materials
 from core.layout import build_layout
 from core.navigation import build_grid, run_navigation_checks
-from core.validation import run_validation
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
-from core.gameplay_cover import run_gameplay_cover_pass, repair_outer_boundary_for_legacy_bounds
-from core.altar_rotation import ensure_altar_clearance, generate_altar_obstacles, analyze_macro_rotation
+
+import core.gameplay_cover as gameplay_cover_module
+import core.altar_rotation as altar_rotation_module
+import core.validation as validation_module
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -35,9 +37,26 @@ def _project_root():
     return os.path.dirname(here)
 
 
+def _reload_runtime_modules():
+    """Reload project modules that are intentionally edited between Blender runs.
+
+    Blender keeps imported Python modules in sys.modules. Without an explicit
+    reload, a second Run Script in the same Blender session can execute stale
+    versions of gameplay_cover / altar_rotation / validation even though the
+    files on disk were updated.  This is the reason earlier local logs showed
+    new pipeline banners mixed with old validation behaviour.
+    """
+    global gameplay_cover_module, altar_rotation_module, validation_module
+    gameplay_cover_module = importlib.reload(gameplay_cover_module)
+    altar_rotation_module = importlib.reload(altar_rotation_module)
+    validation_module = importlib.reload(validation_module)
+
+
 def run_pipeline(ctx=None, export=True):
     start = time.time()
     print(banner("AETHER FLOW GENERATION PIPELINE"))
+
+    _reload_runtime_modules()
 
     cfg = CONFIG
     half = cfg.get("ground_half_size", 0)
@@ -77,8 +96,8 @@ def run_pipeline(ctx=None, export=True):
     print("  -> rocks built: {}".format(len(rocks)))
 
     print("[STAGE 5A/10] Altar hardening")
-    altar_built = generate_altar_obstacles(ctx)
-    altar_repairs = ensure_altar_clearance(ctx)
+    altar_built = altar_rotation_module.generate_altar_obstacles(ctx)
+    altar_repairs = altar_rotation_module.ensure_altar_clearance(ctx)
     print("  -> altar obstacles: {} (non-blocking)".format(len(altar_built)))
     for name, before, after in altar_repairs:
         print("  -> altar clearance repair: {} {:.2f}m -> {:.2f}m".format(name, before, after))
@@ -88,10 +107,10 @@ def run_pipeline(ctx=None, export=True):
     print("  -> pockets built: {} ({} objects)".format(len(ctx.pockets), len(pkts)))
 
     print("[STAGE 6A/10] Gameplay Cover 2.0")
-    cover = run_gameplay_cover_pass(ctx)
+    cover = gameplay_cover_module.run_gameplay_cover_pass(ctx)
     # Cover generation can move central cover; re-enforce the real mesh
     # clearance after the final cover pass as well.
-    altar_repairs_after_cover = ensure_altar_clearance(ctx)
+    altar_repairs_after_cover = altar_rotation_module.ensure_altar_clearance(ctx)
     print("  -> objective gameplay cover: {} across {} objectives".format(
         cover["objective_cover_count"], cover["objectives_covered"]))
     for name, before, after in altar_repairs_after_cover:
@@ -100,7 +119,7 @@ def run_pipeline(ctx=None, export=True):
 
     print("[STAGE 6B/10] Global outer elliptical perimeter")
     boundary.generate_outer_boundary(ctx)
-    moved_boundary = repair_outer_boundary_for_legacy_bounds(ctx)
+    moved_boundary = gameplay_cover_module.repair_outer_boundary_for_legacy_bounds(ctx)
     print("  -> legacy-bounds boundary repair: {} sections adjusted".format(moved_boundary))
 
     bpy.context.view_layer.update()
@@ -108,7 +127,7 @@ def run_pipeline(ctx=None, export=True):
     print("[STAGE 7/10] Navigation (obstacle-aware grid)")
     grid = build_grid(ctx)
     nav = run_navigation_checks(ctx, grid)
-    nav["macro_rotation"] = analyze_macro_rotation(ctx, nav)
+    nav["macro_rotation"] = altar_rotation_module.analyze_macro_rotation(ctx, nav)
     for prob in nav["problems"]:
         print("  [NAV] " + prob)
     print("  -> chokepoints detected: {}".format(len(nav["chokepoints"])))
@@ -125,7 +144,7 @@ def run_pipeline(ctx=None, export=True):
     sim = simulation.run_simulation(ctx, grid, nav_report=nav)
 
     print("[STAGE 9/10] Validation")
-    report = run_validation(ctx, nav_report=nav)
+    report = validation_module.run_validation(ctx, nav_report=nav)
     for e in report["errors"]:
         print("  [VALIDATION ERROR] " + e)
     for w in report["warnings"]:
