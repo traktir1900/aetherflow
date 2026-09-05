@@ -58,42 +58,38 @@
 
 Доработать физическое игровое пространство только там, где тесты показывают реальные проблемы. Топология и расположение баз/objectives не должны дрейфовать.
 
-## v0.6.3.1 — TERRAIN REFINEMENT — BALANCE VALIDATED
+## v0.6.3.1 — TERRAIN REFINEMENT — CLOSED
 
-### Зафиксировано
+Баланс baseline зафиксирован. Blue/Red fairness = 0.0%, 5/5 objectives, 4/4 pockets reachable, navigation problems = 0, evaluated-mesh intersections = 0, gameplay symmetry = PASS, terrain slope audit = PASS (26.14° < 35°). XY bases/objectives frozen.
 
-- terrain refinement с bounded-профилем;
-- AetherCore / Crown / WestMonolith / EastMonolith / SouthRift усилены контролируемо;
-- terrain slope audit: PASS, максимум 26.14° при лимите 35°;
-- Blue/Red средний маршрут: 114.7 м / 19.1 с для обеих команд;
-- Blue/Red fairness: **0.0% difference — BALANCED**;
-- ближайший objective для обеих команд: 45.3 м;
-- pockets: 4/4 reachable, зеркальные размеры/входы/cover;
-- objective cover symmetry: PASS для West↔East, SW↔SE и Crown;
-- Altar: 4 live symmetric Altar_Obstacle_*;
-- evaluated-mesh intersections: 0;
-- navigation problems: 0;
-- Deathball risk: LOW;
-- Snowball risk: LOW;
-- comeback route availability: 4 flank pockets.
-
-### Остаточные технические предупреждения
-
-Последний runtime также показал legacy bbox warnings для внешней границы и stale-export mismatch по Altar obstacles. Они не изменяют фактическую командную fairness и не указывают на нарушение gameplay symmetry. Полная техническая валидация внешнего perimeter/export остаётся отдельной задачей.
+Остались отдельные технические cleanup items: legacy outer-boundary bbox warnings и Altar export/inspection mismatch. Они не изменяют командную fairness baseline.
 
 ## v0.6.3.2 — HEIGHT TRANSITIONS — CURRENT
 
+### Baseline lock
+
+Контрольные значения из v0.6.3.1:
+
+- Blue/Red route-time difference: **0.0%**;
+- objectives: **5/5**;
+- pockets reachable: **4/4**;
+- navigation problems: **0**;
+- evaluated-mesh intersections: **0**;
+- gameplay symmetry: **PASS**;
+- terrain slope design limit: **35°**;
+- base/objective XY: **FROZEN**.
+
+### Work
+
 Проверить slope, ramps, walkability, minion traversal, LOS changes и combat readability. Исправлять только реальные проблемы.
 
-### Цели v0.6.3.2
+### Hard constraints
 
-- проверить переходы между AetherCore / Crown / monolith platforms / SouthRift;
-- проверить фактическую проходимость героя и minion;
-- проверить влияние уклонов на LOS и combat readability;
-- сохранить существующий 0.0% Blue/Red route-time difference;
-- не менять XY-позиции objectives и bases;
-- сохранять жёсткую Y-axis symmetry `(x,y,z) -> (-x,y,z)`;
-- избегать новых узких chokepoints и случайного усиления одной стороны.
+- не менять XY координаты bases/objectives;
+- сохранять Y-axis gameplay symmetry `(x,y,z) -> (-x,y,z)`;
+- не допускать новых gameplay-breaking chokepoints;
+- после каждого material change выполнять regression validation;
+- сохранить baseline fairness или зафиксировать любое отклонение как отдельный измеренный результат.
 
 ## v0.6.3.3 — ROAD NETWORK REFINEMENT
 
