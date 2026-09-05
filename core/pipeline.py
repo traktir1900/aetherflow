@@ -142,6 +142,40 @@ def _discard_generation_snapshot():
     print("[SCENE] GENERATION SNAPSHOT: discarded after successful run.")
 
 
+def _print_minion_traversal(report):
+    """Print the dedicated Base->Objective->Objective->enemy Base regression."""
+    print("  -> MINION TRAVERSAL: {} | scenario={}".format(
+        "PASS" if report.get("passed") else "REVIEW REQUIRED",
+        report.get("scenario", "Base -> Objective -> Objective -> enemy Base")))
+    rules = report.get("rules", {})
+    print("     rules: slope<= {:.1f}° | adjacent_dz<= {:.2f}m | corridor>= {:.2f}m | radius={:.2f}m".format(
+        rules.get("minion_safe_max_deg", -1.0),
+        rules.get("max_step_m", -1.0),
+        rules.get("minion_corridor_width_m", -1.0),
+        rules.get("minion_radius_m", -1.0)))
+    for scenario in report.get("scenarios", []):
+        print("     [{}] {} | reachable={} | minion_safe={} | max_slope={:.2f}° | max_dz={:.3f}m | blockers={} | ramp_base={} | edge={} | narrow={}".format(
+            scenario.get("team", "?"),
+            " -> ".join(scenario.get("path", [])),
+            scenario.get("reachable"),
+            scenario.get("minion_safe"),
+            scenario.get("max_slope_deg", 0.0),
+            scenario.get("max_adjacent_height_delta_m", 0.0),
+            scenario.get("solid_blocker_hits", 0),
+            scenario.get("ramp_base_contacts", 0),
+            scenario.get("terrain_edge_hits", 0),
+            scenario.get("narrow_corridor_hits", 0)))
+        for hop in scenario.get("hops", []):
+            analysis = hop.get("analysis", {})
+            problems = analysis.get("problems", [])
+            if problems:
+                print("       [MINION] {} -> {} | slope={:.2f}° dz={:.3f}m | {}".format(
+                    hop.get("from"), hop.get("to"),
+                    analysis.get("max_local_slope_deg", -1.0),
+                    analysis.get("max_adjacent_height_delta_m", -1.0),
+                    problems))
+
+
 def run_pipeline(ctx=None, export=True):
     start = time.time()
     print(banner("AETHER FLOW GENERATION PIPELINE"))
@@ -267,6 +301,7 @@ def run_pipeline(ctx=None, export=True):
                 print("  [RAMP] {} | width={}m | slope={}° | {}".format(
                     r["name"], r.get("width_m"), r.get("sampled_max_slope_deg"),
                     r.get("problems") or r.get("sampled_problems")))
+        _print_minion_traversal(height_transition_report.get("minion_traversal", {}))
 
         print("[STAGE 8/10] Combat simulation (5/5 capture points, nav-driven)")
         sim = simulation.run_simulation(ctx, grid, nav_report=nav)
