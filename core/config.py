@@ -14,9 +14,6 @@ Gameplay target: 200 x 200 m  ->  GROUND_HALF_SIZE = 100.0
 World floor target: 220 x 220 m  ->  WORLD_FLOOR_HALF_SIZE = 110.0
 """
 
-# ---------------------------------------------------------------------------
-# The ONE knob that controls map scale.  110.0 == 220 x 220 m map.
-# ---------------------------------------------------------------------------
 GROUND_HALF_SIZE = 100.0
 WORLD_FLOOR_HALF_SIZE = 110.0
 _BASE_HALF = 300.0
@@ -81,9 +78,10 @@ CONFIG = {
         "mirror_axis": "x -> -x; y -> -y",
         "front_back_mirror": True,
         "non_blocking_navigation": True,
-        "ring_offset_from_altar_m": 3.5,
-        "protector_radius_m": 0.8,
-        "protector_height_m": 2.6,
+        "ring_offset_from_altar_m": 3.25,
+        "protector_length_m": 3.6,
+        "protector_depth_m": 1.25,
+        "protector_height_m": 2.4,
         "layout": "CARDINAL_CENTERED",
     },
     "ring_road_width": _s(12.0), "base_road_width": _s(8.0),
