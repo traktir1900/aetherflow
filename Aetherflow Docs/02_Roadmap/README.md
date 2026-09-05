@@ -1,1524 +1,1048 @@
 # AetherFlow — Полный план разработки
 
-## Этап Blender / Python / игровая карта
+## Структура версий
+
+Проект развивается по крупным фазам. Версии **0.6.x** предназначены только для Blender / Python / процедурной генерации и подготовки игровой карты. Начиная с **0.7.0** начинается интеграция в Unreal Engine 5.
+
+Главный принцип: существующий код не переписывается без необходимости. Каждая следующая версия расширяет и проверяет уже работающую систему.
 
 ---
 
 # ФАЗА 1 — BLENDER / PYTHON / ИГРОВАЯ КАРТА
 
-## v0.6.1 — ТЕКУЩАЯ БАЗОВАЯ ВЕРСИЯ
+## v0.6.1 — ТЕКУЩАЯ БАЗА
 
-Текущая рабочая версия карты.
+Исходная рабочая версия процедурной карты.
 
-Уже существует:
+Уже реализовано:
 
-- процедурная генерация карты
-- процедурный рельеф
-- heightmap
-- 5 точек захвата
-- 2 базы
-- дороги
-- рампы
-- камни
-- игровые карманы
-- система укрытий
-- анализ прямой видимости
-- навигационная система
-- внешняя граница карты
-- симуляция
-- валидация
-- экспорт
+- процедурная генерация сцены;
+- процедурный рельеф и heightmap;
+- игровая область 200 × 200 м;
+- внешний пол 220 × 220 м;
+- 5 точек захвата;
+- 2 базы;
+- дороги и рампы;
+- центральная зона Aether Altar / Aether Crown;
+- AetherCore;
+- 4 gameplay pockets;
+- система укрытий и анализ прямой видимости;
+- процедурные камни;
+- навигационная сетка;
+- внешняя граница;
+- детерминированная симуляция;
+- валидация;
+- экспорт map_data.json.
 
-Размер игровой области сейчас: **200 × 200 м**.
-
-Размер внешнего пола: **220 × 220 м**.
-
-v0.6.1 является исходной точкой для дальнейшей разработки.
+**Важно:** v0.6.1 не переделывается с нуля. Следующие версии используют её как зафиксированный фундамент.
 
 ---
 
-# v0.6.2 — БАЗЫ + ТОЧКИ ЗАХВАТА + ТОПОГРАФИЯ КАРТЫ
+# v0.6.2 — GAMEPLAY DRESSING + ENVIRONMENT + INTERACTION FOUNDATION
 
 ### Главная задача
 
-Полностью сформировать игровую структуру карты вокруг:
+Превратить существующий каркас v0.6.1 в полноценное игровое пространство, не меняя фундаментальную топологию карты.
 
-- 5 точек захвата
-- 2 баз
-- маршрутов между точками
-- ротации
-- обходов
-- флангов
-- атакующих и защитных направлений
+В этой версии не создаются заново базы, точки, дороги, рампы, рельеф или pockets. Они уже существуют. Работа направлена на их игровое оформление, окружение, укрытия, точки взаимодействия и данные, необходимые для будущего UE5.
 
-Отдельного этапа аудита нет.
+## v0.6.2.0 — BASELINE LOCK
 
-## v0.6.2.1 — ПЯТЬ ТОЧЕК ЗАХВАТА
+Зафиксировать существующий фундамент:
 
-Финализировать:
+- layout;
+- 5 objectives;
+- 2 bases;
+- terrain;
+- roads;
+- ramps;
+- pockets;
+- boundary;
+- navigation;
+- текущую систему валидации.
 
-- Crown
-- EastMonolith
-- SEMonolith
-- SWMonolith
-- WestMonolith
+Перед изменениями сохранить baseline метрики:
 
-Каждая точка должна иметь:
+- размеры карты;
+- позиции объектов;
+- navigation coverage;
+- travel distances;
+- LOS;
+- существующие gameplay cover;
+- экспортируемые идентификаторы.
 
-- платформу захвата
-- радиус захвата
-- зону оспаривания
-- центр объекта
-- основную конструкцию
-- оборонительную конструкцию
-- атакующую зону
-- оборонительную зону
-- зону отхода
-- укрытия
-- зоны прямой видимости
-- фланговые подходы
-- пути отхода
+Новые декоративные системы не должны случайно менять этот фундамент.
 
-## v0.6.2.2 — ДИЗАЙН ТОЧЕК ЗАХВАТА
+## v0.6.2.1 — GAMEPLAY COVER 2.0
 
-Точка не должна быть просто круглой платформой.
+Расширить существующую систему укрытий, а не создавать вторую независимую систему.
 
-Вокруг неё формируется полноценная боевая зона:
+Добавить контролируемые категории укрытий для:
 
-- основной подход
-- второй подход
-- фланговый подход
-- тыловой подход
-- оборонительная позиция
-- позиция атакующих
-- позиция отхода
-- маршрут контратаки
+- подходов к objectives;
+- отходов;
+- флангов;
+- ротаций;
+- pockets;
+- defensive positions;
+- атакующих позиций;
+- choke points.
 
-Каждая точка должна иметь минимум два полноценных направления атаки.
+Использовать существующий cover optimizer и его ограничения.
 
-## v0.6.2.3 — ОБОРОНА ТОЧЕК
+Базовые ограничения:
 
-Для каждой точки:
+- максимум 3 объекта укрытия в pocket;
+- максимум 15% покрытия пола pocket;
+- минимум 3 м свободного прохода;
+- контроль влияния укрытий на navigation и LOS.
 
-- оборонительная конструкция
-- сектор атаки
-- слепые зоны
-- защитные укрытия
-- укрытия атакующих
-- возможность нейтрализации
+## v0.6.2.2 — EXPANDED ROCK SYSTEM
 
-Принцип Dominion:
+Расширить существующий `core/rocks.py`.
 
-**Точка захвата = объект захвата + ограниченная оборона.**
+Не заменять текущую генерацию камней.
 
-Это не обычная MOBA-башня.
+Добавить логические категории:
 
-## v0.6.2.4 — СИНЯЯ БАЗА
+- gameplay rocks;
+- decorative rocks;
+- large rocks;
+- rock groups;
+- tactical formations;
+- perimeter rocks.
 
-Полностью разработать Blue Base:
+Для каждой категории определить:
 
-- площадка возрождения
-- зона появления
-- защищённая зона
-- магазин
-- основная дорога выхода
-- дополнительный выход
-- оборонительная зона
-- путь отхода
-- соединения с ближайшими точками
+- размер;
+- footprint;
+- variation;
+- rotation;
+- seed;
+- collision/navigation behaviour;
+- gameplay/decorative статус.
 
-## v0.6.2.5 — КРАСНАЯ БАЗА
+Камни должны оставаться детерминированными и не создавать случайные непроходимые зоны.
 
-Разработать Red Base:
+## v0.6.2.3 — NATURAL ENVIRONMENT INTEGRATION
 
-- площадка возрождения
-- зона появления
-- защищённая зона
-- магазин
-- основной выход
-- дополнительный выход
-- оборонительная зона
-- путь отхода
-- соединения с ближайшими точками
+Интегрировать существующий `geometry/natural_perimeter.py` в основной pipeline.
 
-Игровая геометрия должна быть сбалансирована относительно Blue Base. Визуально базы могут различаться.
+Использовать уже предусмотренные linked assets:
 
-## v0.6.2.6 — СВЯЗЬ БАЗ С ТОЧКАМИ
+- cliffs / boulders;
+- rocks;
+- trees;
+- shrubs;
+- grass;
+- hanging grass;
+- plants groups.
+
+Главная задача — сделать систему частью реальной генерации карты, а не отдельным неиспользуемым модулем.
+
+## v0.6.2.4 — ENVIRONMENT DISTRIBUTION
+
+Создать gameplay-aware распределение окружения.
+
+Разные плотности для:
+
+- внешнего периметра;
+- основных ротаций;
+- второстепенных маршрутов;
+- objectives;
+- центральной боевой зоны;
+- pockets;
+- баз;
+- spawn areas.
+
+Избегать равномерного случайного scatter по всей карте.
+
+## v0.6.2.5 — GAMEPLAY-AWARE VEGETATION
+
+Растительность должна учитывать:
+
+- terrain;
+- objectives;
+- bases;
+- roads;
+- ramps;
+- pockets;
+- combat areas;
+- navigation;
+- boundary.
+
+Декоративная растительность не должна:
+
+- блокировать navigation;
+- создавать искусственное укрытие;
+- перекрывать capture zones;
+- закрывать дороги;
+- мешать minion routes;
+- создавать бесплатные backdoor-позиции.
+
+## v0.6.2.6 — OBJECTIVE DRESSING
+
+Оформить существующие пять objectives:
+
+- Crown;
+- EastMonolith;
+- SEMonolith;
+- SWMonolith;
+- WestMonolith.
+
+Для каждого определить и экспортировать:
+
+- визуальный центр;
+- capture area;
+- interaction point;
+- UI anchor;
+- tactical cover;
+- defensive area;
+- attacking area;
+- окружающее оформление.
+
+Визуальная форма объекта может различаться, но gameplay footprint должен оставаться контролируемым.
+
+## v0.6.2.7 — CAPTURE INTERACTION FOUNDATION
+
+Для каждого objective создать Blender-side данные/маркеры:
+
+- `CaptureZone`;
+- `CaptureCenter`;
+- `InteractionPoint`;
+- `UIAnchor`;
+- стабильный objective ID;
+- team ownership data placeholder;
+- capture radius;
+- contest radius.
+
+Это фундамент будущей механики UE5. Реальная логика захвата и UI реализуются после перехода в UE5.
+
+## v0.6.2.8 — CAPTURE UI SPECIFICATION
+
+Подготовить данные для будущего интерфейса.
 
 Определить:
 
-- ближайшие точки
-- стартовые маршруты
-- атакующие маршруты
-- защитные маршруты
-- маршруты ротации
-- пути контратаки
+- состояние objective;
+- текущего владельца;
+- contested state;
+- capture progress;
+- neutral state;
+- direction of capture;
+- world-space UI anchor.
 
-Базы должны естественно включаться в систему ротации.
+Будущий UI должен поддерживать двунаправленную шкалу захвата и состояние `[CAPTURE]` для взаимодействия.
 
-## v0.6.2.7 — ТОПОГРАФИЯ DOMINION
+Blender экспортирует данные и маркеры. Widget создаётся в UE5.
 
-Создать окончательный граф пяти точек:
+## v0.6.2.9 — BASE SHOP FOUNDATION
 
-- соседние точки
-- дополнительные связи
-- внутренние маршруты
-- внешние маршруты
-- связи с базами
+Добавить к существующим базам:
 
-Не использовать классическую структуру верхняя / центральная / нижняя линия.
+- `Shop_Blue`;
+- `Shop_Red`;
+- interaction marker;
+- UI anchor;
+- стабильный ID.
 
-Основная логика:
+Не реализовывать экономику, покупки или inventory.
 
-**ТОЧКА → ТОЧКА → ТОЧКА**
+Это только пространственный и экспортный фундамент будущего магазина.
 
-## v0.6.2.8 — ВНЕШНЯЯ РОТАЦИЯ
+## v0.6.2.10 — BASE DRESSING
 
-Создать основной маршрут вокруг карты:
+Легко оформить Blue Base и Red Base:
 
-- быстрая ротация
-- понятное перемещение
-- преследование
-- отход
-- перехват
+- spawn area;
+- protected area;
+- shop area;
+- визуальные элементы;
+- defensive dressing;
+- вход/выход;
+- локальное окружение.
 
-Это основной безопасный маршрут.
+Не менять положение и основной gameplay footprint баз.
 
-## v0.6.2.9 — ВНУТРЕННЯЯ РОТАЦИЯ
+## v0.6.2.11 — UNIFIED GAMEPLAY MARKERS
 
-Создать внутренние сокращённые маршруты.
+Создать единую систему маркеров для будущего UE5.
 
-Они должны быть:
+Поддержать:
 
-- быстрее
-- опаснее
-- менее предсказуемыми
-- пригодными для засад
-- пригодными для перехвата
+- objectives;
+- bases;
+- shops;
+- AetherCore;
+- future pickups;
+- spawn points;
+- capture interaction;
+- UI anchors.
 
-## v0.6.2.10 — ФЛАНГИ И BACKDOOR
+Все маркеры должны иметь стабильные IDs и экспортироваться через единый формат.
 
-Создать:
+## v0.6.2.12 — AETHERCORE DRESSING
 
-- левый фланг
-- правый фланг
-- тыловой подход
-- обход точки
-- обход обороны
-- backdoor-маршрут
+Оформить существующий AetherCore как центральный gameplay landmark.
 
-Backdoor должен быть возможен, но требовать времени, риска, отсутствия защитника и правильной информации.
+Добавить:
 
-## v0.6.2.11 — БАЛАНС РОТАЦИИ
+- визуальный центр;
+- окружение;
+- декоративные formations;
+- контролируемые tactical cover elements;
+- interaction/data marker при необходимости.
 
-Рассчитать:
+**AetherCore не становится шестой capture point.**
 
-- база → точка
-- точка → соседняя точка
-- точка → точка
-- внешний маршрут
-- внутренний маршрут
+## v0.6.2.13 — ENVIRONMENT SAFETY
 
-Сравнить Blue и Red.
+После размещения окружения сравнить baseline и новую сцену.
 
-## v0.6.2.12 — СПРАВЕДЛИВОСТЬ ТОЧЕК
+Проверить:
+
+- navigation;
+- проходы;
+- roads;
+- ramps;
+- capture zones;
+- base zones;
+- minion corridors;
+- LOS;
+- cover;
+- collision.
+
+Декоративные объекты по умолчанию не должны блокировать gameplay navigation.
+
+## v0.6.2.14 — VISUAL VALIDATION
+
+Проверить отсутствие:
+
+- пустых gameplay-зон;
+- чрезмерно плотных участков;
+- визуального шума;
+- повторяющихся паттернов;
+- floating assets;
+- пересечений;
+- объектов внутри дорог;
+- объектов внутри capture zones;
+- случайных wall-like formations.
+
+## v0.6.2.15 — DETERMINISTIC ENVIRONMENT
+
+Гарантировать:
+
+- одинаковый seed → одинаковая карта;
+- другой seed → другое окружение;
+- layout objectives/bases не меняется от decorative seed;
+- gameplay geometry остаётся контролируемой.
+
+Разделить gameplay seed и environment seed, если это необходимо архитектурно.
+
+## v0.6.2.16 — EXPORT EXTENSION
+
+Расширить `map_data.json`.
+
+Добавить данные:
+
+- objectives;
+- bases;
+- shops;
+- capture zones;
+- interaction points;
+- UI anchors;
+- gameplay cover;
+- environment instances;
+- gameplay markers.
+
+Сохранить совместимость с уже существующим экспортом.
+
+## v0.6.2.17 — FINAL VALIDATION
+
+Проверить:
+
+- pipeline generation;
+- deterministic generation;
+- geometry integrity;
+- navigation;
+- LOS;
+- cover;
+- environment safety;
+- objective data;
+- base/shop markers;
+- capture interaction data;
+- export;
+- validation scripts.
+
+Результат: карта получает полноценный gameplay dressing и foundation для UE5, при этом существующий фундамент v0.6.1 остаётся стабильным.
+
+---
+
+# v0.6.3 — TERRAIN + ROADS + RAMPS + POCKETS + COMBAT SPACE REFINEMENT
+
+### Главная задача
+
+Доработать физическое игровое пространство только там, где реальные тесты v0.6.2 показывают проблемы.
+
+Это не обязательная перестройка карты. Все изменения должны быть evidence-driven.
+
+## v0.6.3.1 — TERRAIN REFINEMENT
+
+Проверить и при необходимости улучшить:
+
+- AetherCore depression;
+- Crown elevation;
+- central plateau;
+- WestMonolith elevation;
+- EastMonolith elevation;
+- South Rift;
+- lowlands;
+- transitions.
+
+## v0.6.3.2 — HEIGHT TRANSITIONS
+
+Проверить:
+
+- slope;
+- ramps;
+- walkability;
+- minion traversal;
+- LOS changes;
+- combat readability.
+
+Исправлять только реальные проблемы.
+
+## v0.6.3.3 — ROAD NETWORK REFINEMENT
+
+Проверить:
+
+- base → objective;
+- objective → objective;
+- outer rotation;
+- inner rotation;
+- flank routes;
+- pocket routes;
+- retreat routes.
+
+Не создавать классические три MOBA lanes.
+
+## v0.6.3.4 — RAMP REFINEMENT
+
+Проверить существующие рампы для:
+
+- героя;
+- minion;
+- группы;
+- 5 игроков.
+
+Исправить только узкие, слишком крутые или плохо читаемые переходы.
+
+## v0.6.3.5 — POCKET REFINEMENT
+
+Проверить существующие:
+
+- WestPocket;
+- EastPocket;
+- SWPocket;
+- SEPocket.
+
+Сохранить их назначение как flank / ambush / retreat spaces.
+
+## v0.6.3.6 — COMBAT COVER REFINEMENT
+
+Использовать существующий cover optimizer для проблемных зон.
+
+Не допускать чрезмерного заполнения карты укрытиями.
+
+## v0.6.3.7 — COMBAT SPACE TESTING
+
+Проверить реальные сценарии:
+
+- 1v1;
+- 2v2;
+- 3v3;
+- 5v5;
+- retreat;
+- flank;
+- interception;
+- objective defense;
+- objective assault.
+
+## v0.6.3.8 — DEATHBALL MITIGATION
+
+Если тесты показывают чрезмерное преимущество deathball, использовать:
+
+- дополнительные входы;
+- flank routes;
+- split routes;
+- interception paths;
+- LOS breaks;
+- controlled choke points.
+
+Не решать проблему простым добавлением большого количества препятствий.
+
+## v0.6.3.9 — MAP READABILITY
+
+Проверить, что игрок может быстро определить:
+
+- где находится objective;
+- куда ведёт основной маршрут;
+- где возможен flank;
+- где безопасный retreat;
+- где опасная зона.
+
+## v0.6.3.10 — VERSION VALIDATION
+
+Зафиксировать результаты тестов и определить, готова ли карта перейти к полной simulation/balance фазе.
+
+---
+
+# v0.6.4 — BOUNDARY + ENVIRONMENT + RESOURCES COMPLETION
+
+### Главная задача
+
+Завершить физическую и визуальную оболочку карты и добавить ресурсные точки, необходимые для Dominion-подобной ротации.
+
+## v0.6.4.1 — OUTER BOUNDARY
+
+Финализировать:
+
+- cliffs;
+- walls;
+- boulders;
+- natural formations;
+- collision;
+- visual boundary;
+- camera readability.
+
+Проверить реальную игровую границу отдельно от декоративного perimeter.
+
+## v0.6.4.2 — NATURAL PERIMETER COMPLETION
+
+Довести интеграцию natural perimeter до production-ready состояния:
+
+- cliffs;
+- rocks;
+- trees;
+- shrubs;
+- grass;
+- plants.
+
+Исключить дублирование `OuterBoundary` и повторную генерацию уже зарегистрированных collections.
+
+## v0.6.4.3 — ENVIRONMENT POLISH
+
+Настроить распределение окружения по gameplay-зонам.
+
+Проверить:
+
+- плотность;
+- вариативность;
+- repetition;
+- asset intersections;
+- visual hierarchy.
+
+## v0.6.4.4 — HEALTH RELICS
+
+Подготовить точки восстановления здоровья.
 
 Для каждой точки определить:
 
-- время подхода
-- количество входов
-- количество выходов
-- количество укрытий
-- прямую видимость
-- возможность фланга
-- преимущество защиты
-- преимущество атаки
+- marker;
+- position;
+- radius;
+- respawn placeholder;
+- UI/data ID.
+
+Не реализовывать UE5 gameplay.
+
+## v0.6.4.5 — SPEED SHRINES
+
+Подготовить точки ускорения:
+
+- marker;
+- radius;
+- direction/route context;
+- UI/data ID.
+
+Использовать существующие конфигурационные параметры `speed_shrine_radius` и `shrine_road_offset`.
+
+## v0.6.4.6 — RESOURCE DISTRIBUTION
+
+Расположить ресурсы так, чтобы они:
+
+- стимулировали rotation;
+- создавали риск/награду;
+- не блокировали roads;
+- не давали одной базе систематического преимущества;
+- были доступны несколькими маршрутами.
+
+## v0.6.4.7 — RESOURCE FAIRNESS
+
+Сравнить Blue/Red:
+
+- travel time;
+- distance to resource;
+- risk;
+- alternative approaches;
+- retreat options.
+
+## v0.6.4.8 — FINAL ENVIRONMENT VALIDATION
+
+Проверить всю внешнюю оболочку, environment и resources вместе с navigation и gameplay geometry.
 
 ---
 
-# v0.6.3 — РЕЛЬЕФ + ДОРОГИ + РАМПЫ + КАРМАНЫ + БОЕВЫЕ ЗОНЫ
+# v0.6.5 — FULL DOMINION SIMULATION + MAP BALANCE
 
 ### Главная задача
 
-Превратить топологию в полноценное игровое пространство.
+Перейти от технической simulation к реальной модели Dominion-подобного матча.
 
-## v0.6.3.1 — ОСНОВНОЙ РЕЛЬЕФ
+## v0.6.5.1 — OBJECTIVE OWNERSHIP
 
-Доработать:
+Реализовать:
 
-- впадину AetherCore
-- возвышенность Crown
-- центральное плато
-- возвышенность WestMonolith
-- возвышенность EastMonolith
-- South Rift
-- низины
-- переходы между уровнями
+- Neutral;
+- Blue;
+- Red;
+- contested;
+- capture progress;
+- neutralization.
 
-## v0.6.3.2 — ПЕРЕХОДЫ РЕЛЬЕФА
+Убрать искусственную модель вида `idx % 2`.
 
-Все перепады высот должны быть:
+## v0.6.5.2 — CAPTURE / NEUTRALIZATION
 
-- плавными
-- читаемыми
-- проходимыми
-- пригодными для боя
-- пригодными для миньонов
+Моделировать:
 
-Проверить:
+- захват нейтральной точки;
+- нейтрализацию вражеской точки;
+- contested state;
+- скорость захвата;
+- влияние нескольких игроков.
 
-- уклоны
-- рампы
-- возвышенности
-- низины
-- разрывы прямой видимости
+## v0.6.5.3 — TICKET / SCORE MODEL
 
-## v0.6.3.3 — СЕТЬ ДОРОГ
-
-### Основные дороги
-
-- база → точка
-- точка → точка
-
-### Второстепенные дороги
-
-- фланги
-- карманы
-- короткие пути
-
-### Тактические маршруты
-
-- засады
-- перехваты
-- отход
-- backdoor
-
-## v0.6.3.4 — РАМПЫ
-
-Доработать:
-
-- входы на центральное плато
-- рампы точек
-- входы в карманы
-- переходы возле баз
-
-Проверить ширину для:
-
-- героя
-- миньона
-- группы
-- команды 5 игроков
-
-## v0.6.3.5 — ИГРОВЫЕ КАРМАНЫ
-
-Доработать существующие:
-
-- WestPocket
-- EastPocket
-- SWPocket
-- SEPocket
-
-Каждый должен иметь:
-
-- вход
-- выход
-- укрытие
-- фланг
-- засаду
-- путь отхода
-- связь с точкой
-
-## v0.6.3.6 — УКРЫТИЯ В КАРМАНАХ
-
-Использовать существующий оптимизатор укрытий.
-
-Ограничения:
-
-- максимум 3 объекта укрытия
-- максимум 15% площади пола
-- минимум 3 м свободного прохода
-
-## v0.6.3.7 — БОЕВЫЕ ЗОНЫ
-
-Создать:
-
-- зоны боя возле точек
-- открытые боевые зоны
-- зоны боя в карманах
-- зоны боёв при ротации
-- оборонительные зоны
-- зоны засад
-
-## v0.6.3.8 — СИСТЕМА УКРЫТИЙ
-
-Настроить:
-
-- полные укрытия
-- частичные укрытия
-- боковые укрытия
-- укрытия точки
-- укрытия для отхода
-
-## v0.6.3.9 — ПРЯМАЯ ВИДИМОСТЬ
+Создать модель преимущества по контролю objectives.
 
 Проверить:
 
-- видимость героя
-- видимость точки
-- видимость оборонительной конструкции
-- видимость миньонов
-- слепые зоны
+- преимущество по количеству точек;
+- скорость потери ресурса/тикетов;
+- comeback potential;
+- snowball.
 
-## v0.6.3.10 — УЗКИЕ МЕСТА
+## v0.6.5.4 — OBJECTIVE PRESSURE
 
-Для каждого choke point определить:
+Добавить симуляцию давления от контролируемых точек:
 
-- ширину
-- длину
-- укрытия
-- прямую видимость
-- выходы
-- альтернативный маршрут
+- destination;
+- соседняя точка;
+- маршрут;
+- minion pressure;
+- состояние objective.
 
-## v0.6.3.11 — ГЕОМЕТРИЯ ПРОТИВ DEATHBALL
+Миньоны должны иметь конкретную цель, а не двигаться бесконечно по карте.
 
-Создать:
-
-- маршруты разделения
-- несколько входов
-- перекрёстный огонь
-- фланговые маршруты
-- альтернативные точки
-- маршруты перехвата
-
-Цель: **5 игроков вместе сильны, но не должны автоматически контролировать всю карту.**
-
----
-
-# v0.6.4 — ГРАНИЦА + ОКРУЖЕНИЕ + РЕСУРСЫ DOMINION
-
-### Главная задача
-
-Закончить физическую и визуальную оболочку карты и добавить элементы, заставляющие игроков перемещаться.
-
-## v0.6.4.1 — ВНЕШНЯЯ ГРАНИЦА
-
-Доработать:
-
-- скалы
-- стены
-- камни
-- естественные образования
-- collision
-- визуальную границу
-
-Проверить:
-
-- толщину
-- высоту
-- читаемость
-- камеру
-- реальные игровые границы
-
-## v0.6.4.2 — ЕСТЕСТВЕННЫЙ ПЕРИМЕТР
-
-Полностью интегрировать:
-
-- скалы
-- камни
-- деревья
-- кусты
-- траву
-- растения
-
-Проверить интеграцию существующего `natural_perimeter.py` в основной pipeline.
-
-## v0.6.4.3 — РАСПРЕДЕЛЕНИЕ ОКРУЖЕНИЯ
-
-Процедурно разместить:
-
-- камни
-- деревья
-- кусты
-- растительность
-- руины
-- декоративные объекты
-
-Распределение должно учитывать gameplay.
-
-## v0.6.4.4 — БЕЗОПАСНОСТЬ ОКРУЖЕНИЯ
-
-Окружение не должно случайно:
-
-- перекрывать дороги
-- блокировать точки
-- блокировать базы
-- создавать лишние укрытия
-- блокировать навигацию
-- блокировать миньонов
-- создавать бесплатный backdoor
-
-## v0.6.4.5 — РЕЛИКВИИ ЗДОРОВЬЯ
-
-Создать места для:
-
-- восстановления здоровья
-- фиксированного расположения
-- контролируемого respawn
-- риска при подборе
-
-Расположение должно стимулировать ротацию.
-
-## v0.6.4.6 — SPEED SHRINES
-
-Создать:
-
-- зоны ускорения
-- ускорение ротации
-- возможности отхода
-- возможности перехвата
-
-Обычные дороги всё равно должны оставаться полезными.
-
-## v0.6.4.7 — ЦЕНТРАЛЬНЫЙ РЕСУРС
-
-Разработать AetherCore как центральный ресурсный объект.
-
-Принцип:
-
-**ВЫСОКИЙ РИСК → ВРЕМЕННОЕ ПРЕИМУЩЕСТВО**
-
-Центр должен периодически заставлять команды бороться за него.
-
-## v0.6.4.8 — БАЛАНС РЕСУРСОВ
-
-Проверить:
-
-- доступность
-- время подхода
-- риск
-- награду
-- время respawn
-- влияние на ротацию
-
----
-
-# v0.6.5 — ПОЛНАЯ СИМУЛЯЦИЯ DOMINION + БАЛАНС КАРТЫ
-
-### Главная задача
-
-Проверить не только техническую корректность карты, а то, интересно ли на ней реально играть.
-
-## v0.6.5.1 — СОСТОЯНИЯ ТОЧЕК
+## v0.6.5.5 — ROTATION SIMULATION
 
 Симулировать:
 
-- Neutral
-- Blue
-- Red
-- захват
-- нейтрализацию
-- contest
-- прерывание захвата
-- постепенный возврат точки
+- base → objective;
+- objective → objective;
+- outer rotation;
+- inner rotation;
+- flank;
+- retreat;
+- interception.
 
-## v0.6.5.2 — ДАВЛЕНИЕ СОСЕДНИХ ТОЧЕК
+## v0.6.5.6 — 5v5 SCENARIOS
 
-Создать модель:
+Запустить набор deterministic сценариев:
 
-**ЗАХВАЧЕННАЯ ТОЧКА → ДАВЛЕНИЕ → СОСЕДНЯЯ ВРАЖЕСКАЯ ТОЧКА**
+- равный старт;
+- ранний захват;
+- потеря центра;
+- split push;
+- deathball;
+- backdoor;
+- comeback;
+- две контролируемые точки;
+- три контролируемые точки;
+- длительный contested fight.
 
-Это фундамент будущей системы миньонов.
+## v0.6.5.7 — MAP BALANCE METRICS
 
-## v0.6.5.3 — МАРШРУТИЗАЦИЯ МИНЬОНОВ
+Собирать:
 
-Логика:
+- travel time;
+- objective access;
+- capture exposure;
+- LOS;
+- cover advantage;
+- flank availability;
+- retreat distance;
+- resource access.
 
-**Spawn → Target Objective**
+## v0.6.5.8 — BALANCE ITERATION
 
-а не просто движение по карте.
+Исправлять только доказанные дисбалансы.
 
-Для каждой точки определить:
+Приоритет:
 
-- соседнюю точку
-- целевую точку
-- маршрут
-- время движения
+1. unfair travel;
+2. unfair objective access;
+3. impossible defense;
+4. excessive deathball;
+5. excessive backdoor;
+6. resource imbalance.
 
-## v0.6.5.4 — СИМУЛЯЦИЯ 1v1
+---
+
+# v0.6.6 — FINAL VALIDATION + EXPORT + MAP LOCK
+
+### Главная задача
+
+Заморозить Blender/Python карту перед переходом в UE5.
+
+## v0.6.6.1 — FULL GENERATION TEST
+
+Проверить чистую генерацию с нуля.
+
+## v0.6.6.2 — DETERMINISM TEST
+
+Проверить одинаковый seed и сравнить:
+
+- geometry;
+- object IDs;
+- environment;
+- navigation;
+- export.
+
+## v0.6.6.3 — GAMEPLAY VALIDATION
 
 Проверить:
 
-- перемещение
-- захват
-- защиту
-- ротацию
-- фланг
-- отход
+- 5 objectives;
+- 2 bases;
+- routes;
+- pockets;
+- resources;
+- cover;
+- LOS;
+- navigation;
+- simulation.
 
-## v0.6.5.5 — СИМУЛЯЦИЯ 2v2
+## v0.6.6.4 — EXPORT VALIDATION
 
-Проверить:
+Проверить `map_data.json` и все обязательные IDs/markers.
 
-- давление на точку
-- ротацию
-- разделение
-- бой
+## v0.6.6.5 — MAP LOCK
 
-## v0.6.5.6 — СИМУЛЯЦИЯ 3v3
+После прохождения validation:
 
-Проверить:
+- зафиксировать layout;
+- зафиксировать objective positions;
+- зафиксировать base positions;
+- зафиксировать roads/ramp topology;
+- зафиксировать gameplay geometry;
+- создать release baseline для UE5.
 
-- обмен точками
-- разделение
-- ротацию
-- командный бой
-
-## v0.6.5.7 — СИМУЛЯЦИЯ 4v4
-
-Проверить:
-
-- deathball
-- split
-- фланги
-- обмен точками
-
-## v0.6.5.8 — СИМУЛЯЦИЯ 5v5
-
-Основной тест карты:
-
-- командный бой
-- контроль точек
-- ротация
-- разделение
-- backdoor
-- deathball
-- comeback
-
-## v0.6.5.9 — ТЕСТ DEATHBALL
-
-Сценарии:
-
-- 5v5 на одной точке
-- 5v5 ротация
-- 5v5 преследование
-- 5v5 оборона
-
-Проверить, не становится ли deathball оптимальной стратегией.
-
-## v0.6.5.10 — ТЕСТ SPLIT
-
-Сценарии:
-
-- 4 + 1
-- 3 + 2
-- 2 + 2 + 1
-
-Проверить:
-
-- обмен точками
-- давление
-- принуждение к ротации
-- атаку слабого направления
-
-## v0.6.5.11 — ТЕСТ BACKDOOR
-
-Проверить:
-
-- незащищённую точку
-- скрытый захват
-- быстрый захват
-- время реакции
-- возможность защиты
-
-## v0.6.5.12 — ТЕСТ SNOWBALL
-
-Сценарий:
-
-**3 точки → 4 точки → 5 точек**
-
-Проверить:
-
-- скорость усиления лидера
-- возможность камбэка
-- момент, когда победа становится неизбежной
-
-## v0.6.5.13 — ТЕСТ COMEBACK
-
-Проигрывающая команда должна иметь возможность:
-
-- разделиться
-- обменять objectives
-- сделать backdoor
-- перехватить ротацию
-- contest
-- вернуть контроль карты
-
-## v0.6.5.14 — ТЕСТ КОНТРОЛЯ КАРТЫ
-
-Проверить динамику:
-
-**3–2 → 2–3 → 3–2 → 2–3**
-
-Контроль карты должен регулярно меняться.
-
-## v0.6.5.15 — ТЕМП МАТЧА
-
-Измерять:
-
-- первый контакт
-- первый захват
-- первую ротацию
-- среднее время contest
-- среднее время ротации
-- среднее время боя
-- частоту изменения контроля карты
-
-## v0.6.5.16 — ИТОГОВЫЙ ОТЧЁТ
-
-Сформировать:
-
-- время перемещения
-- доступность objectives
-- использование маршрутов
-- плотность укрытий
-- плотность LOS
-- плотность choke points
-- риск deathball
-- риск snowball
-- потенциал comeback
-- риск backdoor
-- влияние ресурсов
+**v0.6.6 = последний этап изменения игровой карты в Blender/Python перед UE5.**
 
 ---
 
-# v0.6.6 — ФИНАЛЬНЫЙ BLENDER MAP LOCK
-
-Это финальная техническая версия Blender/Python карты.
-
-## v0.6.6.1 — ЧИСТАЯ ГЕНЕРАЦИЯ
-
-Полный запуск:
-
-**RESET → GENERATE → VALIDATE → EXPORT**
-
-Без ручного исправления.
-
-## v0.6.6.2 — ПРОВЕРКА ГЕОМЕТРИИ
-
-Проверить:
-
-- terrain
-- objectives
-- bases
-- roads
-- ramps
-- rocks
-- pockets
-- boundary
-- environment
-
-## v0.6.6.3 — ПРОВЕРКА НАВИГАЦИИ
-
-Проверить:
-
-- Base → Objective
-- Objective → Objective
-- Pocket → Objective
-- Pocket → Base
-- Minion routes
-
-## v0.6.6.4 — ПРОВЕРКА БОЕВЫХ ЗОН
-
-Проверить:
-
-- LOS
-- cover
-- choke
-- flank
-- escape
-- objective combat
-
-## v0.6.6.5 — ПРОВЕРКА DOMINION-ЛОГИКИ КАРТЫ
-
-Проверить:
-
-- 5 objectives
-- 2 bases
-- topology
-- rotation
-- capture geometry
-- neighboring pressure
-- backdoor
-- split
-- deathball
-- comeback
-
-## v0.6.6.6 — ДЕТЕРМИНИРОВАННОСТЬ
-
-Одинаковый seed должен создавать **абсолютно одинаковую карту**.
-
-## v0.6.6.7 — БЕЗОПАСНЫЙ ПОВТОРНЫЙ ЗАПУСК
-
-Повторный запуск pipeline не должен создавать:
-
-- дубликаты
-- повторные objectives
-- повторные bases
-- повторные boundary
-- повторные rocks
-- повторную растительность
-
-## v0.6.6.8 — ПРОИЗВОДИТЕЛЬНОСТЬ BLENDER
-
-Проверить:
-
-- количество объектов
-- количество полигонов
-- время генерации
-- время генерации navigation
-- время simulation
-- использование памяти Blender
-
-## v0.6.6.9 — ЭКСПОРТ В UE5
-
-Подготовить:
-
-- terrain
-- objectives
-- bases
-- roads
-- ramps
-- rocks
-- pockets
-- boundary
-- environment
-- gameplay metadata
-
-## v0.6.6.10 — ДОКУМЕНТАЦИЯ
-
-Обновить:
-
-- Map README
-- Gameplay README
-- Technical README
-- GDD
-- Versions
-- Decisions
-- Releases
-
-## v0.6.6.11 — ФИНАЛЬНАЯ ВИЗУАЛЬНАЯ ПРОВЕРКА
-
-Проверить карту:
-
-- сверху
-- с камеры игрока
-- возле objectives
-- возле баз
-- внутри pockets
-- в боевых зонах
-- на границе карты
-
-## v0.6.6.12 — MAP FOUNDATION LOCK
-
-# BLENDER MAP LOCKED
-
-После этой версии:
-
-- крупная переработка карты запрещена
-- новые системы карты не добавляются
-- допускаются только bug fixes
-- допускаются критические gameplay fixes
-- крупные изменения выполняются отдельным change request
-
----
-
-# ИТОГОВАЯ СТРУКТУРА BLENDER
-
-| Версия | Основная работа |
-|---|---|
-| **v0.6.1** | Текущая базовая карта |
-| **v0.6.2** | Базы + точки захвата + топология + ротация |
-| **v0.6.3** | Рельеф + дороги + рампы + карманы + боевые зоны |
-| **v0.6.4** | Граница + окружение + ресурсы |
-| **v0.6.5** | Полная Dominion-симуляция + баланс |
-| **v0.6.6** | Финальная проверка + экспорт + MAP LOCK |
-| **v0.7.0** | Unreal Engine 5 |
-
----
-
-# PHASE 2 — UNREAL ENGINE 5
-
-# v0.7.x
-
-## v0.7.0 — UE5 FOUNDATION
-
-- архитектура проекта UE5
-- структура папок
-- GameInstance
-- GameMode
-- GameState
-- PlayerController
-- PlayerState
-- Character/Pawn foundation
-- Team foundation
-- Gameplay Data Architecture
-- Map Data Architecture
-- Blender → UE5 pipeline
-- автоматическая проверка импорта
-- build/test baseline
-
-## v0.7.1 — ИМПОРТ КАРТЫ
-
-- Terrain
-- Objectives
-- Bases
-- Roads
-- Ramps
-- Rocks
-- Pockets
-- Boundary
-- Environment
-- Materials
-- Collision
-
-## v0.7.2 — UE5 MAP GAMEPLAY
-
-- Map Actor
-- Objective Actors
-- Base Actors
-- Pocket Actors
-- Map Resources
-- Speed Shrines
-- Health Relics
-- Central Resource
-
-## v0.7.3 — НАВИГАЦИЯ
-
-- NavMesh
-- Hero Navigation
-- Minion Navigation
-- Objective Navigation
-- Pocket Navigation
-- Dynamic Obstacles
-- Navigation Debug
-
-## v0.7.4 — GAMEPLAY FRAMEWORK
-
-- Match
-- Teams
-- Objectives
-- Events
-- Gameplay Tags
-- Data
-- Spawn
-- Debug
-
-## v0.7.5 — ИНТЕГРАЦИЯ КАРТЫ
-
-- 5 objectives
-- 2 bases
-- routes
-- resources
-- objective events
-- map events
-- replication foundation
-
-## v0.7.6 — PLAYER FOUNDATION
-
-- Character
-- Movement
-- Camera
-- Input
-- Health
-- Death
-- Respawn
-- Spawn
-
-## v0.7.7 — COMBAT FOUNDATION
-
-- Targeting
-- Basic Attack
-- Damage
-- Armor
-- Resistance
-- Death
-- Combat Events
-
-## v0.7.8 — MINION FOUNDATION
-
-- Spawn
-- Navigation
-- Waves
-- Melee
-- Ranged
-- Targeting
-- Combat
-- Objective Pressure
-
-## v0.7.9 — UE5 FOUNDATION LOCK
-
-Полностью рабочая основа:
-
-**Map + Player + Navigation + Combat Foundation + Minions**
-
----
-
-# PHASE 3 — DOMINION GAMEPLAY
-
-# v0.8.x
-
-## v0.8.0 — СИСТЕМА ЗАХВАТА
-
-- Neutral
-- Capture
-- Neutralization
-- Contest
-- Capture Interruption
-- Multi-player Capture
-- Capture Progress
-- Capture State
-- Replication
-
-## v0.8.1 — ВОЗВРАТ ТОЧКИ
-
-- Neutral Decay
-- Abandoned Point
-- Partial Progress
-- Ownership State
-
-## v0.8.2 — ОБОРОНА OBJECTIVES
-
-- Objective Attack
-- Objective Defense
-- Objective Damage
-- Objective Disable During Neutralization
-
-## v0.8.3 — СИСТЕМА СОСЕДНИХ МИНЬОНОВ
-
-- Point Adjacency
-- Minion Spawning
-- Target Objective
-- Wave Generation
-- Objective Capture Pressure
-
-## v0.8.4 — СИСТЕМА TICKETS
-
-- Starting Tickets
-- Point-Control Drain
-- Difference-Based Drain
-- Kill Contribution
-- Victory Condition
-
-## v0.8.5 — РЕСУРСЫ DOMINION
-
-- Speed Shrine
-- Health Relic
-- Central Greater Relic equivalent
-
-## v0.8.6 — OBJECTIVE QUEST SYSTEM
-
-- Objective Challenge
-- Attack Target
-- Defense Target
-- Reward
-- Team Buff
-
-## v0.8.7 — MATCH FLOW
-
-- Countdown
-- Spawn
-- Active Match
-- Victory
-- Defeat
-- Restart
-
-## v0.8.8 — DOMINION AUTOMATED TESTS
-
-- Capture Tests
-- Ticket Tests
-- Objective Tests
-- Minion Tests
-- Win/Loss Tests
-- Replication Tests
-- Full Match Tests
-
-## v0.8.9 — DOMINION CORE LOCK
-
-Capture + Objectives + Tickets + Match Flow locked.
-
----
-
-# PHASE 4 — PLAYER
-
-# v0.9.x
-
-- Movement
-- Camera
-- Input
-- Health
-- Damage
-- Death
-- Respawn
-- Spawn
-- Team
-- Player State
-
----
-
-# PHASE 5 — COMBAT
-
-# v0.10.x
-
-- Targeting
-- Basic Attack
-- Range
-- Cooldowns
-- Damage
-- Armor
-- Resistance
-- Critical Damage
-- Death
-- Combat Events
-- Combat Logging
-
----
-
-# PHASE 6 — HERO SYSTEM
-
-# v0.11.x — ABILITY FRAMEWORK
-
-- Ability Base
-- Cooldown
-- Resource
-- Targeting
-- Projectile
-- AOE
-- Buff
-- Debuff
-- Crowd Control
-- Ability UI
-- Ability Events
-
-# v0.12.x — HERO #1
-
-- Hero Data
-- Stats
-- Basic Attack
-- Ability 1
-- Ability 2
-- Ability 3
-- Ultimate
-- Animation
-- VFX
-- SFX
-- Testing
-
----
-
-# PHASE 7 — MINIONS
-
-# v0.13.x
-
-- Spawn System
-- Wave System
-- Melee Minions
-- Ranged Minions
-- Targeting
-- Navigation
-- Combat
-- Objective Interaction
-- Rewards
-- Balance
-- Deathball Interaction
-
----
-
-# PHASE 8 — ECONOMY / ITEMS
-
-# v0.14.x — ECONOMY
-
-- Gold
-- XP
-- Kill Rewards
-- Objective Rewards
-- Minion Rewards
-- Passive Income
-- Scaling
-- Economy Events
-- Economy UI
-
-# v0.15.x — ITEMS
-
-- Item Database
-- Item Stats
-- Shop
-- Purchase
-- Inventory
-- Equipment
-- Item Effects
-- Shop UI
-- Item Balance
-
----
-
-# PHASE 9 — FULL 5V5
-
-# v0.16.x — TEAM SYSTEM
-
-- Blue Team
-- Red Team
-- Roster
-- Spawn
-- Ownership
-- Team Events
-- Scoreboard
-
-# v0.17.x — COMPLETE MATCH
-
-- Match Start
-- Early Game
-- Mid Game
-- Late Game
-- Victory
-- Defeat
-- Restart
-- Full Automated Match
-
----
-
-# PHASE 10 — GAME MODES
-
-# v0.18.x — STATIC MODE
-
-# v0.19.x — HYBRID MODE
-
-# v0.20.x — DYNAMIC MODE
-
----
-
-# PHASE 11 — NETWORK
-
-# v0.21.x — MULTIPLAYER FOUNDATION
-
-- Replication
-- Server Authority
-- Player Replication
-- Combat Replication
-- Ability Replication
-- Objective Replication
-- Minion Replication
-- Economy Replication
-
-# v0.22.x — ONLINE MATCH
-
-- Lobby
-- Match Creation
-- Joining
-- Teams
-- Disconnect
-- Reconnect
-- Match Completion
-
----
-
-# PHASE 12 — UI
-
-# v0.23.x — GAME UI
-
-- HUD
-- 5 Objectives
-- Tickets
-- Minimap
-- Hero HUD
-- Abilities
-- Items
-- Scoreboard
-- Death Screen
-- Match End Screen
-
----
-
-# PHASE 13 — GAME FEEL
-
-# v0.24.x
-
-- Hit Feedback
-- Damage Feedback
-- Movement Feel
-- Camera
-- Ability Feedback
-- Objective VFX
-- Audio
-- Screen Effects
-- Combat Feedback
-
----
-
-# PHASE 14 — CONTENT
-
-# v0.25.x — HERO ROSTER
-
-- Hero #2–#8
-- Hero Balance
-
-# v0.26.x — CONTENT SYSTEM
-
-- Animation
-- VFX
-- SFX
-- Environment
-- Props
-- Materials
-- Lighting
-- Optimization
-
----
-
-# PHASE 15 — BALANCE
-
-# v0.27.x
-
-- Map Balance
-- Hero Balance
-- Item Balance
-- Economy Balance
-- Objective Balance
-- Minion Balance
-- Deathball Balance
-- Snowball Balance
-- Comeback Balance
-- Match Duration
-- Rotation Balance
-
----
-
-# PHASE 16 — QA / PERFORMANCE
-
-# v0.28.x — QA FOUNDATION
-
-- Unit Tests
-- Gameplay Tests
-- Map Tests
-- Navigation Tests
-- Combat Tests
-- Network Tests
-- Performance Tests
-- Regression Tests
-
-# v0.29.x — PERFORMANCE
-
-- CPU
-- GPU
-- Memory
-- Network
-- Draw Calls
-- Nanite
-- Lumen
-- Large Combat
-- 5v5 Stress Test
-
----
-
-# PHASE 17 — ALPHA
-
-# v0.30.0 — INTERNAL ALPHA
-
-Полный playable build:
-
-- 5v5
-- 5 objectives
-- heroes
-- combat
-- abilities
-- minions
-- economy
-- items
-- tickets
-- Static Mode
-
-# v0.31.x — ALPHA BALANCE
-
-# v0.32.x — ALPHA CONTENT
-
-# v0.33.x — ALPHA PERFORMANCE
-
-# v0.34.x — ALPHA NETWORK
-
-# v0.35.x — ALPHA QA
-
-# v0.36.x — ALPHA POLISH
-
-# v0.37.x — ALPHA CANDIDATE
-
-# v0.38.x — ALPHA LOCK
-
-# v0.39.x — PRE-BETA
-
----
-
-# PHASE 18 — BETA
-
-# v0.40.0 — BETA FOUNDATION
-
-# v0.41.x — BETA BALANCE
-
-# v0.42.x — BETA HEROES
-
-# v0.43.x — BETA ITEMS
-
-# v0.44.x — BETA MAP
-
-# v0.45.x — BETA NETWORK
-
-# v0.46.x — BETA UI
-
-# v0.47.x — BETA PERFORMANCE
-
-# v0.48.x — BETA QA
-
-# v0.49.0 — RELEASE CANDIDATE
-
-# v0.50.0 — BETA
-
----
-
-# PHASE 19 — RELEASE
-
-# v0.90.0 — RELEASE CANDIDATE
-
-# v0.91–v0.98 — FINAL POLISH
-
-Только:
-
-- bug fixes
-- balance fixes
-- performance fixes
-- server stability
-- UX fixes
-- regression fixes
-
-Никаких новых крупных систем.
-
-# v0.99.0 — GOLD MASTER
-
-# v1.0.0 — AETHERFLOW RELEASE
-
----
-
-# КЛЮЧЕВОЙ ПРИНЦИП DOMINION ДЛЯ AETHERFLOW
-
-AetherFlow не копирует Crystal Scar визуально. Используются её сильные игровые принципы:
-
-1. 5 capture points.
-2. 5v5.
-3. Capture-and-hold.
-4. Нет классических трёх MOBA-линий.
-5. Постоянная ротация между objectives.
-6. Контроль территории важнее количества убийств.
-7. Соседние objectives взаимодействуют.
-8. Захваченная точка создаёт давление на соседнюю вражескую точку.
-9. Существуют быстрые внешние и более рискованные внутренние маршруты.
-10. Backdoor возможен, но рискован.
-11. Deathball не должен автоматически выигрывать карту.
-12. Split pressure должен иметь значение.
-13. Ресурсы должны создавать дополнительные причины для ротации.
-14. Контроль карты должен постоянно меняться.
-
----
-
-# ФИНАЛЬНАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ
-
-**v0.6.1** — текущая карта
-
-↓
-
-**v0.6.2** — базы + точки захвата + топология + ротация
-
-↓
-
-**v0.6.3** — рельеф + дороги + рампы + карманы + боевые зоны
-
-↓
-
-**v0.6.4** — граница + окружение + ресурсы
-
-↓
-
-**v0.6.5** — полная Dominion-симуляция + баланс
-
-↓
-
-**v0.6.6** — финальная проверка + экспорт + MAP LOCK
-
-↓
+# ФАЗА 2 — UNREAL ENGINE 5
 
 # v0.7.0 — UE5 FOUNDATION
 
-↓
+### Главная задача
 
-# v0.8.0 — DOMINION GAMEPLAY
+Импортировать и собрать зафиксированную карту в Unreal Engine 5.8 без изменения gameplay topology.
 
-↓
+## v0.7.0.1 — UE5 PROJECT FOUNDATION
 
-# v0.9.0 — PLAYER
+- UE5 project structure;
+- source control integration;
+- C++ foundation;
+- gameplay modules;
+- naming conventions;
+- folder structure.
 
-↓
+## v0.7.0.2 — MAP IMPORT
 
-# v0.10.0 — COMBAT
+Импортировать:
 
-↓
+- terrain;
+- structures;
+- roads;
+- ramps;
+- rocks;
+- environment;
+- boundary.
 
-# v0.11.0 — ABILITIES
+## v0.7.0.3 — COLLISION + NAVIGATION
 
-↓
+Проверить:
 
-# v0.12.0 — HERO #1
+- collision;
+- NavMesh;
+- walkability;
+- ramps;
+- minion paths;
+- boundary.
 
-↓
+## v0.7.0.4 — MAP DATA IMPORT
 
-# v0.13.0 — MINIONS
+Импортировать `map_data.json` и связать:
 
-↓
+- objectives;
+- bases;
+- shops;
+- capture zones;
+- markers;
+- resources;
+- UI anchors.
 
-# v0.14.0 — ECONOMY
+## v0.7.0.5 — UE5 MAP VALIDATION
 
-↓
+Сравнить Blender baseline и UE5:
 
-# v0.15.0 — ITEMS
+- positions;
+- dimensions;
+- IDs;
+- navigation;
+- collision;
+- gameplay zones.
 
-↓
+---
 
-# v0.16.0 — TEAMS
+# ФАЗА 3 — DOMINION GAMEPLAY
 
-↓
+## v0.8.x — DOMINION GAMEPLAY CORE
 
-# v0.17.0 — COMPLETE 5V5
+- objective actors;
+- capture/neutralization;
+- ownership;
+- contested state;
+- ticket/score system;
+- objective pressure;
+- match state;
+- win/lose conditions.
 
-↓
+## v0.9.x — PLAYER
 
-# v0.18–0.20 — GAME MODES
+- player controller;
+- movement;
+- camera;
+- spawn;
+- respawn;
+- basic interaction;
+- capture interaction.
 
-↓
+## v0.10.x — COMBAT
 
-# v0.21–0.22 — MULTIPLAYER / ONLINE
+- health;
+- damage;
+- death;
+- basic attacks;
+- targeting;
+- combat feedback.
 
-↓
+## v0.11.x — ABILITY FRAMEWORK
 
-# v0.23–0.29 — UI / GAME FEEL / CONTENT / BALANCE / QA / PERFORMANCE
+- ability system;
+- cooldowns;
+- resources;
+- targeting;
+- effects;
+- status effects.
 
-↓
+## v0.12.x — HERO #1
 
-# v0.30+ — ALPHA
+Первый полноценный игровой герой.
 
-↓
+## v0.13.x — MINIONS
 
-# v0.40+ — BETA
+- minion spawning;
+- objective pressure;
+- paths;
+- combat;
+- targeting;
+- death/reward.
 
-↓
+## v0.14.x — ECONOMY
 
-# v0.90+ — RELEASE
+- gold;
+- rewards;
+- kill rewards;
+- objective rewards;
+- match economy.
 
-↓
+## v0.15.x — ITEMS
 
-# v1.0.0 — AETHERFLOW
+- shop;
+- item definitions;
+- purchases;
+- inventory;
+- stats;
+- item effects.
+
+## v0.16.x — TEAM SYSTEM
+
+- teams;
+- allies/enemies;
+- team spawn;
+- team score;
+- team state.
+
+## v0.17.x — COMPLETE 5v5
+
+- 5 players per team;
+- full objective gameplay;
+- minions;
+- economy;
+- combat;
+- respawn;
+- victory conditions.
+
+---
+
+# ФАЗА 4 — GAME MODES
+
+## v0.18.x — STATIC MODE
+
+Основной стабильный режим AetherFlow.
+
+## v0.19.x — HYBRID MODE
+
+Комбинация фиксированных и динамических objectives/rules.
+
+## v0.20.x — DYNAMIC MODE
+
+Динамическое изменение состояния карты и objectives.
+
+---
+
+# ФАЗА 5 — MULTIPLAYER
+
+## v0.21.x — MULTIPLAYER FOUNDATION
+
+- replication;
+- server authority;
+- networked gameplay;
+- player state;
+- team state.
+
+## v0.22.x — ONLINE MATCH
+
+- lobby;
+- matchmaking foundation;
+- session;
+- connect/disconnect;
+- full online match flow.
+
+---
+
+# ФАЗА 6 — UI / GAME FEEL / CONTENT
+
+## v0.23.x — UI
+
+- HUD;
+- objective UI;
+- capture bar;
+- minimap;
+- scoreboard;
+- shop UI;
+- match state.
+
+## v0.24.x — GAME FEEL
+
+- VFX;
+- SFX;
+- hit feedback;
+- capture feedback;
+- movement feedback;
+- camera polish.
+
+## v0.25.x — HERO ROSTER
+
+Расширение состава героев.
+
+## v0.26.x — CONTENT
+
+- additional maps/content;
+- objectives;
+- environments;
+- effects;
+- audio;
+- cosmetics where applicable.
+
+---
+
+# ФАЗА 7 — BALANCE / QA / RELEASE
+
+## v0.27.x — BALANCE
+
+- heroes;
+- items;
+- economy;
+- objectives;
+- minions;
+- game modes.
+
+## v0.28.x — QA
+
+- functional testing;
+- regression testing;
+- multiplayer testing;
+- exploit testing;
+- edge cases.
+
+## v0.29.x — PERFORMANCE
+
+- CPU;
+- GPU;
+- memory;
+- network;
+- loading;
+- scalability.
+
+## v0.30+ — ALPHA
+
+Полный playable build.
+
+## v0.40+ — BETA
+
+Feature-complete build с фокусом на баланс и стабильность.
+
+## v0.90+ — RELEASE CANDIDATE
+
+Финальная подготовка релиза.
+
+## v1.0.0 — RELEASE
+
+Первый официальный релиз AetherFlow.
+
+---
+
+# КЛЮЧЕВОЙ ПРИНЦИП ROADMAP
+
+**0.6.x = Blender / Python / карта.**
+
+**0.6.1 = существующий фундамент.**
+
+**0.6.2 = gameplay dressing, environment и interaction foundation.**
+
+**0.6.3 = refinement только по результатам тестов.**
+
+**0.6.4 = boundary, environment и resources completion.**
+
+**0.6.5 = полноценная Dominion simulation и balance.**
+
+**0.6.6 = validation, export и MAP LOCK.**
+
+**0.7.0 = переход в Unreal Engine 5.**
+
+После MAP LOCK изменение фундаментальной топологии карты не должно происходить в рамках обычной разработки. Изменения карты после этого момента должны проходить как отдельные контролируемые map revisions.
