@@ -15,31 +15,35 @@ Evidence:
 - navigation problems: `0`;
 - evaluated-mesh intersections: `0`;
 - Blue/Red average route-time difference: `0.0%`;
-- auditor score: `89.5/100`;
-- Altar camping risk improved from `HIGH` to `MEDIUM`;
-- auditor measured CoreCover-to-Altar minimum vertex clearance at `23.512 m` in the exported scene.
+- auditor score: `89.8/100`;
+- Altar camping risk: `HIGH` in the pasted auditor run;
+- pasted auditor measured CoreCover-to-Altar minimum vertex clearance at `4.464 m`.
 
 ## Issues exposed by the run
 
-1. The local validation executable used during this run still reported legacy `OuterBoundary_*` bbox errors even though the current repository validator contains a dedicated outer-boundary inner-face check. This indicates a stale/local validator mismatch rather than a proven boundary-geometry failure.
-2. The same run reported one solid-overlap warning between `Core_Cover_Pocket_SE` and `Core_Rock_06` (`0.474 m`), so the central rock placement was still too close to the repaired CoreCover geometry.
-3. The pasted auditor used on the local machine still classified `AltarObstacles` as `0` even though the live LOS scan observed all four `Altar_Obstacle_*` objects. This is an auditor-version/classification mismatch, not evidence that the generator failed to create them.
-4. The legacy auditor's `21.6 s` rotation variance remains an approximation over Base→CapturePoint routes. The new pipeline now exports a separate real five-objective adjacent-ring macro-rotation metric (`34.07/26.55–37.50 s`).
+1. The local validation executable still reported legacy `OuterBoundary_*` bbox errors. The repository validator contains a dedicated outer-boundary rule, but Blender can retain cached project modules between repeated Run Script operations.
+2. The local runtime's Altar repair stage printed unchanged clearance values. The branch has since been changed to reload the project modules before every pipeline run and to repair from the closest real world-space mesh vertex iteratively.
+3. The pasted auditor classified `AltarObstacles` as `0` even though its live LOS section observed all four `Altar_Obstacle_*` objects. This is a local auditor classification mismatch.
+4. The latest pasted run did not show the previous `Core_Cover_Pocket_SE` vs `Core_Rock_06` overlap warning; evaluated-mesh intersections remained `0`.
+5. The legacy auditor's `21.6 s` rotation variance is not the new macro-rotation metric. The pipeline now exports the real five-objective adjacent-ring metric (`34.07/26.55–37.50 s`, variance `10.95 s`).
 
-## Latest code corrections after this run
+## Code corrections after this run
 
-- `core/altar_rotation.py` now repairs Altar clearance from the closest real world-space mesh vertex using deterministic iterations, rather than assuming the object pivot radial is the limiting point.
-- The same repair stage pushes `Core_Rock_*` anchors outward so central secondary rocks cannot recreate CoreCover overlap after the Altar/cover repair.
-- The branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
+- `core/altar_rotation.py`: closest-vertex iterative Altar clearance repair;
+- `core/altar_rotation.py`: central `Core_Rock_*` outward repair;
+- `core/pipeline.py`: explicit reload of `gameplay_cover`, `altar_rotation` and `validation` before each Blender pipeline rerun, eliminating stale-module mixing;
+- branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
 
 ## Merge gate
 
-Do not merge to `main` until a fresh Blender 5.2 regeneration confirms:
+Do not merge to `main` yet. Fresh Blender 5.2 regeneration is required after updating to the latest branch commit.
+
+Required:
 - validation has no genuine geometry errors;
-- actual evaluated-mesh intersections remain `0`;
-- navigation problems remain `0`;
-- pockets remain `4/4` reachable;
-- objective gameplay cover remains `10`;
-- Altar minimum CoreCover clearance is `>= 8.0 m`;
-- the four `Altar_Obstacle_*` objects are present;
+- actual evaluated-mesh intersections = `0`;
+- navigation problems = `0`;
+- pockets reachable = `4/4`;
+- objective gameplay cover = `10`;
+- minimum CoreCover-to-Altar clearance >= `8.0 m`;
+- four `Altar_Obstacle_*` objects present;
 - `navigation.macro_rotation.all_reachable == true`.
