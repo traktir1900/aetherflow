@@ -9,7 +9,8 @@ Focused gameplay hardening for the v0.6.2.1 map:
     the altar is no longer represented exclusively by CoreCover;
   * compute a deterministic macro-rotation metric from the real nav routes
     between adjacent objectives, instead of treating every Base->Objective
-    route as "rotation".
+    route as "rotation";
+  * keep secondary central rocks from re-colliding with repaired CoreCover.
 
 The altar obstacles intentionally use an unrecognised navigation/export kind
 (`altar_obstacle`), so they are exported as props and do not alter walkability.
@@ -24,7 +25,7 @@ from core.utils import finalize_bmesh
 
 
 def _world_xy_vertices(obj):
-    """Yield evaluated world-space XY vertices for an object."""
+    """Yield world-space XY vertices for an object."""
     mw = obj.matrix_world
     for v in obj.data.vertices:
         p = mw @ v.co
@@ -48,13 +49,35 @@ def _min_clearance_to_altar(obj, altar_radius):
     return radius - altar_radius
 
 
+def _repair_central_rocks(ctx, push=2.75):
+    """Move Core_Rock_* anchors outward to keep central combat lanes clear."""
+    moved = []
+    for rec in ctx.generated_objects:
+        name = rec.get("name", "")
+        if not name.startswith("Core_Rock_"):
+            continue
+        obj = rec.get("object")
+        if obj is None:
+            continue
+        x, y = float(obj.location.x), float(obj.location.y)
+        radius = math.hypot(x, y)
+        if radius < 1e-6:
+            continue
+        obj.location.x += (x / radius) * push
+        obj.location.y += (y / radius) * push
+        meta = rec.setdefault("meta", {})
+        meta["central_space_repair_m"] = round(
+            float(meta.get("central_space_repair_m", 0.0)) + push, 3)
+        moved.append((name, push))
+    return moved
+
+
 def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
     """Push CoreCover objects outward until real mesh clearance reaches target.
 
-    The repair uses the actual closest world-space mesh vertex and applies
-    small deterministic iterations. This avoids assuming that the object's
-    pivot-to-origin direction is also the direction of the nearest footprint
-    vertex (which is false for offset/rotated rectangular covers).
+    The repair uses the actual closest world-space mesh vertex. It applies
+    deterministic iterations because the nearest point on a rotated footprint
+    does not generally lie on the object's pivot-to-origin radial.
     """
     cfg = ctx.config
     altar_radius = float(cfg["altar"]["base_radius1"])
@@ -73,23 +96,20 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
             continue
 
         last = before
-        for _ in range(10):
+        for _ in range(12):
             (vx, vy), _ = _closest_vertex_xy(obj)
-            radial = Vector((vx, vy, 0.0))
-            if radial.length < 1e-6:
-                pivot = Vector((float(obj.location.x), float(obj.location.y), 0.0))
-                radial = pivot if pivot.length >= 1e-6 else Vector((1.0, 0.0, 0.0))
-            radial.normalize()
+            direction = Vector((vx, vy, 0.0))
+            if direction.length < 1e-6:
+                direction = Vector((float(obj.location.x), float(obj.location.y), 0.0))
+            if direction.length < 1e-6:
+                direction = Vector((1.0, 0.0, 0.0))
+            direction.normalize()
 
             needed = target_clearance - last
             if needed <= 0.0:
                 break
-            # Slight safety multiplier prevents floating-point boundary cases.
-            shift = max(needed * 1.06, 0.05)
-            obj.location.x += radial.x * shift
-            obj.location.y += radial.y * shift
-            bpy_update = getattr(obj, "matrix_world", None)
-            del bpy_update
+            obj.location.x += direction.x * max(needed * 1.08, 0.05)
+            obj.location.y += direction.y * max(needed * 1.08, 0.05)
             new_clearance = _min_clearance_to_altar(obj, altar_radius)
             if new_clearance <= last + 1e-4:
                 break
@@ -106,6 +126,10 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
         }
         moved.append((name, before, after))
 
+    # The central secondary rocks are decorative tactical blockers. Shift them
+    # outward as part of the same repair stage so a later cover move cannot
+    # recreate a solid overlap inside the Aether fight space.
+    _repair_central_rocks(ctx)
     return moved
 
 
