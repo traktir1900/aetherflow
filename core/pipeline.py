@@ -1,5 +1,5 @@
 """
-AetherFlow :: core/pipeline.py  (v0.6.0)
+AetherFlow :: core/pipeline.py  (v0.6.1)
 
 The SINGLE active generation pipeline.  main.py is only a thin launcher that
 calls run_pipeline().  No other module may drive generation.
@@ -40,7 +40,7 @@ import combat.simulation as simulation
 
 def _project_root():
     here = os.path.dirname(os.path.abspath(__file__))
-    return os.path.dirname(here)  # core/.. == project root
+    return os.path.dirname(here)
 
 
 def run_pipeline(ctx=None, export=True):
@@ -120,9 +120,6 @@ def run_pipeline(ctx=None, export=True):
             ctx, os.path.join(_project_root(), "export", "map_data.json"),
             sim=sim, nav=nav, validation=report)
 
-        # Clean build output is an authoritative Blender scene.  Save only after
-        # validation/export succeeded so a failed generation never overwrites
-        # the last known-good scene.
         if report.get("ok", False):
             bpy.ops.wm.save_as_mainfile()
             print("[SAVE] Blender scene saved -> {}".format(bpy.data.filepath))
