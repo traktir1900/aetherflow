@@ -14,7 +14,7 @@ from core.heightmap import get_height_at_point
 from core.utils import finalize_bmesh
 
 
-def _make_cover(ctx, name, point, local_x, local_y, radius, height, yaw_deg, side):
+def _make_cover(ctx, name, objective_name, point, local_x, local_y, radius, height, yaw_deg, side):
     cfg = ctx.config
     u = Vector((point.x, point.y, 0.0)).normalized()
     t = Vector((-u.y, u.x, 0.0))
@@ -43,7 +43,7 @@ def _make_cover(ctx, name, point, local_x, local_y, radius, height, yaw_deg, sid
         meta={
             "gameplay_cover": True,
             "cover_role": "objective",
-            "objective": point.name if hasattr(point, "name") else None,
+            "objective": objective_name,
             "side": side,
             "footprint_radius": radius * 1.15,
             "rot_z": yaw_deg,
@@ -92,8 +92,8 @@ def generate_objective_cover(ctx):
         point = ctx.layout[pname]
         for side, sign in (("West", -1.0), ("East", 1.0)):
             built.append(_make_cover(
-                ctx, "ObjectiveCover_{}_{}".format(pname, side),
-                point, sign * tangent, inward, radius, height,
+                ctx, "ObjectiveCover_{}_{}".format(pname, side), pname, point,
+                sign * tangent, inward, radius, height,
                 90.0 if sign < 0 else -90.0, side))
     return built
 
