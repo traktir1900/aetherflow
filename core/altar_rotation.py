@@ -31,20 +31,30 @@ def _world_xy_vertices(obj):
         yield float(p.x), float(p.y)
 
 
+def _closest_vertex_xy(obj):
+    best = None
+    best_d2 = float("inf")
+    for x, y in _world_xy_vertices(obj):
+        d2 = x * x + y * y
+        if d2 < best_d2:
+            best_d2 = d2
+            best = (x, y)
+    return best, math.sqrt(best_d2) if best is not None else float("inf")
+
+
 def _min_clearance_to_altar(obj, altar_radius):
     """Minimum planar vertex-to-altar-surface distance in metres."""
-    values = []
-    for x, y in _world_xy_vertices(obj):
-        values.append(math.hypot(x, y) - altar_radius)
-    return min(values) if values else float("inf")
+    _, radius = _closest_vertex_xy(obj)
+    return radius - altar_radius
 
 
 def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
-    """Push CoreCover objects outward until their real mesh clears the altar.
+    """Push CoreCover objects outward until real mesh clearance reaches target.
 
-    The repair is deterministic and idempotent.  It operates on actual mesh
-    vertices rather than only object pivots, which matches the gameplay audit's
-    vertex-to-surface measurement.
+    The repair uses the actual closest world-space mesh vertex and applies
+    small deterministic iterations. This avoids assuming that the object's
+    pivot-to-origin direction is also the direction of the nearest footprint
+    vertex (which is false for offset/rotated rectangular covers).
     """
     cfg = ctx.config
     altar_radius = float(cfg["altar"]["base_radius1"])
@@ -58,27 +68,43 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
         if obj is None:
             continue
 
-        clearance = _min_clearance_to_altar(obj, altar_radius)
-        if clearance >= min_clearance:
+        before = _min_clearance_to_altar(obj, altar_radius)
+        if before >= min_clearance:
             continue
 
-        cx, cy = float(obj.location.x), float(obj.location.y)
-        radius = math.hypot(cx, cy)
-        if radius < 1e-6:
-            continue
+        last = before
+        for _ in range(10):
+            (vx, vy), _ = _closest_vertex_xy(obj)
+            radial = Vector((vx, vy, 0.0))
+            if radial.length < 1e-6:
+                pivot = Vector((float(obj.location.x), float(obj.location.y), 0.0))
+                radial = pivot if pivot.length >= 1e-6 else Vector((1.0, 0.0, 0.0))
+            radial.normalize()
 
-        # Move the whole cover radially outward just enough to reach the
-        # target, preserving its local shape and rotation.
-        shift = target_clearance - clearance
-        obj.location.x += (cx / radius) * shift
-        obj.location.y += (cy / radius) * shift
-        new_clearance = _min_clearance_to_altar(obj, altar_radius)
+            needed = target_clearance - last
+            if needed <= 0.0:
+                break
+            # Slight safety multiplier prevents floating-point boundary cases.
+            shift = max(needed * 1.06, 0.05)
+            obj.location.x += radial.x * shift
+            obj.location.y += radial.y * shift
+            bpy_update = getattr(obj, "matrix_world", None)
+            del bpy_update
+            new_clearance = _min_clearance_to_altar(obj, altar_radius)
+            if new_clearance <= last + 1e-4:
+                break
+            last = new_clearance
+            if last >= target_clearance:
+                break
+
+        after = _min_clearance_to_altar(obj, altar_radius)
         rec.setdefault("meta", {})["altar_clearance_repair"] = {
-            "before_m": round(clearance, 3),
-            "after_m": round(new_clearance, 3),
+            "before_m": round(before, 3),
+            "after_m": round(after, 3),
             "target_m": round(target_clearance, 3),
+            "verified": bool(after >= min_clearance),
         }
-        moved.append((name, clearance, new_clearance))
+        moved.append((name, before, after))
 
     return moved
 
