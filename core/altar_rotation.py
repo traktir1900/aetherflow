@@ -2,7 +2,7 @@
 AetherFlow :: core/altar_rotation.py
 
 Focused gameplay hardening for the v0.6.2.1 map:
-  * enforce CoreCover clearance from the Aether Altar;
+  * remove the old inherited Core_Cover_* clutter around the Altar;
   * add a distinct non-blocking Altar protector category;
   * compute real adjacent-objective macro rotation;
   * keep central rocks from re-colliding with repaired cover;
@@ -42,11 +42,48 @@ def _min_clearance_to_altar(obj, altar_radius):
 
 
 def _sync_scene():
-    """Force Blender's dependency graph/object matrices to reflect moves."""
+    """Force Blender dependency graph/object matrices to reflect moves."""
     try:
         bpy.context.view_layer.update()
     except Exception:
         pass
+
+
+def remove_legacy_core_cover(ctx):
+    """Delete obsolete inherited Core_Cover_* pieces around the Altar.
+
+    ObjectiveCover_* is deliberately left untouched.  The central Altar
+    combat space is now dressed only by the four dedicated symmetric
+    Altar_Obstacle_* barricades plus the normal map geometry.
+    """
+    removed = 0
+    removed_names = set()
+
+    for rec in list(ctx.generated_objects):
+        name = rec.get("name", "")
+        if not name.startswith("Core_Cover_"):
+            continue
+        obj = rec.get("object")
+        if obj is not None and obj.name in bpy.data.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        removed_names.add(name)
+        removed += 1
+
+    # Defensive live-scene cleanup in case an upstream stage did not leave the
+    # object registered in ctx.generated_objects.
+    for obj in list(bpy.data.objects):
+        if obj.name.startswith("Core_Cover_"):
+            bpy.data.objects.remove(obj, do_unlink=True)
+            if obj.name not in removed_names:
+                removed += 1
+
+    if removed_names:
+        ctx.generated_objects[:] = [
+            rec for rec in ctx.generated_objects
+            if rec.get("name", "") not in removed_names
+        ]
+    _sync_scene()
+    return removed
 
 
 def _repair_central_rocks(ctx, push=2.75):
@@ -72,58 +109,16 @@ def _repair_central_rocks(ctx, push=2.75):
 
 
 def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
-    cfg = ctx.config
-    altar_radius = float(cfg["altar"]["base_radius1"])
-    moved = []
+    """Keep the old API as a cleanup/compatibility stage.
 
-    for rec in ctx.generated_objects:
-        name = rec.get("name", "")
-        if not name.startswith("Core_Cover_"):
-            continue
-        obj = rec.get("object")
-        if obj is None:
-            continue
-
-        _sync_scene()
-        before = _min_clearance_to_altar(obj, altar_radius)
-        if before >= min_clearance:
-            continue
-
-        last = before
-        for _ in range(12):
-            (vx, vy), _ = _closest_vertex_xy(obj)
-            direction = Vector((vx, vy, 0.0))
-            if direction.length < 1e-6:
-                direction = Vector((float(obj.location.x), float(obj.location.y), 0.0))
-            if direction.length < 1e-6:
-                direction = Vector((1.0, 0.0, 0.0))
-            direction.normalize()
-
-            needed = target_clearance - last
-            if needed <= 0.0:
-                break
-            obj.location.x += direction.x * max(needed * 1.08, 0.05)
-            obj.location.y += direction.y * max(needed * 1.08, 0.05)
-            _sync_scene()
-            new_clearance = _min_clearance_to_altar(obj, altar_radius)
-            if new_clearance <= last + 1e-4:
-                break
-            last = new_clearance
-            if last >= target_clearance:
-                break
-
-        _sync_scene()
-        after = _min_clearance_to_altar(obj, altar_radius)
-        rec.setdefault("meta", {})["altar_clearance_repair"] = {
-            "before_m": round(before, 3),
-            "after_m": round(after, 3),
-            "target_m": round(target_clearance, 3),
-            "verified": bool(after >= min_clearance),
-        }
-        moved.append((name, before, after))
-
+    The legacy Core_Cover_* Altar pieces are intentionally gone, so there is
+    no longer a CoreCover-to-Altar clearance repair to perform here.
+    """
+    removed = remove_legacy_core_cover(ctx)
     _repair_central_rocks(ctx)
-    return moved
+    if removed:
+        print("  -> removed legacy Altar Core_Cover pieces: {}".format(removed))
+    return []
 
 
 def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
@@ -162,10 +157,9 @@ def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
 def generate_altar_obstacles(ctx):
     """Create four chunky, centered, cardinal Altar barricades.
 
-    The four pieces are the same size and are placed at equal radius on the
-    cardinal axes around the exact Altar center (0,0). North/South share one
-    orientation; East/West are rotated 90 degrees. The arrangement is exactly
-    symmetric around both world axes, guaranteeing Blue/Red fairness.
+    All four pieces share the same dimensions and distance from the exact
+    Altar center.  North/South and East/West are exact mirror pairs, so the
+    composition cannot favor Blue or Red.
     """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
