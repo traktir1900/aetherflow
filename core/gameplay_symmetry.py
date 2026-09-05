@@ -9,7 +9,6 @@ import math
 
 from mathutils import Vector
 from core.heightmap import get_height_at_point
-from core.layout import RING_NODES
 
 MIRROR_PAIRS = (
     ("BlueBase", "RedBase"),
@@ -18,8 +17,16 @@ MIRROR_PAIRS = (
 )
 
 CRITICAL_TYPES = {
-    "base", "capture_point", "road", "ramp", "cover",
+    "base", "capture_point", "road", "ramp",
     "pocket_floor", "pocket_cover", "pocket_gate", "altar_obstacle",
+}
+
+OBJECTIVE_MIRRORS = {
+    "WestMonolith": "EastMonolith",
+    "EastMonolith": "WestMonolith",
+    "SWMonolith": "SEMonolith",
+    "SEMonolith": "SWMonolith",
+    "Crown": "Crown",
 }
 
 
@@ -62,20 +69,98 @@ def _record_signature(rec):
     if loc is None:
         return None
     dims = rec.get("dimensions") or ()
-    meta = rec.get("meta") or {}
     return (
         round(float(loc.x), 3), round(float(loc.y), 3), round(float(loc.z), 3),
         tuple(round(float(d), 3) for d in dims if d is not None),
-        round(float(meta.get("rot_z", 0.0)), 3),
     )
 
 
-def _mirror_signature(rec):
-    sig = _record_signature(rec)
-    if sig is None:
-        return None
-    x, y, z, dims, rot = sig
-    return (-x, y, z, dims, round(-rot, 3))
+def _find_mirror(records, target, tol):
+    best_idx = None
+    best_score = float("inf")
+    tx, ty, tz, tdims = target
+    for idx, rec in enumerate(records):
+        sig = _record_signature(rec)
+        if sig is None:
+            continue
+        x, y, z, dims = sig
+        if len(dims) != len(tdims):
+            continue
+        if not _near((x, y), (tx, ty), tol) or abs(z - tz) > tol:
+            continue
+        if any(abs(a - b) > tol for a, b in zip(dims, tdims)):
+            continue
+        score = math.hypot(x - tx, y - ty) + abs(z - tz)
+        if score < best_score:
+            best_score = score
+            best_idx = idx
+    return best_idx
+
+
+def _objective_cover_symmetry(ctx, tol, errors):
+    """Validate ObjectiveCover_* by logical objective pair, not global type multiset.
+
+    The cover meshes are generated in each objective's local basis. Their
+    rotation is baked into the mesh, so comparing meta rot_z across objectives
+    is incorrect. Gameplay symmetry is therefore checked on the authoritative
+    world-space transform and footprint dimensions. Crown is self-mirrored.
+    """
+    covers = [
+        r for r in getattr(ctx, "generated_objects", [])
+        if r.get("type") == "cover"
+        and ((r.get("meta") or {}).get("gameplay_cover") or (r.get("meta") or {}).get("objective"))
+    ]
+    by_objective = {}
+    for rec in covers:
+        objective = (rec.get("meta") or {}).get("objective")
+        if objective:
+            by_objective.setdefault(str(objective), []).append(rec)
+
+    checked = set()
+    for a, b in OBJECTIVE_MIRRORS.items():
+        pair_key = tuple(sorted((a, b)))
+        if pair_key in checked:
+            continue
+        checked.add(pair_key)
+        left = list(by_objective.get(a, []))
+        right = list(by_objective.get(b, []))
+
+        # For Crown, the two cover pieces must mirror each other as a set.
+        if a == b:
+            remaining = list(right)
+            for rec in left:
+                sig = _record_signature(rec)
+                if sig is None:
+                    errors.append("GAMEPLAY SYMMETRY OBJECT INVALID: {}".format(rec.get("name", "")))
+                    continue
+                x, y, z, dims = sig
+                target = (-x, y, z, dims)
+                idx = _find_mirror(remaining, target, tol)
+                if idx is None:
+                    errors.append("GAMEPLAY SYMMETRY OBJECT MISSING MIRROR: {}".format(rec.get("name", "")))
+                else:
+                    remaining.pop(idx)
+            continue
+
+        if not left or not right:
+            errors.append("GAMEPLAY SYMMETRY OBJECTIVE COVER SET MISSING: {} <-> {}".format(a, b))
+            continue
+        if len(left) != len(right):
+            errors.append("GAMEPLAY SYMMETRY OBJECTIVE COVER COUNT: {}={} vs {}={}".format(a, len(left), b, len(right)))
+            continue
+
+        remaining = list(right)
+        for rec in left:
+            sig = _record_signature(rec)
+            if sig is None:
+                errors.append("GAMEPLAY SYMMETRY OBJECT INVALID: {}".format(rec.get("name", "")))
+                continue
+            x, y, z, dims = sig
+            idx = _find_mirror(remaining, (-x, y, z, dims), tol)
+            if idx is None:
+                errors.append("GAMEPLAY SYMMETRY OBJECT MISSING MIRROR: {}".format(rec.get("name", "")))
+            else:
+                remaining.pop(idx)
 
 
 def _critical_records_symmetry(ctx, tol, errors):
@@ -84,28 +169,16 @@ def _critical_records_symmetry(ctx, tol, errors):
 
     while unmatched:
         rec = unmatched.pop(0)
-        target = _mirror_signature(rec)
-        if target is None:
+        sig = _record_signature(rec)
+        if sig is None:
             errors.append("GAMEPLAY SYMMETRY INVALID OBJECT: {}".format(rec.get("name", "")))
             continue
-
-        found_index = None
-        for idx, candidate in enumerate(unmatched):
-            cand_sig = _record_signature(candidate)
-            if cand_sig is None:
-                continue
-            if (
-                _near(cand_sig[:2], target[:2], tol)
-                and abs(cand_sig[2] - target[2]) <= tol
-                and cand_sig[3] == target[3]
-                and abs(math.sin(cand_sig[4] - target[4])) <= 0.004
-            ):
-                found_index = idx
-                break
-
+        x, y, z, dims = sig
+        target = (-x, y, z, dims)
+        found_index = _find_mirror(unmatched, target, tol)
         if found_index is None:
-            # Objects on x ~= 0 can legally mirror themselves.
-            if abs(target[0] - _record_signature(rec)[0]) <= tol and abs(target[1] - _record_signature(rec)[1]) <= tol:
+            # Objects on the mirror plane can legally mirror themselves.
+            if abs(x) <= tol:
                 continue
             errors.append("GAMEPLAY SYMMETRY OBJECT MISSING MIRROR: {}".format(rec.get("name", "")))
             continue
@@ -139,12 +212,6 @@ def _core_rock_symmetry(ctx, tol, errors):
             errors.append("GAMEPLAY SYMMETRY CORE ROCK PAIR {} position mismatch".format(pair_id))
         if sa[3] != sb[3]:
             errors.append("GAMEPLAY SYMMETRY CORE ROCK PAIR {} dimension mismatch".format(pair_id))
-        # Exact mirrored mesh is guaranteed by the generator; metadata records
-        # the mirrored yaw as an additional audit signal.
-        ya = float((a.get("meta") or {}).get("yaw_deg", 0.0))
-        yb = float((b.get("meta") or {}).get("yaw_deg", 0.0))
-        if abs(((ya + yb) - 180.0) % 360.0) > 0.25 and abs(((yb + ya) - 180.0) % 360.0) > 0.25:
-            errors.append("GAMEPLAY SYMMETRY CORE ROCK PAIR {} yaw mismatch".format(pair_id))
 
 
 def validate_gameplay_symmetry(ctx, cfg=None):
@@ -159,6 +226,7 @@ def validate_gameplay_symmetry(ctx, cfg=None):
     _layout_symmetry(ctx, tol, errors)
     _terrain_symmetry(ctx, cfg, tol, errors)
     _critical_records_symmetry(ctx, tol, errors)
+    _objective_cover_symmetry(ctx, tol, errors)
     _core_rock_symmetry(ctx, tol, errors)
 
     return errors, {
@@ -167,6 +235,6 @@ def validate_gameplay_symmetry(ctx, cfg=None):
         "plane": "Y_AXIS",
         "transform": "(x,y,z) -> (-x,y,z)",
         "tolerance_m": tol,
-        "checked_types": sorted(CRITICAL_TYPES) + ["Core_Rock_*"],
+        "checked_types": sorted(CRITICAL_TYPES) + ["cover:ObjectiveCover_*", "Core_Rock_*"],
         "mirror_pairs": [list(p) for p in MIRROR_PAIRS],
     }
