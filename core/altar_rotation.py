@@ -2,19 +2,11 @@
 AetherFlow :: core/altar_rotation.py
 
 Focused gameplay hardening for the v0.6.2.1 map:
-
-  * enforce a real minimum planar clearance between CoreCover geometry and
-    the Aether Altar surface;
-  * add a distinct, NON-BLOCKING Altar_Obstacle_* visual landmark category so
-    the altar is no longer represented exclusively by CoreCover;
-  * compute a deterministic macro-rotation metric from the real nav routes
-    between adjacent objectives, instead of treating every Base->Objective
-    route as "rotation";
-  * keep secondary central rocks from re-colliding with repaired CoreCover;
-  * enforce explicit mirror symmetry of Altar protectors for Blue/Red fairness.
-
-The altar obstacles intentionally use an unrecognised navigation/export kind
-(`altar_obstacle`), so they are exported as props and do not alter walkability.
+  * enforce CoreCover clearance from the Aether Altar;
+  * add a distinct non-blocking Altar protector category;
+  * compute real adjacent-objective macro rotation;
+  * keep central rocks from re-colliding with repaired cover;
+  * keep all Altar protectors strictly symmetric.
 """
 import math
 
@@ -26,7 +18,6 @@ from core.utils import finalize_bmesh
 
 
 def _world_xy_vertices(obj):
-    """Yield world-space XY vertices for an object."""
     mw = obj.matrix_world
     for v in obj.data.vertices:
         p = mw @ v.co
@@ -45,13 +36,11 @@ def _closest_vertex_xy(obj):
 
 
 def _min_clearance_to_altar(obj, altar_radius):
-    """Minimum planar vertex-to-altar-surface distance in metres."""
     _, radius = _closest_vertex_xy(obj)
     return radius - altar_radius
 
 
 def _repair_central_rocks(ctx, push=2.75):
-    """Move Core_Rock_* anchors outward to keep central combat lanes clear."""
     moved = []
     for rec in ctx.generated_objects:
         name = rec.get("name", "")
@@ -67,19 +56,12 @@ def _repair_central_rocks(ctx, push=2.75):
         obj.location.x += (x / radius) * push
         obj.location.y += (y / radius) * push
         meta = rec.setdefault("meta", {})
-        meta["central_space_repair_m"] = round(
-            float(meta.get("central_space_repair_m", 0.0)) + push, 3)
+        meta["central_space_repair_m"] = round(float(meta.get("central_space_repair_m", 0.0)) + push, 3)
         moved.append((name, push))
     return moved
 
 
 def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
-    """Push CoreCover objects outward until real mesh clearance reaches target.
-
-    The repair uses the actual closest world-space mesh vertex. It applies
-    deterministic iterations because the nearest point on a rotated footprint
-    does not generally lie on the object's pivot-to-origin radial.
-    """
     cfg = ctx.config
     altar_radius = float(cfg["altar"]["base_radius1"])
     moved = []
@@ -131,17 +113,42 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
     return moved
 
 
+def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
+    """Build one chunky stone barricade with identical dimensions at every side."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=2.0)
+    sx, sy, sz = (size[0] * 0.5, size[1] * 0.5, size[2] * 0.5)
+    bmesh.ops.scale(bm, vec=Vector((sx, sy, sz)), verts=bm.verts)
+    bmesh.ops.rotate(
+        bm,
+        verts=bm.verts,
+        cent=Vector((0.0, 0.0, 0.0)),
+        matrix=__import__("mathutils").Matrix.Rotation(rotation_z, 4),
+    )
+    bmesh.ops.translate(
+        bm,
+        verts=bm.verts,
+        vec=Vector((position[0], position[1], position[2] + size[2] * 0.5)),
+    )
+    return finalize_bmesh(
+        bm,
+        name,
+        "Decorations",
+        ctx.get_material("rock"),
+        ctx,
+        kind="altar_obstacle",
+        dims=size,
+        meta=meta,
+    )
+
+
 def generate_altar_obstacles(ctx):
-    """Create four compact, strictly symmetric Altar protectors.
+    """Create four chunky, centered, cardinal Altar barricades.
 
-    The protectors are centered on the Altar and arranged on the four
-    cardinal axes (north/east/south/west).  This creates exact symmetry under
-    both X and Y reflections, so neither Blue nor Red receives a unique piece
-    of cover.  The group stays close to the Altar rather than forming a remote
-    diagonal ring.
-
-    The obstacles remain non-blocking for navigation; they are visual/LOS
-    landmarks only.
+    The four pieces are the same size and are placed at equal radius on the
+    cardinal axes around the exact Altar center (0,0). North/South share one
+    orientation; East/West are rotated 90 degrees. The arrangement is exactly
+    symmetric around both world axes, guaranteeing Blue/Red fairness.
     """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
@@ -150,54 +157,43 @@ def generate_altar_obstacles(ctx):
     if count != 4:
         raise ValueError("Altar protectors require exactly 4 pieces for symmetry")
 
-    # Keep the four pieces immediately around the Altar.  The configured
-    # offset is measured from the Altar base edge, while the piece footprint
-    # is also included so geometry cannot intrude into the altar surface.
-    offset = float(protector_cfg.get("ring_offset_from_altar_m", 3.5))
-    radius = float(protector_cfg.get("protector_radius_m", 0.8))
-    height = float(protector_cfg.get("protector_height_m", 2.6))
-    ring_r = max(altar_r + offset, altar_r + radius + 0.35)
+    # Deliberately compact: these belong to the Altar itself, not the broader
+    # CoreCover field. The closest barricade face stays clearly outside the
+    # Altar surface.
+    offset = float(protector_cfg.get("ring_offset_from_altar_m", 3.25))
+    wall_length = float(protector_cfg.get("protector_length_m", 3.6))
+    wall_depth = float(protector_cfg.get("protector_depth_m", 1.25))
+    wall_height = float(protector_cfg.get("protector_height_m", 2.4))
+    ring_r = altar_r + offset + wall_depth * 0.5
+    size = (wall_length, wall_depth, wall_height)
 
-    # Exact cardinal arrangement around the center.  The ordering is fixed so
-    # exported names and symmetry pairs are deterministic across runs.
     specs = [
-        (1, 0.0, +ring_r, "NORTH_SOUTH"),
-        (2, +ring_r, 0.0, "EAST_WEST"),
-        (3, 0.0, -ring_r, "NORTH_SOUTH"),
-        (4, -ring_r, 0.0, "EAST_WEST"),
+        (1, "N", 0.0, +ring_r, 0.0, "NORTH_SOUTH"),
+        (2, "E", +ring_r, 0.0, math.pi / 2.0, "EAST_WEST"),
+        (3, "S", 0.0, -ring_r, 0.0, "NORTH_SOUTH"),
+        (4, "W", -ring_r, 0.0, math.pi / 2.0, "EAST_WEST"),
     ]
 
     built = []
-    for i, px, py, pair_id in specs:
-        pos = Vector((px, py, cfg["heights"]["AetherCore"]))
-        bm = bmesh.new()
-        bmesh.ops.create_cone(
-            bm, cap_ends=True, segments=8,
-            radius1=radius, radius2=radius * 0.72, depth=height,
-        )
-        bmesh.ops.translate(
-            bm, verts=bm.verts,
-            vec=pos + Vector((0.0, 0.0, height / 2.0)),
-        )
-
-        built.append(finalize_bmesh(
-            bm,
+    for i, side, px, py, rot_z, pair_id in specs:
+        built.append(_build_rectangular_protector(
             "Altar_Obstacle_{:02d}".format(i),
-            "Decorations",
-            ctx.get_material("rock"),
+            (px, py, float(cfg["heights"]["AetherCore"])),
+            size,
+            rot_z,
             ctx,
-            kind="altar_obstacle",
-            dims=(radius * 2.0, radius * 2.0, height),
-            meta={
+            {
                 "landmark": "AetherAltar",
                 "non_blocking": True,
+                "side": side,
                 "ring_radius": round(ring_r, 3),
                 "offset_from_altar_edge_m": round(offset, 3),
-                "role": "altar_perimeter_visual",
+                "role": "altar_centered_barricade",
                 "symmetry_plane": "BOTH_AXES",
                 "symmetry_pair": pair_id,
                 "mirror_of_blue_red": True,
                 "cardinal_centered": True,
+                "identical_geometry": True,
             },
         ))
 
