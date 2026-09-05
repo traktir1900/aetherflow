@@ -20,7 +20,6 @@ from core.layout import build_layout
 from core.navigation import build_grid, run_navigation_checks
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
-from core.gameplay_symmetry import validate_gameplay_symmetry
 
 import core.gameplay_cover as gameplay_cover_module
 import core.altar_rotation as altar_rotation_module
@@ -159,18 +158,13 @@ def run_pipeline(ctx=None, export=True):
     print("[STAGE 9/10] Validation")
     report = validation_module.run_validation(ctx, nav_report=nav)
 
-    # New hard gameplay-balance gate: no team-critical geometry may drift away
-    # from the Blue/Red mirror. Decorative-only assets are exempt by contract.
     symmetry_errors, symmetry_summary = gameplay_symmetry_module.validate_gameplay_symmetry(ctx, cfg)
     report["gameplay_symmetry"] = symmetry_summary
     report["errors"].extend(symmetry_errors)
     report["ok"] = len(report["errors"]) == 0
-    if symmetry_summary.get("enabled"):
-        print("  -> GAMEPLAY SYMMETRY: {} | plane={} | tolerance={:.2f}m | checked={}".format(
-            "PASS" if symmetry_summary["passed"] else "FAIL",
-            symmetry_summary["plane"],
-            symmetry_summary["tolerance_m"],
-            ", ".join(symmetry_summary["checked_types"])))
+    print("  -> GAMEPLAY SYMMETRY: {} | plane={} | tolerance={:.2f}m".format(
+        "PASS" if symmetry_summary["passed"] else "FAIL",
+        symmetry_summary["plane"], symmetry_summary["tolerance_m"]))
     for e in report["errors"]:
         print("  [VALIDATION ERROR] " + e)
     for w in report["warnings"]:
