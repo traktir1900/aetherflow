@@ -1,50 +1,46 @@
 # AetherFlow v0.6.3.1 — Terrain Refinement
 
-## Goal
+## Status
 
-Refine the existing v0.6.x terrain profile without changing map topology.
-The five objectives, two bases, roads, ramps, pockets and their XY layout remain fixed.
+**IMPLEMENTED — RUNTIME VALIDATION PENDING**
 
-## Implemented
+## Purpose
 
-### Central AetherCore
-The existing analytic depression remains centered at `(0,0)`, but its depth is increased by a bounded multiplier so the central combat space reads clearly in Blender and later in UE5.
+Strengthen the readability of the existing terrain profile without rebuilding the map. The existing 5-objective layout, 2 bases, roads, ramps and 4 pockets remain fixed.
 
-### Crown
-The Crown sector receives a stronger but still smooth elevation target. The Crown location itself is unchanged.
+## Changes
 
-### West/East Monoliths
-Both monolith sectors receive identical elevation strengthening. The symmetry between the two side sectors is preserved.
+The shared analytic terrain profile now applies bounded multipliers to the existing anchors:
 
-### South Rift
-The South Rift receives a controlled deeper depression while keeping its existing footprint and location.
+- AetherCore depression: `×1.65`;
+- Crown elevation: `×1.60`;
+- West/East Monolith elevation: `×1.60`, identically;
+- SouthRift depression: `×1.50`;
+- central transition radius: `×1.10`.
 
-### Height transitions
-The central transition radius is increased slightly to keep the stronger height differences gradual. No hard terrain walls or new topology are introduced.
+These multipliers are applied at height evaluation time; the original spatial radii and layout coordinates remain unchanged.
 
-## Design limits
+## Terrain audit
 
-- gameplay map remains `200 x 200 m`;
-- world floor remains `220 x 220 m`;
-- objective/base coordinates are unchanged;
-- topology is unchanged;
-- terrain is generated from the same analytic heightmap system;
-- maximum sampled terrain slope target is `< 35°`;
-- safety-floor clamping remains active.
+The pipeline now reports:
 
-## Runtime audit
-
-The pipeline now prints:
-
-- effective landmark heights for AetherCore, Crown, WestMonolith, EastMonolith and SouthRift;
-- minimum/maximum terrain height;
+- effective height at AetherCore/Crown/WestMonolith/EastMonolith/SouthRift;
+- sampled minimum and maximum terrain height;
 - maximum sampled slope;
 - average sampled slope;
-- pass/fail against the 35° design limit;
-- explicit confirmation that topology/objective/base coordinates are unchanged.
+- pass/fail against the `35°` design limit;
+- explicit flags confirming topology, objective and base coordinates remain unchanged.
 
-## Validation gate
+## Next test
 
-Fresh Blender 5.2 generation is required before calling v0.6.3.1 complete. The terrain refinement itself is not considered complete until navigation, geometry validation and the existing v0.6.2.1 gameplay checks remain acceptable after the stronger height profile is applied.
+Run the complete pipeline in Blender 5.2 and inspect:
 
-The work remains on `v0-6-2-1-cover-refinement`; no new branch is created.
+1. central AetherCore slope/readability;
+2. Crown and monolith elevation readability;
+3. South Rift depression;
+4. terrain slope audit;
+5. navigation reachability;
+6. existing Altar/objective cover composition;
+7. mesh intersections and validation errors.
+
+Do not mark v0.6.3.1 complete until the fresh runtime confirms the existing gameplay metrics remain valid.
