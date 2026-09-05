@@ -11,7 +11,7 @@ Focused gameplay hardening for the v0.6.2.1 map:
 import math
 
 import bmesh
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 from core.layout import RING_NODES
 from core.utils import finalize_bmesh
@@ -116,30 +116,37 @@ def ensure_altar_clearance(ctx, min_clearance=8.0, target_clearance=8.5):
 def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
     """Build one chunky stone barricade with identical dimensions at every side."""
     bm = bmesh.new()
-    bmesh.ops.create_cube(bm, size=2.0)
-    sx, sy, sz = (size[0] * 0.5, size[1] * 0.5, size[2] * 0.5)
-    bmesh.ops.scale(bm, vec=Vector((sx, sy, sz)), verts=bm.verts)
-    bmesh.ops.rotate(
-        bm,
-        verts=bm.verts,
-        cent=Vector((0.0, 0.0, 0.0)),
-        matrix=__import__("mathutils").Matrix.Rotation(rotation_z, 4),
-    )
-    bmesh.ops.translate(
-        bm,
-        verts=bm.verts,
-        vec=Vector((position[0], position[1], position[2] + size[2] * 0.5)),
-    )
-    return finalize_bmesh(
-        bm,
-        name,
-        "Decorations",
-        ctx.get_material("rock"),
-        ctx,
-        kind="altar_obstacle",
-        dims=size,
-        meta=meta,
-    )
+    try:
+        bmesh.ops.create_cube(bm, size=2.0)
+        sx, sy, sz = (size[0] * 0.5, size[1] * 0.5, size[2] * 0.5)
+        bmesh.ops.scale(bm, vec=Vector((sx, sy, sz)), verts=bm.verts)
+        # Blender's 4D rotation matrix still requires an explicit 3D axis.
+        # Always rotate around world/local Z to keep the barricade orientation
+        # deterministic and compatible with Blender 5.2.
+        bmesh.ops.rotate(
+            bm,
+            verts=bm.verts,
+            cent=Vector((0.0, 0.0, 0.0)),
+            matrix=Matrix.Rotation(rotation_z, 4, 'Z'),
+        )
+        bmesh.ops.translate(
+            bm,
+            verts=bm.verts,
+            vec=Vector((position[0], position[1], position[2] + size[2] * 0.5)),
+        )
+        return finalize_bmesh(
+            bm,
+            name,
+            "Decorations",
+            ctx.get_material("rock"),
+            ctx,
+            kind="altar_obstacle",
+            dims=size,
+            meta=meta,
+        )
+    except Exception:
+        bm.free()
+        raise
 
 
 def generate_altar_obstacles(ctx):
@@ -149,6 +156,9 @@ def generate_altar_obstacles(ctx):
     cardinal axes around the exact Altar center (0,0). North/South share one
     orientation; East/West are rotated 90 degrees. The arrangement is exactly
     symmetric around both world axes, guaranteeing Blue/Red fairness.
+
+    The barricades are intentionally close to the Altar rather than spread
+    across the surrounding CoreCover field.
     """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
@@ -157,9 +167,8 @@ def generate_altar_obstacles(ctx):
     if count != 4:
         raise ValueError("Altar protectors require exactly 4 pieces for symmetry")
 
-    # Deliberately compact: these belong to the Altar itself, not the broader
-    # CoreCover field. The closest barricade face stays clearly outside the
-    # Altar surface.
+    # Compact centered layout. Offset is measured from the Altar edge to the
+    # nearest barricade face; the footprint is then included in ring_r.
     offset = float(protector_cfg.get("ring_offset_from_altar_m", 3.25))
     wall_length = float(protector_cfg.get("protector_length_m", 3.6))
     wall_depth = float(protector_cfg.get("protector_depth_m", 1.25))
