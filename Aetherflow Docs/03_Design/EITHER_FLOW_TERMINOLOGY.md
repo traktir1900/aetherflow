@@ -118,6 +118,32 @@ Examples:
 ### Main Road
 A primary traversable route connecting major map regions.
 
+### Top Flow
+The strategic route family serving the **northern/top portion of the map**, centered around the Crown side of the objective ring. Top Flow describes the preferred movement and rotation corridor through the northern gameplay space.
+
+Top Flow is not a third lane. It is a **strategic flow layer** used to describe movement, rotation, interception and pressure through the top side of the map.
+
+### Middle Flow
+The strategic route family serving the **central/middle portion of the map**, connecting the central AetherCore / Aether Altar combat space with surrounding objectives and major rotation routes.
+
+Middle Flow is the primary central rotation concept and must remain open enough to support interception, team fights and objective rotation without becoming a single mandatory corridor.
+
+### Bottom Flow
+The strategic route family serving the **southern/bottom portion of the map**, including the Blue/Red base side, SouthRift and the southern objective approach space.
+
+Bottom Flow describes the southern strategic movement layer and includes base departures, southern objective approaches, retreat and comeback movement.
+
+### Flow Layer
+A strategic classification of connected movement space used to describe where and how teams rotate across the map. Flow Layers are **not equivalent to classic MOBA lanes**.
+
+Current canonical flow terms:
+
+- **Top Flow** — northern strategic movement layer;
+- **Middle Flow** — central strategic movement layer;
+- **Bottom Flow** — southern strategic movement layer.
+
+A route may interact with more than one Flow Layer. A Flow Layer is a design-analysis concept, not necessarily one physical road or one uninterrupted path.
+
 ### Flank Route
 A route allowing a player or team to approach from a less direct angle.
 
@@ -326,6 +352,7 @@ Unreal Engine 5 foundation and runtime integration.
 6. Geometry changes must be validated with navigation, LOS, intersection and balance regression tests.
 7. `EXACT`, `APPROXIMATION`, `FALLBACK` and `DATA MISSING` must retain their literal meanings in reports.
 8. A version is not complete while a mandatory validation gate is failing.
+9. Top Flow, Middle Flow and Bottom Flow are strategic flow layers, not a return to a fixed three-lane MOBA layout.
 
 ---
 
