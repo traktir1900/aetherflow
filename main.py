@@ -1,5 +1,5 @@
 """
-AetherFlow :: main.py  (v0.6.0)
+AetherFlow :: main.py  (v0.6.1)
 
 THIN ENTRY POINT.  All generation lives in core.pipeline — main.py only:
   1. locates the project root (NO hardcoded machine paths),
@@ -49,7 +49,7 @@ def _walk_up(start_dir, probed):
         if _is_project_dir(p):
             return p
         parent = os.path.dirname(p)
-        if parent == p:                       # filesystem root reached (C:\, /, ...)
+        if parent == p:
             return None
         p = parent
 
@@ -66,14 +66,11 @@ def _candidate_starts():
         except (OSError, ValueError):
             pass
 
-    # 1) The executing main.py.  In a Blender Text Block __file__ may be
-    #    missing entirely or a bare "main.py" — both cases normalize safely.
     try:
         add_file(__file__)
     except NameError:
         pass
 
-    # 2) Blender Text Block sources.
     try:
         import bpy
         texts = []
@@ -89,7 +86,7 @@ def _candidate_starts():
         except Exception:
             pass
         try:
-            texts.extend(bpy.data.texts)      # any text block loaded from disk
+            texts.extend(bpy.data.texts)
         except Exception:
             pass
         for t in texts:
@@ -97,9 +94,8 @@ def _candidate_starts():
             if fp and os.path.isfile(fp):
                 add_file(fp)
     except Exception:
-        pass                                  # not running inside Blender
+        pass
 
-    # 3) The open .blend file's folder (parents are covered by the walk-up).
     try:
         import bpy
         blend = bpy.data.filepath or ""
@@ -108,13 +104,10 @@ def _candidate_starts():
     except Exception:
         pass
 
-    # 4) Script paths on the command line
-    #    (`blender --background file.blend --python <path>/main.py`).
     for arg in sys.argv:
         if isinstance(arg, str) and arg.lower().endswith(".py") and os.path.isfile(arg):
             add_file(arg)
 
-    # 5) Everything already on sys.path.
     for p in list(sys.path):
         if p and os.path.isdir(p):
             try:
@@ -122,7 +115,6 @@ def _candidate_starts():
             except (OSError, ValueError):
                 pass
 
-    # 6) Current working directory.
     starts.append(os.getcwd())
     return starts
 
