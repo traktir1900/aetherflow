@@ -2,10 +2,10 @@
 AetherFlow :: core/heightmap.py
 Analytic height field for the map.
 
-v0.6.3.1 keeps the same topology and anchor coordinates while using the shared
-terrain refinement profile to make the central depression, Crown elevation,
-monolith shoulders and South Rift readable without introducing steep combat
-slopes.
+v0.6.3.2 fixes the measured discontinuity at the AetherCore shoulder: the
+inner core bowl and the outer transition now meet continuously at
+``core_radius``. This preserves all XY anchors and topology while removing
+the artificial ~1.1 m one-cell height step that was breaking minion traversal.
 """
 import math
 from mathutils import Vector
@@ -20,14 +20,16 @@ def get_height_at_point(pos, cfg, layout):
     heights = get_effective_heights(cfg)
     core_r = cfg["center_radius"]
 
-    # Central AetherCore depression. The v0.6.3.1 profile increases depth,
-    # while the radius remains unchanged so gameplay topology does not drift.
+    # Central AetherCore depression. The bowl reaches zero at core_r so the
+    # inner and outer fields share the same boundary elevation.
     if dist_center < core_r:
         t = dist_center / core_r
         z = heights["AetherCore"] * ((1.0 - t) ** 2)
         return _clamp(z, cfg)
 
-    # Wider smooth shoulder into the surrounding sectors.
+    # Wider smooth shoulder into the surrounding sectors.  IMPORTANT: the
+    # outer field starts at the same z=0 boundary used by the core bowl;
+    # starting from AetherCore here would introduce a discontinuous step.
     transition_r = get_transition_radius(cfg)
     if dist_center < core_r + transition_r:
         raw_t = (dist_center - core_r) / transition_r
@@ -43,7 +45,7 @@ def get_height_at_point(pos, cfg, layout):
         else:
             target_h = heights["EastMonolith"]
 
-        z = heights["AetherCore"] * (1.0 - smooth_t) + target_h * smooth_t
+        z = target_h * smooth_t
         return _clamp(z, cfg)
 
     # SouthRift depression.
