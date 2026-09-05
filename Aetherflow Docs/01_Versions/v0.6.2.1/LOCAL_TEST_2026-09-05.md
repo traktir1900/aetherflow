@@ -25,24 +25,25 @@ Evidence:
 2. The local runtime's Altar repair stage printed unchanged clearance values. The branch has since been changed to reload the project modules before every pipeline run and to repair from the closest real world-space mesh vertex iteratively.
 3. The pasted auditor classified `AltarObstacles` as `0` even though its live LOS section observed all four `Altar_Obstacle_*` objects. This is a local auditor classification mismatch.
 4. The latest pasted run did not show the previous `Core_Cover_Pocket_SE` vs `Core_Rock_06` overlap warning; evaluated-mesh intersections remained `0`.
-5. The legacy auditor's `21.6 s` rotation variance is not the new macro-rotation metric. The pipeline now exports the real five-objective adjacent-ring metric (`34.07/26.55–37.50 s`, variance `10.95 s`).
+5. The legacy auditor's `21.6 s` rotation variance is not the new macro-rotation metric. The pipeline now exports the real five-objective adjacent-ring metric (`34.07/26.55–37.50 s`).
 
 ## Code corrections after this run
 
 - `core/altar_rotation.py`: closest-vertex iterative Altar clearance repair;
 - `core/altar_rotation.py`: central `Core_Rock_*` outward repair;
-- `core/altar_rotation.py`: Altar protectors are now explicitly generated as mirrored pairs about the Y axis, matching the Blue/Red base symmetry plane. Each mirrored pair uses identical footprint, height and geometry so neither team receives a different Altar LOS condition;
+- `core/altar_rotation.py`: Altar protectors are generated from explicit mirrored coordinate pairs across the Y axis, matching the Blue/Red base symmetry plane. Paired protectors have identical geometry, footprint, height and radial distance to the Altar centre;
 - `core/pipeline.py`: explicit reload of `gameplay_cover`, `altar_rotation` and `validation` before each Blender pipeline rerun, eliminating stale-module mixing;
+- `core/config.py`: restored full scale-driven configuration after the development write check; no gameplay constants were changed by the protector-symmetry pass;
 - branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
 
 ## Altar protector balance contract
 
-The four `Altar_Obstacle_*` objects are a dedicated visual/LOS layer. Their placement must remain deterministic and symmetric around the Blue/Red mirror plane:
-- `x -> -x` mirror pairs are mandatory;
-- paired objects must have equal dimensions and height;
-- pair distances to the Altar centre must match;
-- no protector may create a unique approach condition for only one team;
-- they remain non-blocking for navigation.
+The four `Altar_Obstacle_*` objects are a dedicated visual/LOS layer. Their placement is a strict balance invariant:
+- Blue and Red approaches use the same mirror plane (`Y_AXIS`, `x -> -x`);
+- each protector has an exact mirrored partner;
+- paired protectors use identical geometry, dimensions, height and distance to the Altar centre;
+- the set is symmetric in the front/back direction as well, so neither team gets a unique LOS blocker;
+- protectors remain non-blocking for navigation.
 
 ## Merge gate
 
@@ -56,5 +57,5 @@ Required:
 - objective gameplay cover = `10`;
 - minimum CoreCover-to-Altar clearance >= `8.0 m`;
 - four `Altar_Obstacle_*` objects present;
-- four Altar protectors remain explicitly team-symmetric;
+- all four Altar protectors remain exactly team-symmetric;
 - `navigation.macro_rotation.all_reachable == true`.
