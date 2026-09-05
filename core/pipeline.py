@@ -20,11 +20,13 @@ from core.layout import build_layout
 from core.navigation import build_grid, run_navigation_checks
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
+from core.gameplay_symmetry import validate_gameplay_symmetry
 
 import core.gameplay_cover as gameplay_cover_module
 import core.altar_rotation as altar_rotation_module
 import core.validation as validation_module
 import core.terrain_refinement as terrain_refinement_module
+import core.gameplay_symmetry as gameplay_symmetry_module
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -41,7 +43,7 @@ def _project_root():
 def _reload_runtime_modules():
     """Reload modules intentionally edited during iterative Blender runs."""
     global gameplay_cover_module, altar_rotation_module, validation_module
-    global terrain_refinement_module, terrain
+    global terrain_refinement_module, gameplay_symmetry_module, terrain
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
@@ -49,6 +51,7 @@ def _reload_runtime_modules():
     gameplay_cover_module = importlib.reload(gameplay_cover_module)
     altar_rotation_module = importlib.reload(altar_rotation_module)
     validation_module = importlib.reload(validation_module)
+    gameplay_symmetry_module = importlib.reload(gameplay_symmetry_module)
 
 
 def run_pipeline(ctx=None, export=True):
@@ -155,6 +158,19 @@ def run_pipeline(ctx=None, export=True):
 
     print("[STAGE 9/10] Validation")
     report = validation_module.run_validation(ctx, nav_report=nav)
+
+    # New hard gameplay-balance gate: no team-critical geometry may drift away
+    # from the Blue/Red mirror. Decorative-only assets are exempt by contract.
+    symmetry_errors, symmetry_summary = gameplay_symmetry_module.validate_gameplay_symmetry(ctx, cfg)
+    report["gameplay_symmetry"] = symmetry_summary
+    report["errors"].extend(symmetry_errors)
+    report["ok"] = len(report["errors"]) == 0
+    if symmetry_summary.get("enabled"):
+        print("  -> GAMEPLAY SYMMETRY: {} | plane={} | tolerance={:.2f}m | checked={}".format(
+            "PASS" if symmetry_summary["passed"] else "FAIL",
+            symmetry_summary["plane"],
+            symmetry_summary["tolerance_m"],
+            ", ".join(symmetry_summary["checked_types"])))
     for e in report["errors"]:
         print("  [VALIDATION ERROR] " + e)
     for w in report["warnings"]:
