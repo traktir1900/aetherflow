@@ -1,10 +1,10 @@
 # v0.6.2.1 — Local test note (2026-09-05)
 
-## Latest Blender 5.2 runtime
+## Latest Blender 5.2 runtime before v0.6.3.1
 
-The latest supplied run executed the `v0.6.2.1` pipeline from `v0-6-2-1-cover-refinement`.
+The supplied run executed the `v0.6.2.1` pipeline from the `v0-6-2-1-cover-refinement` checkout.
 
-### Successful sections
+Evidence:
 - gameplay map: `200 x 200 m`;
 - graded ramps built: `5`;
 - procedural core rocks: `6`;
@@ -15,52 +15,48 @@ The latest supplied run executed the `v0.6.2.1` pipeline from `v0-6-2-1-cover-re
 - navigation problems: `0`;
 - evaluated-mesh intersections: `0`;
 - Blue/Red average route-time difference: `0.0%`;
-- LOS visibly detects the four cardinal Altar protectors.
+- LOS visibly detected the four cardinal Altar protectors: `N:Altar_Obstacle_01`, `E:Altar_Obstacle_02`, `S:Altar_Obstacle_03`, `W:Altar_Obstacle_04`.
 
-## User-requested Altar cleanup
+## Problems carried into v0.6.3.1
 
-The red-marked objects in the supplied Blender view were the six inherited `Core_Cover_*` pieces surrounding the Altar. They were visually cluttering the central combat space and were removed from the generated scene.
+1. The six inherited `Core_Cover_*` objects cluttered the immediate Altar combat space and were removed intentionally. The four dedicated Altar barricades remain.
+2. The local validator still reports legacy `OuterBoundary_*` bbox errors even though boundary generation reports collision PASS.
+3. The old auditor still reports `AltarObstacles: 0` even though live LOS sees all four protectors. This is classification/export mismatch.
+4. The old auditor's `21.6 s` rotation value is a legacy Base->CapturePoint metric; the pipeline's real adjacent-objective macro rotation is `34.07/26.55–37.50 s`.
+5. Terrain readability was too weak in the original analytic profile because the scaled landmark height differences were shallow. v0.6.3.1 addresses this without changing XY topology.
 
-The intended Altar dressing is now only the four dedicated, symmetric `Altar_Obstacle_*` barricades in the immediate N/E/S/W positions. `ObjectiveCover_*` objects elsewhere on the five capture points are unchanged.
+## v0.6.3.1 terrain refinement
 
-## Code correction
+Implemented on the SAME branch:
+- new `core/terrain_refinement.py` shared terrain profile;
+- AetherCore depression strengthened by a bounded multiplier;
+- Crown elevation strengthened by a bounded multiplier;
+- West/East Monolith elevation strengthened equally;
+- South Rift depression strengthened by a bounded multiplier;
+- central transition radius widened slightly to keep slopes gradual;
+- terrain audit added to the pipeline with landmark heights and sampled max/average slope;
+- design slope target is `< 35°`;
+- objective coordinates, base coordinates and topology remain unchanged;
+- VERSION bumped to `0.6.3.1`.
 
-- `core/altar_rotation.py`: added `remove_legacy_core_cover(ctx)`, which removes all `Core_Cover_*` objects from both generated-object tracking and the live Blender scene while leaving `ObjectiveCover_*` untouched;
-- `core/altar_rotation.py`: `ensure_altar_clearance()` is now a compatibility cleanup stage rather than a repair for the removed legacy CoreCover field;
-- `core/altar_rotation.py`: retained Blender 5.2-safe `Matrix.Rotation(rotation_z, 4, 'Z')` for the four Altar barricades;
-- branch remains `v0-6-2-1-cover-refinement`; no new development branch was created.
+## Current status
 
-## Altar protector balance contract
-
-This is a gameplay invariant:
-
-- exactly **4** Altar protectors;
-- exact North/South and East/West mirror pairs;
-- positions `(0,+R)`, `(+R,0)`, `(0,-R)`, `(-R,0)` around the exact Altar centre;
-- all four pieces have identical geometry, dimensions and radial distance;
-- Blue and Red approaches are mirror-equivalent;
-- front/back is mirrored;
-- protectors are non-blocking for navigation;
-- protectors belong to the immediate Altar combat space.
-
-## Remaining separate validation issues
-
-1. The local validator still reports legacy `OuterBoundary_*` bbox errors. This is separate from the Altar cleanup and is not being hidden.
-2. The auditor's `AltarObstacles: 0` classification is stale/inconsistent with live LOS detection; this should be corrected separately.
-3. The auditor's old rotation metric is still the legacy Base->CapturePoint metric; the pipeline's adjacent-objective macro metric remains separate.
+v0.6.3.1 is **implemented but not yet runtime-validated**. Fresh Blender 5.2 generation is required before the terrain refinement can be marked complete.
 
 ## Merge gate
 
-Do not merge to `main` yet. A fresh Blender 5.2 regeneration is required after the Altar cleanup.
+Do not merge to `main` yet.
 
-Required:
+Required after fresh generation:
 - pipeline completes all 10 stages;
+- terrain slope audit passes `< 35°`;
 - validation has no genuine geometry errors;
-- actual evaluated-mesh intersections = `0`;
+- evaluated-mesh intersections = `0`;
 - navigation problems = `0`;
 - pockets reachable = `4/4`;
 - objective gameplay cover = `10`;
-- four `Altar_Obstacle_*` objects present;
-- strict team symmetry of all four Altar protectors;
-- protectors visibly centered close to the Altar on the four cardinal axes;
+- four `Altar_Obstacle_*` objects present and centered/symmetric;
+- existing Blue/Red fairness remains within tolerance;
 - `navigation.macro_rotation.all_reachable == true`.
+
+All work remains on `v0-6-2-1-cover-refinement`; no new development branch was created.
