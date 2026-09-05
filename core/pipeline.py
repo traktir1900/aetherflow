@@ -1,9 +1,9 @@
 """
-AetherFlow :: core/pipeline.py  (v0.6.3.1)
+AetherFlow :: core/pipeline.py  (v0.6.3.2)
 
 The SINGLE active generation pipeline.
-v0.6.3.1 adds bounded terrain refinement while preserving map topology,
-objective/base anchors, roads, ramps and pocket layout.
+v0.6.3.2 adds route-based height-transition auditing while preserving map
+ topology, objective/base anchors, roads, ramps and pocket layout.
 """
 import importlib
 import os
@@ -26,6 +26,7 @@ import core.altar_rotation as altar_rotation_module
 import core.validation as validation_module
 import core.terrain_refinement as terrain_refinement_module
 import core.gameplay_symmetry as gameplay_symmetry_module
+import core.height_transitions as height_transitions_module
 
 import geometry.terrain as terrain
 import geometry.structures as structures
@@ -45,7 +46,7 @@ def _project_root():
 def _reload_runtime_modules():
     """Reload modules intentionally edited during iterative Blender runs."""
     global gameplay_cover_module, altar_rotation_module, validation_module
-    global terrain_refinement_module, gameplay_symmetry_module, terrain
+    global terrain_refinement_module, gameplay_symmetry_module, height_transitions_module, terrain
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
@@ -54,6 +55,7 @@ def _reload_runtime_modules():
     altar_rotation_module = importlib.reload(altar_rotation_module)
     validation_module = importlib.reload(validation_module)
     gameplay_symmetry_module = importlib.reload(gameplay_symmetry_module)
+    height_transitions_module = importlib.reload(height_transitions_module)
 
 
 def _get_backup_collection():
@@ -75,12 +77,7 @@ def _clear_backup_collection():
 
 
 def _snapshot_managed_scene():
-    """Snapshot current managed AetherFlow objects before destructive regeneration.
-
-    The normal SAFE_UPDATE path clears managed collections at Stage 1. If a
-    later stage fails, these clones let us restore the exact pre-run gameplay
-    scene instead of leaving the Blender file half-generated.
-    """
+    """Snapshot current managed AetherFlow objects before destructive regeneration."""
     _clear_backup_collection()
     backup = _get_backup_collection()
     records = []
@@ -129,7 +126,6 @@ def _restore_managed_scene(records):
             coll = bpy.data.collections.get(coll_name)
             if coll is not None and clone.name not in coll.objects:
                 coll.objects.link(clone)
-        # The backup collection is intentionally unlinked after restoration.
         backup = bpy.data.collections.get(_GENERATION_BACKUP_COLLECTION)
         if backup is not None and clone.name in backup.objects:
             backup.objects.unlink(clone)
@@ -250,11 +246,34 @@ def run_pipeline(ctx=None, export=True):
             print("  -> macro rotation (adjacent objectives): avg {:.2f}s | min {:.2f}s | max {:.2f}s | variance {:.2f}s".format(
                 mr["average_time_s"], mr["min_time_s"], mr["max_time_s"], mr["variance_s"]))
 
+        print("[STAGE 7A/10] Height transitions (route + ramp audit)")
+        height_transition_report = height_transitions_module.analyze_height_transitions(ctx, grid)
+        print("  -> transition audit: {} routes | {} pocket transitions | {} ramps".format(
+            len(height_transition_report["routes"]),
+            len(height_transition_report["pocket_transitions"]),
+            len(height_transition_report["ramps"])))
+        print("  -> transition problems: routes={} pockets={} ramps={} | {}".format(
+            height_transition_report["problem_route_count"],
+            height_transition_report["problem_pocket_count"],
+            height_transition_report["problem_ramp_count"],
+            "PASS" if height_transition_report["passed"] else "REVIEW REQUIRED"))
+        for r in height_transition_report["routes"]:
+            if r.get("problems"):
+                print("  [HEIGHT] {} -> {} | slope {:.2f}° | dz {:.3f}m | {}".format(
+                    r["label"], r["classification"], r.get("max_local_slope_deg", -1.0),
+                    r.get("max_adjacent_height_delta_m", -1.0), r["problems"]))
+        for r in height_transition_report["ramps"]:
+            if r.get("problems") or r.get("sampled_problems"):
+                print("  [RAMP] {} | width={}m | slope={}° | {}".format(
+                    r["name"], r.get("width_m"), r.get("sampled_max_slope_deg"),
+                    r.get("problems") or r.get("sampled_problems")))
+
         print("[STAGE 8/10] Combat simulation (5/5 capture points, nav-driven)")
         sim = simulation.run_simulation(ctx, grid, nav_report=nav)
 
         print("[STAGE 9/10] Validation")
         report = validation_module.run_validation(ctx, nav_report=nav)
+        report["height_transitions"] = height_transition_report
 
         symmetry_errors, symmetry_summary = gameplay_symmetry_module.validate_gameplay_symmetry(ctx, cfg)
         report["gameplay_symmetry"] = symmetry_summary
@@ -293,6 +312,7 @@ def run_pipeline(ctx=None, export=True):
             "simulation": sim,
             "gameplay_cover": cover,
             "terrain_refinement": profile,
+            "height_transitions": height_transition_report,
             "map_data": out_path,
         }
 
