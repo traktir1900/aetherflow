@@ -2,7 +2,7 @@
 
 ## Status
 
-**MINION TRAVERSAL AUDIT INTEGRATED — DEDICATED RUNTIME OUTPUT ENABLED**
+**MINION TRANSITION FIX APPLIED — FRESH BLENDER RUNTIME PASS REQUIRED**
 
 ## Baseline v0.6.3.1
 
@@ -27,7 +27,7 @@ The stage evaluates terrain transitions by actual obstacle-aware navigation path
 
 ## Implemented audit system
 
-`core/height_transitions.py` is now part of the active pipeline.
+`core/height_transitions.py` is part of the active pipeline and prints a dedicated `MINION TRAVERSAL` section during Stage 7A.
 
 It measures:
 
@@ -38,11 +38,56 @@ It measures:
 - Altar/AetherCore → every objective;
 - SouthRift → southern Monoliths;
 - Main/Pocket transitions in both directions;
-- every generated ramp.
+- every generated ramp;
+- dedicated minion scenario for both teams.
 
 Each measured transition reports reachability, route length, total height delta, maximum local slope, average local slope, maximum adjacent height delta and concrete problem flags.
 
-## Gameplay slope categories
+## Runtime finding — confirmed transition defect
+
+The fresh Blender 5.2 run confirmed the dedicated minion scenario was being rejected on both teams. Reachability itself was **YES**, and the route contained **0 rock/cover blocker hits** and **0 terrain-edge exits**, but several hops exceeded the minion-safe slope / height-step limits. The worst measured transitions were approximately **34.89–35.07°** with **1.090–1.097 m** adjacent height deltas. The same pattern appeared on mirrored routes, preserving gameplay symmetry.
+
+The measured root cause was a discontinuity in the analytic height field:
+
+1. the AetherCore bowl approached **z=0** at the edge of `center_radius`, but the following shoulder formula restarted from the deep Core height, creating an artificial one-cell downward step;
+2. the South Rift branch replaced the surrounding terrain with its depression height at the rift boundary, creating another artificial one-cell step.
+
+These were geometric field discontinuities, not navigation-blocker collisions.
+
+## Applied repair
+
+`core/heightmap.py` was repaired without changing any base/objective XY coordinates or gameplay topology:
+
+- the outer Core shoulder now starts from the same **z=0** boundary as the inner bowl;
+- South Rift now blends continuously from the surrounding raised terrain into its target depression instead of replacing the terrain abruptly at the rift boundary.
+
+This is a local height-field continuity repair. Team symmetry remains authoritative because the height field itself is derived from the canonical symmetric map layout.
+
+## Minion traversal regression
+
+The dedicated deterministic scenario is:
+
+`Base → Objective → Objective → enemy Base`
+
+The current mirrored scenarios are:
+
+- Blue: `BlueBase → Crown → SEMonolith → RedBase`;
+- Red: `RedBase → WestMonolith → SWMonolith → BlueBase`.
+
+Every hop is checked for:
+
+- slope above the configured **Minion-safe** threshold;
+- adjacent height step above **0.75 m**;
+- direct contact with rocks or gameplay cover represented as blocked navigation cells;
+- ramp-base proximity and associated height discontinuity;
+- terrain-edge exits;
+- corridor clearance for a minion.
+
+The final gate requires both mirrored scenarios to be reachable, minion-safe and problem-free.
+
+The regression is a deterministic geometry/navigation test, not a full Unreal minion actor simulation.
+
+## Diagnostic thresholds
 
 The audit uses configurable engineering thresholds, separate from the hard 35° terrain ceiling:
 
@@ -50,74 +95,50 @@ The audit uses configurable engineering thresholds, separate from the hard 35° 
 - **Minion-safe**: ≤ 18°;
 - **Walkable**: ≤ 25°;
 - **Ramp**: ≤ 30° when represented by a ramp;
-- **Too steep**: > 35°.
+- **Too steep**: > 35°;
+- adjacent height step above **0.75 m** is a hard transition warning;
+- single-minion corridor target: **1.5 m**;
+- group corridor target: **4.0 m**.
 
-Adjacent height changes above **0.75 m** are also flagged as possible hard transition steps.
-
-These numbers are diagnostic controls for v0.6.3.2, not a justification for changing the map when no problem is measured.
+The 1.5 m single-minion corridor threshold is intentionally separated from the 4.0 m group/ramp width requirement: a 2.4 m capture ramp can be valid for one minion while still being unsuitable for a full combat group.
 
 ## Ramp inspection
 
-Every registered ramp is inspected for width, run length, height delta, graded/terrain-following mode, reachability and sampled slope where endpoints are available. Capture-point ramps already expose authoritative endpoints in metadata; the northern Crown access ramp remains a terrain-following ramp and is audited separately.
+Every registered ramp is inspected for width, run length, height delta, graded/terrain-following mode, reachability and sampled slope where endpoints are available.
 
-## Minion traversal regression
+The current five capture ramps are **2.4 m** wide. This remains a group-width diagnostic warning, not automatically a single-minion collision failure.
 
-A dedicated deterministic scenario now runs for both teams:
+## Non-minion findings retained
 
-`Base → Objective → Objective → enemy Base`
+The same runtime still reports the following known items that are outside the minion transition repair:
 
-The two scenarios use mirrored objective sequences and actual obstacle-aware NavGrid paths. Every hop is checked for:
+- global outer boundary bbox warnings caused by the legacy bbox validator;
+- 10 pocket-cover vs pocket-floor mesh intersection warnings;
+- live Altar obstacle data present in Blender but stale/missing in `map_data.json`;
+- macro rotation variance of **21.6 s** is reported as an approximation warning.
 
-- slope above the configured **Minion-safe** threshold;
-- adjacent height step above **0.75 m**;
-- direct contact with rocks or gameplay cover represented as blocked navigation cells;
-- ramp-base proximity and associated height discontinuity;
-- terrain-edge exits;
-- corridor clearance below the configured minimum for a minion.
+Navigation remained reachable, evaluated-mesh intersections remained **0**, and gameplay symmetry remained **PASS**. Blue/Red route fairness remained **0.0%**.
 
-The report retains hop-level diagnostics and a final `passed` gate rather than hiding individual failures behind a single reachability result.
+## Required runtime re-pass
 
-The active Blender pipeline now prints a dedicated `MINION TRAVERSAL` summary during Stage 7A, including the Blue and Red scenario paths, pass/fail state, maximum slope, maximum adjacent height delta, blocker hits, ramp-base contacts, terrain-edge hits and narrow-corridor hits. Individual failing hops are printed explicitly.
+A fresh Blender 5.2 generation from this branch is now required to verify the repair. Source changes establish the intended continuity but cannot prove the final evaluated mesh by themselves.
 
-This is still a geometric/navigation regression, not a full Unreal minion simulation. A fresh Blender 5.2 runtime remains required to confirm the generated mesh behaves correctly for an actual minion actor.
+The re-pass must verify:
 
-## Repair policy
-
-The audit module is read-only. It never changes geometry automatically.
-
-When the runtime confirms a real transition problem, the smallest suitable repair is applied in this order:
-
-1. increase transition radius;
-2. smooth the local height profile;
-3. reduce the local height difference;
-4. adjust an existing ramp;
-5. improve road/ramp continuity.
-
-Base/objective XY coordinates remain frozen and gameplay symmetry remains a hard validation gate.
-
-## Runtime result from latest user run
-
-The latest Blender 5.2 run successfully reached Stage 7A and generated the height-transition audit, but the log did not contain the dedicated `MINION TRAVERSAL` summary. The run therefore cannot be used as a final minion-traversal pass/fail result.
-
-The same run did expose concrete height-transition issues: 28 route problems, 4 pocket problems and 5 ramp problems. The repeated `corridor_below_minion_width` flag on routes is diagnostic and must be separated from actual minion traversal failure before any geometry repair is made.
-
-The next runtime must be taken from the branch after the pipeline logging change and must contain the dedicated Blue/Red minion regression output. Only those results should trigger geometry repair decisions.
-
-## Required runtime pass
-
-A fresh Blender 5.2 generation from this branch is required before declaring any height-transition or minion-traversal problem confirmed or any repair necessary. Source inspection cannot prove hero/minion traversal, LOS readability or evaluated-mesh behaviour.
-
-The runtime report must then be compared with the baseline for:
-
-- Blue/Red route difference = 0.0%;
+- minion scenario passes for **both teams**;
+- no slope > 18° on minion scenario hops unless the segment is explicitly a ramp exception;
+- no adjacent height step > 0.75 m;
+- no rock/cover blocker collisions;
+- no ramp-base transition defect;
+- no terrain-edge exits;
+- reasonable minion corridor clearance;
+- Blue/Red average route-time difference remains **0.0%**;
 - 5/5 objectives;
 - 4/4 pockets reachable;
-- navigation problems = 0;
-- evaluated-mesh intersections = 0;
-- gameplay symmetry = PASS;
-- terrain slope limit = 35°;
-- base/objective XY unchanged;
-- **minion traversal scenario passes for both teams**.
+- navigation problems = **0**;
+- evaluated-mesh intersections = **0**;
+- gameplay symmetry = **PASS**;
+- base/objective XY unchanged.
 
 ## Next stage
 
