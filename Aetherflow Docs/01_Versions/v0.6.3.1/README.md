@@ -39,17 +39,26 @@ Decorative-only assets may vary, but they must never create a gameplay advantage
 
 The central rock system is required to be mirror-symmetric because central rocks affect line of sight, movement and combat space.
 
-The intended generator contract is:
+The intended generator contract is now stricter:
 
 - even central-rock count only;
-- canonical rocks on the +X half of the arena;
-- exact geometric mirrors on the -X half;
-- mirrored position, irregular silhouette and orientation across the Y axis;
+- one canonical rock per pair on the +X half of the arena;
+- exact world-center mirror on the -X half;
+- mirrored irregular silhouette;
+- identical dimensions and gameplay footprint for both members;
 - deterministic seeded generation;
 - stable symmetry pair IDs;
 - generation failure when the configured central-rock count is odd.
 
-With the current `count_core = 6`, the central field is intended to be **3 mirror pairs / 6 rocks**.
+The rock mesh is kept in local coordinates and the world position is assigned separately. This prevents hidden mesh-space translation from producing the visible positional drift that was observed between the two sides.
+
+With the current `count_core = 6`, the central field is **3 mirror pairs / 6 large gameplay rocks**.
+
+## Objective-cover symmetry hardening
+
+The fresh v0.6 auditor run exposed a real objective-cover symmetry defect. The generator was independently selecting cover in each objective-local tangent basis, which could produce different world-space positions after the Y-axis mirror.
+
+The fix now selects one canonical cover plan for each mirrored objective pair and derives the other side from the exact world-space mirror `(x,y) -> (-x,y)`. Crown uses the same rule as a self-mirrored objective.
 
 ## Safe failed-generation rollback
 
@@ -64,41 +73,6 @@ If any later generation stage raises an exception, the pipeline:
 - re-raises the original exception so the actual code error remains visible.
 
 After a successful generation, the temporary snapshot is discarded.
-
-This prevents a failed terrain or later-stage run from leaving Blender with only the partial perimeter/fence geometry.
-
-## Objective-cover symmetry hardening
-
-The fresh v0.6 auditor run on the generated map confirmed that the map is otherwise structurally healthy, but exposed a **real objective-cover generation defect**:
-
-- WestMonolith ↔ EastMonolith objective cover symmetry: FAIL;
-- SWMonolith ↔ SEMonolith objective cover symmetry: FAIL;
-- Crown self-symmetry: FAIL;
-- route fairness: `0.0%` difference;
-- pockets: `4/4` reachable and mirrored;
-- live Altar obstacles: `4` detected and symmetric;
-- evaluated-mesh intersections: `0`;
-- navigation problems: `0`;
-- Deathball risk: LOW;
-- Snowball risk: LOW.
-
-Root cause: objective covers were selected independently in an objective-local tangent basis. That basis changes handedness under the world-Y mirror, so identical local coordinates did **not** guarantee mirrored world coordinates.
-
-The generator has now been changed to:
-
-- select one canonical cover plan for each mirrored objective pair;
-- derive the opposite objective's positions from the exact world-space mirror `(x,y) -> (-x,y)`;
-- convert the mirrored world position back into the target objective's local basis;
-- construct Crown's second cover as an exact self-mirror;
-- preserve the existing near/deep tactical rings and two-cover-per-objective contract.
-
-The fix is committed in `core/gameplay_cover.py` and requires a fresh Blender 5.2 generation run before v0.6.3.1 can be marked complete.
-
-## Auditor note
-
-The standalone v0.6 auditor now correctly finds the four live `Altar_Obstacle_*` objects in Blender. Its `map_data.json` comparison still reports those objects as absent from the export path it inspects, even though the live scene contains all four. Treat that as an auditor/export-inspection mismatch, not as evidence that the four barriers are missing from the generated Blender scene.
-
-The auditor also reports `Export Core Cover: 0` because the legacy central Core Cover pieces were intentionally removed in v0.6.2.1. This is expected; the new Altar composition uses the four dedicated `Altar_Obstacle_*` barricades instead.
 
 ## Changes
 
@@ -134,7 +108,7 @@ Run the complete pipeline in Blender 5.2 and inspect:
 1. central AetherCore slope/readability;
 2. Crown and monolith elevation readability;
 3. South Rift depression;
-4. central rock layout from top view;
+4. **large central rock pairs from top view — both sides must be exact Y-axis mirrors**;
 5. terrain slope audit;
 6. **GAMEPLAY SYMMETRY: PASS**;
 7. navigation reachability;
