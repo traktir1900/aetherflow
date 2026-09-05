@@ -42,8 +42,6 @@
 
 Главная задача — превратить каркас v0.6.1 в полноценное игровое пространство без изменения фундаментальной топологии.
 
-Реализованные/прорабатываемые подсекции включают baseline lock, Gameplay Cover 2.0, expanded rock system, natural environment integration, environment distribution, gameplay-aware vegetation, objective dressing, capture interaction/UI foundation, base shop/dressing, unified gameplay markers, AetherCore dressing, environment safety, deterministic environment, export extension и final validation.
-
 ## v0.6.2.1 — GAMEPLAY COVER 2.0 + ALTAR HARDENING
 
 - тактическое укрытие objectives и pockets;
@@ -60,37 +58,42 @@
 
 Доработать физическое игровое пространство только там, где тесты показывают реальные проблемы. Топология и расположение баз/objectives не должны дрейфовать.
 
-## v0.6.3.1 — TERRAIN REFINEMENT — IN PROGRESS
+## v0.6.3.1 — TERRAIN REFINEMENT — BALANCE VALIDATED
 
-### Реализовано
+### Зафиксировано
 
-- новый `core/terrain_refinement.py` с общим bounded-профилем;
-- AetherCore: более читаемая центральная депрессия;
-- Crown: усилена положительная высота;
-- WestMonolith/EastMonolith: одинаково усилены возвышения;
-- SouthRift: контролируемо усилена депрессия;
-- центральный transition radius немного расширен для плавности;
-- новый terrain slope audit в pipeline;
-- target maximum sampled terrain slope `< 35°`;
-- objective/base XY координаты не меняются;
-- topology не меняется;
-- версия проекта поднята до `0.6.3.1`.
+- terrain refinement с bounded-профилем;
+- AetherCore / Crown / WestMonolith / EastMonolith / SouthRift усилены контролируемо;
+- terrain slope audit: PASS, максимум 26.14° при лимите 35°;
+- Blue/Red средний маршрут: 114.7 м / 19.1 с для обеих команд;
+- Blue/Red fairness: **0.0% difference — BALANCED**;
+- ближайший objective для обеих команд: 45.3 м;
+- pockets: 4/4 reachable, зеркальные размеры/входы/cover;
+- objective cover symmetry: PASS для West↔East, SW↔SE и Crown;
+- Altar: 4 live symmetric Altar_Obstacle_*;
+- evaluated-mesh intersections: 0;
+- navigation problems: 0;
+- Deathball risk: LOW;
+- Snowball risk: LOW;
+- comeback route availability: 4 flank pockets.
 
-### Validation gate
+### Остаточные технические предупреждения
 
-После fresh Blender 5.2 run должны сохраняться:
+Последний runtime также показал legacy bbox warnings для внешней границы и stale-export mismatch по Altar obstacles. Они не изменяют фактическую командную fairness и не указывают на нарушение gameplay symmetry. Полная техническая валидация внешнего perimeter/export остаётся отдельной задачей.
 
-- navigation problems = 0;
-- 4/4 pockets reachable;
-- evaluated-mesh intersections = 0;
-- 4 Altar protectors, центрированные и симметричные;
-- существующая Blue/Red fairness не деградирует;
-- terrain slope audit = PASS;
-- pipeline проходит все 10 stages.
-
-## v0.6.3.2 — HEIGHT TRANSITIONS
+## v0.6.3.2 — HEIGHT TRANSITIONS — CURRENT
 
 Проверить slope, ramps, walkability, minion traversal, LOS changes и combat readability. Исправлять только реальные проблемы.
+
+### Цели v0.6.3.2
+
+- проверить переходы между AetherCore / Crown / monolith platforms / SouthRift;
+- проверить фактическую проходимость героя и minion;
+- проверить влияние уклонов на LOS и combat readability;
+- сохранить существующий 0.0% Blue/Red route-time difference;
+- не менять XY-позиции objectives и bases;
+- сохранять жёсткую Y-axis symmetry `(x,y,z) -> (-x,y,z)`;
+- избегать новых узких chokepoints и случайного усиления одной стороны.
 
 ## v0.6.3.3 — ROAD NETWORK REFINEMENT
 
