@@ -65,7 +65,40 @@ If any later generation stage raises an exception, the pipeline:
 
 After a successful generation, the temporary snapshot is discarded.
 
-This prevents a failed terrain or later-stage run from leaving Blender with only a partial map such as the perimeter/fence geometry.
+This prevents a failed terrain or later-stage run from leaving Blender with only the partial perimeter/fence geometry.
+
+## Objective-cover symmetry hardening
+
+The fresh v0.6 auditor run on the generated map confirmed that the map is otherwise structurally healthy, but exposed a **real objective-cover generation defect**:
+
+- WestMonolith ↔ EastMonolith objective cover symmetry: FAIL;
+- SWMonolith ↔ SEMonolith objective cover symmetry: FAIL;
+- Crown self-symmetry: FAIL;
+- route fairness: `0.0%` difference;
+- pockets: `4/4` reachable and mirrored;
+- live Altar obstacles: `4` detected and symmetric;
+- evaluated-mesh intersections: `0`;
+- navigation problems: `0`;
+- Deathball risk: LOW;
+- Snowball risk: LOW.
+
+Root cause: objective covers were selected independently in an objective-local tangent basis. That basis changes handedness under the world-Y mirror, so identical local coordinates did **not** guarantee mirrored world coordinates.
+
+The generator has now been changed to:
+
+- select one canonical cover plan for each mirrored objective pair;
+- derive the opposite objective's positions from the exact world-space mirror `(x,y) -> (-x,y)`;
+- convert the mirrored world position back into the target objective's local basis;
+- construct Crown's second cover as an exact self-mirror;
+- preserve the existing near/deep tactical rings and two-cover-per-objective contract.
+
+The fix is committed in `core/gameplay_cover.py` and requires a fresh Blender 5.2 generation run before v0.6.3.1 can be marked complete.
+
+## Auditor note
+
+The standalone v0.6 auditor now correctly finds the four live `Altar_Obstacle_*` objects in Blender. Its `map_data.json` comparison still reports those objects as absent from the export path it inspects, even though the live scene contains all four. Treat that as an auditor/export-inspection mismatch, not as evidence that the four barriers are missing from the generated Blender scene.
+
+The auditor also reports `Export Core Cover: 0` because the legacy central Core Cover pieces were intentionally removed in v0.6.2.1. This is expected; the new Altar composition uses the four dedicated `Altar_Obstacle_*` barricades instead.
 
 ## Changes
 
