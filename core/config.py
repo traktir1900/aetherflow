@@ -101,7 +101,9 @@ CONFIG = {
         "layout": "CARDINAL_CENTERED",
     },
     "ring_road_width": _gs(12.0), "base_road_width": _gs(8.0),
-    "north_ramp_width": _gs(12.0), "flank_choke_width": _gs(12.5),
+    # Capture ramps must satisfy the 4m min-group-width contract. The explicit
+    # ramp builder uses 60% of this value, so 50 source units -> 4.0m runtime.
+    "north_ramp_width": _gs(50.0), "flank_choke_width": _gs(12.5),
     "road_z_offset": _s(0.05), "ramp_run_length": _s(24.0),
     "shrine_road_offset": _s(25.0), "speed_shrine_radius": _gs(8.75),
     "health_relic_radius": _gs(6.25), "base_platform_radius": _gs(35.0),
