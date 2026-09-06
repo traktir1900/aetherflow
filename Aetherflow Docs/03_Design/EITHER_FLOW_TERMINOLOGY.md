@@ -231,6 +231,62 @@ The risk that a player can hold a disproportionately strong stationary position 
 
 ---
 
+# 6.1 Crown Boss / Crown Sanctum
+
+### Crown Boss
+The neutral boss located at the northern Crown area. The Crown Boss is a PvE objective that can be defeated by either team and grants a temporary team-wide strategic buff.
+
+The Crown Boss is **not** a capture point and does not replace the Crown objective.
+
+### Crown Sanctum
+The dedicated boss arena structure built around the Crown Boss. Crown Sanctum is the canonical name for the complete boss location, including the raised platform, boss button, surrounding combat ring and access ramps.
+
+### Crown Throne
+The raised central boss platform inside Crown Sanctum where the Crown Boss stands. Crown Throne is a physical gameplay structure, not a separate objective.
+
+### Boss Button / Aether Button
+The central pressure-button platform on the Crown Throne. The Crown Boss stands directly on the Aether Button while alive. The button visually and mechanically represents the active boss state.
+
+### Boss Platform
+The raised central platform supporting the Crown Boss and Aether Button. Use **Crown Throne** when referring specifically to the complete central raised boss structure.
+
+### Boss Arena
+The walkable combat space surrounding the Crown Throne inside Crown Sanctum. The arena must remain open enough for players to maneuver around the boss from multiple directions.
+
+### Sanctum Upper Ring
+The outer raised ring surrounding the Crown Throne. It is part of Crown Sanctum and provides the primary player combat surface around the boss.
+
+### Sanctum Ramp
+One of the broad, symmetric traversable ramps connecting the surrounding terrain to Crown Sanctum's elevated boss area.
+
+The preferred layout is **four-way symmetric access**, avoiding a single mandatory choke entrance.
+
+### Crown Blessing
+The temporary team-wide reward granted after a team defeats the Crown Boss. Crown Blessing is a strategic buff intended to improve the team's ability to contest or push the map rather than provide an automatic victory condition.
+
+### Crown Blessing Duration
+The time for which Crown Blessing remains active. The current design target is **90 seconds** unless later balance testing changes it.
+
+### Crown Blessing Type
+The specific category of temporary buff granted by the Crown Boss. Planned categories include:
+
+- **Aether Might** — hero combat power.
+- **Aether March** — minion durability, movement and push power.
+- **Aether Dominion** — objective capture and structure pressure.
+
+These are gameplay design terms; their exact numerical values remain subject to balance testing.
+
+### Aether Obelisk
+One of the four large visual/functional obelisks surrounding Crown Sanctum. Obelisks remain symmetrical and activate visually when the Crown Blessing is granted.
+
+### Crown Boss Pit
+Deprecated informal name. Use **Crown Sanctum** for the complete location and **Boss Arena** for its combat surface.
+
+### Boss Room
+Deprecated. Do not use; Crown Sanctum is an open PvP/PvE combat structure, not a closed room.
+
+---
+
 # 7. Dominion-Style Strategic Terms
 
 ### Deathball
@@ -352,6 +408,11 @@ Unreal Engine 5 foundation and runtime integration.
 11. **Crown** is the fifth, northern capture point.
 12. **Altar** remains the canonical name for the central altar/combat objective.
 13. **Altar Protector** remains the canonical name for its four dedicated protectors.
+14. **Crown Sanctum** is the canonical name for the northern Crown boss location.
+15. **Crown Boss** is the canonical name for the neutral boss located there.
+16. **Aether Button** is the canonical name for the central pressure button under the living boss.
+17. **Crown Blessing** is the canonical name for the temporary team buff awarded for defeating the Crown Boss.
+18. Crown Sanctum access should remain broadly symmetric and should not depend on a single mandatory choke entrance.
 
 ---
 
