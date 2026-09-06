@@ -62,7 +62,7 @@ CONFIG = {
     "ring_road_width": _gs(12.0), "base_road_width": _gs(8.0), "north_ramp_width": _gs(50.0),
     "flank_choke_width": _gs(12.5), "road_z_offset": _s(0.05), "ramp_run_length": _s(24.0),
     "shrine_road_offset": _s(25.0), "speed_shrine_radius": _gs(8.75), "health_relic_radius": _gs(6.25),
-    "resource_foundation": {"enabled": False, "speed_anchor_t": 0.52, "health_anchor_t": 0.52,
+    "resource_foundation": {"enabled": True, "speed_anchor_t": 0.52, "health_anchor_t": 0.52,
         "speed_offset_y": -3.5, "health_offset_y": -3.5, "speed_shrine_radius": 1.4,
         "health_relic_radius": 1.2, "capture_health_offset_m": 0.75, "require_exact_mirror": True},
     "base_platform_width_radius": _gs(52.5), "base_platform_depth": _gs(52.5),
