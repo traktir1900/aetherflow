@@ -95,8 +95,15 @@ def _boss_button(ctx, center, ground_z):
     height = 0.25
     top_z = ground_z + 1.4
     bm = bmesh.new()
-    bmesh.ops.create_cylinder(
-        bm, cap_ends=True, vertices=40, radius=radius, depth=height
+    # Blender 5.2 BMesh exposes create_cone, not create_cylinder.
+    # Equal radii produce a true cylinder while remaining version-safe.
+    bmesh.ops.create_cone(
+        bm,
+        cap_ends=True,
+        segments=40,
+        radius1=radius,
+        radius2=radius,
+        depth=height,
     )
     bmesh.ops.translate(
         bm,
