@@ -280,5 +280,5 @@ def write_map_data(ctx, path, sim=None, nav=None, validation=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     data = build_map_data(ctx, sim=sim, nav=nav, validation=validation)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2, default=_plain)
     return path
