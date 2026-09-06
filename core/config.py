@@ -28,6 +28,7 @@ def _gs(v):
 def _p(v):
     return _s(v) * GEOMETRY_SCALE * POCKET_GEOMETRY_SCALE
 
+
 CONFIG = {
     "seed": 1337,
     "debug_sightlines": True,
@@ -103,8 +104,14 @@ CONFIG = {
     "north_ramp_width": _gs(50.0), "flank_choke_width": _gs(12.5),
     "road_z_offset": _s(0.05), "ramp_run_length": _s(24.0),
     "shrine_road_offset": _s(25.0), "speed_shrine_radius": _gs(8.75),
-    "health_relic_radius": _gs(6.25), "base_platform_radius": _gs(35.0),
-    "base_platform_height": _gs(1.5), "base_crystal_height": _gs(15.0),
+    "health_relic_radius": _gs(6.25),
+    # Base footprint: 1.5x the previous 35-unit round radius baseline.
+    # The platform is generated as a semi-oval/D-shape: flat rear edge
+    # points away from the battlefield, rounded edge faces toward center.
+    "base_platform_width_radius": _gs(35.0 * 1.5),
+    "base_platform_depth": _gs(35.0 * 1.5),
+    "base_platform_height": _gs(1.5),
+    "base_crystal_height": _gs(15.0),
     "base_crystal_radius": _gs(5.0),
     "rock": {"count_core": 6, "radius_min": _gs(2.0), "radius_max": _gs(4.2),
              "scale_y_min": 0.7, "scale_y_max": 1.15, "irregularity": 0.32},
