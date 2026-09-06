@@ -6,6 +6,9 @@ v0.6.3.2 fixes measured height-field discontinuities at both the AetherCore
 shoulder and South Rift boundary. The fields now meet continuously, preserving
 all XY anchors and gameplay topology while removing artificial one-cell steps
 that were breaking minion traversal.
+
+v0.6.4.4 adds deterministic, gameplay-safe unevenness to the existing terrain
+without changing the authored macro landform or gameplay anchors.
 """
 import math
 from mathutils import Vector
@@ -23,8 +26,6 @@ def _terrain_unevenness(pos, cfg, layout):
     ax = abs(float(pos.x))
     y = float(pos.y)
 
-    # Two broad frequencies create natural-looking undulation without sharp
-    # cell-to-cell steps. The seed keeps the pattern deterministic.
     seed = float(cfg.get("seed", 1337))
     value = (
         math.sin(ax * 0.19 + y * 0.11 + seed * 0.001) * 0.60 +
@@ -32,10 +33,9 @@ def _terrain_unevenness(pos, cfg, layout):
         math.sin(ax * 0.035 + y * 0.043 + seed * 0.003) * 0.10
     )
 
-    # Keep authored gameplay anchors visually stable. This does not move them;
-    # it only fades the additive unevenness around their immediate areas.
+    # Keep authored gameplay anchors visually stable at their exact centers,
+    # while allowing natural unevenness through the surrounding center area.
     anchors = (
-        ("Center", 12.0),
         ("Crown", 10.0),
         ("EastMonolith", 9.0),
         ("SEMonolith", 9.0),
@@ -62,12 +62,12 @@ def get_height_at_point(pos, cfg, layout):
     heights = get_effective_heights(cfg)
     core_r = cfg["center_radius"]
 
-    # Central AetherCore depression. The bowl reaches zero at core_r so the
-    # inner and outer fields share the same boundary elevation.
+    # Central AetherCore depression. Keep the original bowl geometry and add
+    # only the subtle surface unevenness on top of it.
     if dist_center < core_r:
         t = dist_center / core_r
         z = heights["AetherCore"] * ((1.0 - t) ** 2)
-        return _clamp(z, cfg)
+        return _clamp(z + _terrain_unevenness(pos, cfg, layout), cfg)
 
     # Wider smooth shoulder into the surrounding sectors. IMPORTANT: the
     # outer field starts at the same z=0 boundary used by the core bowl.
