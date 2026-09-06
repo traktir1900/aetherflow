@@ -145,12 +145,10 @@ def generate_environment_perimeter(ctx):
             float(crown.x) + dx, float(crown.y) + dy,
             r, h, 0.58, "crown_approach_landmark"))
 
+    # AetherCore landmark spires intentionally disabled after visual review.
+    # Keep only the low north frame; remove all central green-keg landmarks.
     core = ctx.layout["Center"]
-    for idx, (x, y, r, h) in enumerate(((5.8, -1.5, 1.25, 4.6), (4.2, 4.5, 1.0, 3.8), (7.0, 3.0, 1.15, 4.2)), start=1):
-        created.extend(_mirror_cone_pair(
-            ctx, aether_mat, f"AetherCoreLandmark{idx:02d}",
-            float(core.x) + x, float(core.y) + y,
-            r, h, 0.60, "aethercore_landmark"))
+    # Central AetherCoreLandmark01-03 generation intentionally omitted.
 
     created.append(_low_ridge(
         "AetherCoreNorthFrame", float(core.x), float(core.y) + 6.8,
@@ -159,7 +157,7 @@ def generate_environment_perimeter(ctx):
     report = audit_symmetry(created)
     print(
         "  -> V0.6.4.3 environment perimeter: objects={} | perimeter_spires=0 | "
-        "height_ridges=6 | crown_landmarks=4 | core_landmarks=7 | symmetry={} | "
+        "height_ridges=6 | crown_landmarks=4 | core_landmarks=0 | symmetry={} | "
         "max_error={:.6f}m".format(
             len(created),
             "PASS" if report["passed"] else "FAIL",
