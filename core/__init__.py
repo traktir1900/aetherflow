@@ -42,6 +42,11 @@ def _install_pocket_arc_opening_guard():
         if not removed:
             return result
 
+        # Capture names BEFORE Blender removes the RNA objects. Accessing
+        # obj.name after bpy.data.objects.remove(...) raises StructRNA errors.
+        removed_names = [getattr(obj, "name", "") for obj in removed]
+        removed_ids = {id(obj) for obj in removed}
+
         for obj in removed:
             try:
                 bpy.data.objects.remove(obj, do_unlink=True)
@@ -49,7 +54,6 @@ def _install_pocket_arc_opening_guard():
                 pass
 
         ctx = args[0] if args else None
-        removed_ids = {id(obj) for obj in removed}
         if ctx is not None and hasattr(ctx, "generated_objects"):
             ctx.generated_objects[:] = [
                 rec for rec in ctx.generated_objects
@@ -59,7 +63,7 @@ def _install_pocket_arc_opening_guard():
         new_metrics = dict(metrics or {})
         new_metrics["segment_count"] = len(kept_objs)
         new_metrics["opening"] = "ArcRock24 -> ArcRock05"
-        new_metrics["opening_removed"] = [getattr(obj, "name", "") for obj in removed]
+        new_metrics["opening_removed"] = removed_names
         new_metrics["opening_guard"] = "ACTIVE"
         return kept_objs, kept_keep, new_metrics
 
