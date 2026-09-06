@@ -5,7 +5,7 @@ random generator.
 
 Determinism: every module that needs randomness must draw from ctx.rng
 (a random.Random seeded from config["seed"]).  Same config + seed therefore
-always yields the same map.  Never use the global `random` functions.
+yields the same map.  Never use the global `random` functions.
 """
 import random
 
@@ -19,6 +19,7 @@ class MapContext:
         self.materials = {}
         self.generated_objects = []        # registry for export / validation
         self.pockets = []                  # pocket metadata (v0.6.1)
+        self.capture_buttons = {}          # point name -> logical capture button object
         self._rng = random.Random(int(config.get("seed", 1337)))
 
     # -- deterministic randomness -------------------------------------------
