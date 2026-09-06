@@ -6,7 +6,7 @@ Focused gameplay hardening for the v0.6.2.1 map:
   * add a distinct non-blocking Altar protector category;
   * compute real adjacent-objective macro rotation;
   * keep central rocks from re-colliding with repaired cover;
-  * keep all Altar protectors strictly symmetric.
+  * keep all Altar protectors symmetric across the authoritative X -> -X plane.
 """
 import math
 
@@ -52,9 +52,11 @@ def _sync_scene():
 def remove_legacy_core_cover(ctx):
     """Delete obsolete inherited Core_Cover_* pieces around the Altar.
 
-    ObjectiveCover_* is deliberately left untouched.  The central Altar
-    combat space is now dressed only by the four dedicated symmetric
-    Altar_Obstacle_* barricades plus the normal map geometry.
+    ObjectiveCover_* is deliberately left untouched. The central Altar combat
+    space is now dressed only by the five dedicated symmetric Altar_Obstacle_*
+    barricades plus the normal map geometry.
+
+    The five-piece layout leaves the entire north/Crown side open.
 
     IMPORTANT: capture the Blender object name *before* unlink/removal. A
     StructRNA object becomes invalid immediately after bpy.data.objects.remove().
@@ -62,7 +64,6 @@ def remove_legacy_core_cover(ctx):
     removed = 0
     removed_names = set()
 
-    # Registered generated objects.
     for rec in list(ctx.generated_objects):
         name = str(rec.get("name", ""))
         if not name.startswith("Core_Cover_"):
@@ -76,11 +77,8 @@ def remove_legacy_core_cover(ctx):
                 removed_names.add(name)
                 removed += 1
             except ReferenceError:
-                # The record points to an already-removed Blender object.
-                # The metadata still needs to be purged below.
                 removed_names.add(name)
 
-    # Defensive live-scene cleanup. Never access obj.name after removal.
     for obj in list(bpy.data.objects):
         obj_name = str(obj.name)
         if obj_name.startswith("Core_Cover_"):
@@ -170,18 +168,27 @@ def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
 
 
 def generate_altar_obstacles(ctx):
-    """Create four chunky, centered, cardinal Altar barricades.
+    """Create exactly five Altar barricades with the Crown/north side open.
 
-    All four pieces share the same dimensions and distance from the exact
-    Altar center.  North/South and East/West are exact mirror pairs, so the
-    composition cannot favor Blue or Red.
+    Layout (world space, +Y is Crown/north):
+
+            Altar NORTH / CROWN SIDE — OPEN
+
+              [02 NW]       [01 NE]
+
+        [03 W]                 [04 E]
+
+                    [05 S]
+
+    The composition is mirrored across the authoritative Y-axis symmetry
+    plane (X -> -X): 01 <-> 02 and 03 <-> 04. 05 sits on the symmetry axis.
     """
     cfg = ctx.config
     altar_r = float(cfg["altar"]["base_radius1"])
     protector_cfg = cfg.get("altar_protectors", {})
-    count = int(protector_cfg.get("count", 4))
-    if count != 4:
-        raise ValueError("Altar protectors require exactly 4 pieces for symmetry")
+    count = int(protector_cfg.get("count", 5))
+    if count != 5:
+        raise ValueError("Altar protectors require exactly 5 pieces for the Crown-side-open layout")
 
     offset = float(protector_cfg.get("ring_offset_from_altar_m", 3.25))
     wall_length = float(protector_cfg.get("protector_length_m", 3.6))
@@ -190,11 +197,16 @@ def generate_altar_obstacles(ctx):
     ring_r = altar_r + offset + wall_depth * 0.5
     size = (wall_length, wall_depth, wall_height)
 
+    # Crown is at +Y. Leave the entire +Y sector open while keeping exact
+    # gameplay symmetry across X -> -X.
+    lateral_r = ring_r * math.sin(math.radians(45.0))
+    axial_r = ring_r * math.cos(math.radians(45.0))
     specs = [
-        (1, "N", 0.0, +ring_r, 0.0, "NORTH_SOUTH"),
-        (2, "E", +ring_r, 0.0, math.pi / 2.0, "EAST_WEST"),
-        (3, "S", 0.0, -ring_r, 0.0, "NORTH_SOUTH"),
-        (4, "W", -ring_r, 0.0, math.pi / 2.0, "EAST_WEST"),
+        (1, "NE", +lateral_r, +axial_r, math.radians(45.0), "NE_NW"),
+        (2, "NW", -lateral_r, +axial_r, math.radians(-45.0), "NE_NW"),
+        (3, "W", -ring_r, 0.0, 0.0, "W_E"),
+        (4, "E", +ring_r, 0.0, 0.0, "W_E"),
+        (5, "S", 0.0, -ring_r, 0.0, "S_AXIS"),
     ]
 
     built = []
@@ -212,10 +224,11 @@ def generate_altar_obstacles(ctx):
                 "ring_radius": round(ring_r, 3),
                 "offset_from_altar_edge_m": round(offset, 3),
                 "role": "altar_centered_barricade",
-                "symmetry_plane": "BOTH_AXES",
+                "symmetry_plane": "Y_AXIS",
                 "symmetry_pair": pair_id,
                 "mirror_of_blue_red": True,
-                "cardinal_centered": True,
+                "cardinal_centered": side in ("W", "E", "S"),
+                "crown_side_open": True,
                 "identical_geometry": True,
             },
         ))
