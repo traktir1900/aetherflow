@@ -107,12 +107,18 @@ CONFIG = {
     "health_relic_radius": _gs(6.25),
     # Base platform: old circular diameter was _gs(70). The new semi-oval
     # keeps the same center anchor, enlarges both principal dimensions by 1.5x
-    # (105m x 52.5m), and rounds toward the battlefield.
+    # and rounds toward the battlefield.
     "base_platform_width_radius": _gs(52.5),
     "base_platform_depth": _gs(52.5),
     "base_platform_height": _gs(1.5),
     "base_crystal_height": _gs(15.0),
     "base_crystal_radius": _gs(5.0),
+    # Temporary shop placeholder: one rectangle spanning the full straight
+    # rear edge of each semi-oval base. This is decorative for now.
+    "base_shop_width": _gs(105.0),
+    "base_shop_depth": _gs(18.0),
+    "base_shop_height": _gs(16.0),
+    "base_shop_gap": _gs(1.0),
     "rock": {"count_core": 6, "radius_min": _gs(2.0), "radius_max": _gs(4.2),
              "scale_y_min": 0.7, "scale_y_max": 1.15, "irregularity": 0.32},
     "navigation": {"cells": 128, "max_slope_deg": 50.0},
