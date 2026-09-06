@@ -5,7 +5,7 @@ All fixed map structures, generated from config + layout:
   - 5 capture points (pentagon) + turrets
   - Blue Base / Red Base platforms + crystals
   - central Aether Altar + Aether Crown
-  - core combat cover (pillar / L-covers / pockets / south screen)
+  - core combat cover (L-covers / pockets / south screen)
   - choke rocks at the central west/east gateways
   - curved Dominion-style ring roads + base roads + north ramp
   - GRADED access ramps onto every raised capture point
@@ -193,7 +193,7 @@ def generate_core_and_entrances(ctx):
 
 
 def generate_core_combat_cover(ctx):
-    """Central combat cover. Positions and sizes come from config."""
+    """Central Altar cover: five pieces, intentionally open toward Crown."""
     cfg = ctx.config
     cc = cfg["core_cover"]
     cp = cfg.get("core_cover_positions", {})
@@ -220,11 +220,7 @@ def generate_core_combat_cover(ctx):
             ctx, kind="cover", dims=size, meta={"rot_z": rot_z},
         )
 
-    cube(
-        "Core_Cover_Pillar_North", cc["north_pillar_size"],
-        (0.0, cp.get("north_pillar_y", 10.0) - cc["north_pillar_offset"]),
-    )
-
+    # Crown-facing side is intentionally open: no sixth/northern block.
     for side, sign, angle in [("West", -1.0, 15.0), ("East", 1.0, -15.0)]:
         cube(
             "Core_Cover_LCover_{}".format(side), cc["side_wall_main"],
