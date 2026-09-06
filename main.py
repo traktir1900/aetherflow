@@ -156,7 +156,7 @@ def _install_crown_sanctum():
                     ]
             except Exception:
                 pass
-            removed_turret = _remove_named_objects(ctx, {"Turret_Crown"})
+            removed_turret = _remove_named_prefix_objects(ctx, ("Turret_Crown",))
             if removed_turret:
                 print("  -> removed unwanted Crown turret: {}".format(removed_turret))
         return result
