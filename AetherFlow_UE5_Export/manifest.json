@@ -1,0 +1,16 @@
+{
+  "bases": 2,
+  "collection_report": {"missing": [], "moved": 241, "prepared": true, "root": "AetherFlow_EXPORT"},
+  "crown_mode": "PVE_LORD_SANCTUM",
+  "export_groups": {},
+  "export_root": "AetherFlow_EXPORT",
+  "legacy_objects_present": [],
+  "map_dimensions": [200.0, 200.0],
+  "map_version": "0.6.4.0",
+  "naming_passed": true,
+  "objectives": {"logical": 5, "physical_capture_platforms": 4},
+  "pockets": 4,
+  "resources": {"health_relics": 8, "names": ["SpeedShrine_East","SpeedShrine_North","SpeedShrine_West","HealthRelic_Capture_Crown","HealthRelic_Capture_EastMonolith","HealthRelic_Capture_SEMonolith","HealthRelic_Capture_SWMonolith","HealthRelic_Capture_WestMonolith","HealthRelic_SE","HealthRelic_SW","HealthRelic_South"], "speed_shrines": 3, "total": 11},
+  "seed": 1337,
+  "validation_status": true
+}
