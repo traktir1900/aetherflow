@@ -41,7 +41,7 @@ CONFIG = {
     "outer_ring_radius": _s(137.5),
     "base_radius": _s(255.0),
     "base_spread_deg": 40.0,
-    "center_radius": _s(50.0),
+    "center_radius": _s(153.0),
     "core_transition_radius": _s(35.0),
     "south_rift_blend_radius": _s(62.5),
     "crown_influence_radius": _s(112.5),
@@ -88,7 +88,6 @@ CONFIG = {
         "validation_is_hard_gate": True,
     },
 
-    # Objective / base geometry: reduced, but XY anchors remain fixed.
     "capture_platform_radius": _gs(20.0),
     "capture_platform_height": _gs(1.5),
     "turret_offset": _gs(27.5),
@@ -113,7 +112,6 @@ CONFIG = {
         "south_screen_size": tuple(_gs(v) for v in (12.5, 3.75, 7.0)),
     },
     "core_cover_positions": {
-        # Positions are anchors and intentionally stay fixed for topology.
         "north_pillar_y": _s(10.0), "side_wall_x": _s(11.0), "side_wall_y": _s(2.0),
         "pocket_x": _s(7.5), "pocket_y": _s(-9.0), "south_screen_y": _s(-14.0),
     },
@@ -128,8 +126,6 @@ CONFIG = {
         "protector_height_m": 2.6,
         "layout": "CARDINAL_CENTERED",
     },
-
-    # Movement surfaces are narrowed too; route anchors and topology stay fixed.
     "ring_road_width": _gs(12.0),
     "base_road_width": _gs(8.0),
     "north_ramp_width": _gs(12.0),
@@ -168,9 +164,7 @@ CONFIG = {
     },
     "pockets": {
         "enabled": True,
-        # Move all four pockets 1.0 m farther outward from the ring road.
-        # _s(156) = 52.0 m vs previous _s(153) = 51.0 m.
-        "center_radius": _s(156.0),
+        "center_radius": _s(153.0),
         "entry_width": _p(30.0),
         "entry_gate": {
             "target_width": _p(10.0), "rock_radius": _p(1.3),
