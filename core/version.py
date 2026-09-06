@@ -9,7 +9,7 @@ one version across the pipeline.
 import os
 
 VERSION_FILE = "VERSION.txt"
-_FALLBACK = "0.6.1"
+_FALLBACK = "0.6.4"
 _cache = None
 
 
