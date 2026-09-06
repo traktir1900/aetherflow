@@ -27,6 +27,33 @@ from core.utils import finalize_bmesh
 # ---------------------------------------------------------------------------
 # Capture points (always all 5) + bases
 # ---------------------------------------------------------------------------
+def _capture_turret_direction(pos):
+    """Choose a turret direction that stays clear of the radial ramp corridor.
+
+    The old radial placement put every turret directly on its objective's
+    access-ramp centerline.  Since turrets are solid navigation blockers, the
+    height-transition audit then correctly reported several ramps as
+    unreachable.  Turrets now sit on a deterministic offset direction while
+    preserving the authoritative X -> -X symmetry; Crown uses the opposite
+    radial axis because it lies on the symmetry plane and has only one turret.
+    """
+    radial = Vector((pos.x, pos.y, 0.0))
+    if radial.length < 1e-6:
+        return Vector((0.0, -1.0, 0.0))
+    radial.normalize()
+
+    if abs(pos.x) < 1e-6:
+        # Crown: keep the single turret on the symmetry axis, but put it on the
+        # inner/south side so the north Crown ramp remains unobstructed.
+        return -radial
+
+    tangent = Vector((-radial.y, radial.x, 0.0))
+    # Mirror-safe sign: x>0 gets +60 degrees from radial; x<0 gets -60.
+    side = 1.0 if pos.x > 0.0 else -1.0
+    rotated = radial * math.cos(math.radians(60.0)) + tangent * side * math.sin(math.radians(60.0))
+    return rotated.normalized()
+
+
 def generate_capture_points(ctx):
     cfg = ctx.config
     plat_r = cfg["capture_platform_radius"]
@@ -50,8 +77,8 @@ def generate_capture_points(ctx):
             meta={"point": pname, "radius": plat_r, "height": plat_h},
         )
 
-        dir_vec = Vector((pos.x, pos.y, 0.0)).normalized()
-        turret_pos = pos + dir_vec * cfg["turret_offset"]
+        turret_dir = _capture_turret_direction(pos)
+        turret_pos = pos + turret_dir * cfg["turret_offset"]
         turret_pos.z = get_height_at_point(turret_pos, cfg, ctx.layout)
         bm_t = bmesh.new()
         bmesh.ops.create_cone(
@@ -70,6 +97,7 @@ def generate_capture_points(ctx):
             dims=(cfg["turret_radius_base"] * 2,
                   cfg["turret_radius_base"] * 2,
                   cfg["turret_depth"]),
+            meta={"point": pname, "ramp_clearance": True},
         )
 
 
@@ -513,14 +541,17 @@ def generate_roads(ctx):
               "end": "SEMonolith"},
     )
 
-    # 3) North approach stays readable and straight into Crown.
+    # 3) North approach stays readable and straight into Crown. Store endpoints
+    # explicitly so downstream audits can validate the actual ramp geometry.
     crown = ctx.layout["Crown"]
     north_gate = polar(cfg["center_radius"], 90.0)
     create_height_adapted_road(
         ctx, "North_Ramp_Crown_Core", crown, north_gate,
         cfg["north_ramp_width"], kind="ramp",
         meta={"graded": False, "terrain_following": True,
-              "curve_type": "straight_axis_approach"},
+              "curve_type": "straight_axis_approach",
+              "p0": [round(crown.x, 3), round(crown.y, 3), round(get_height_at_point(crown, cfg, ctx.layout), 3)],
+              "p1": [round(north_gate.x, 3), round(north_gate.y, 3), round(get_height_at_point(north_gate, cfg, ctx.layout), 3)]},
     )
 
 
