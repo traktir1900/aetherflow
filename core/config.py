@@ -12,6 +12,9 @@ _S = GROUND_HALF_SIZE / _BASE_HALF
 # Map footprint, anchors and terrain remain fixed; physical structures use 40%.
 GEOMETRY_SCALE = 0.40
 POCKET_TURRET_GEOMETRY_SCALE = GEOMETRY_SCALE
+# Existing pocket zones stay in their current gameplay positions; only their
+# generated geometry footprint is enlarged by 1.5x.
+POCKET_GEOMETRY_SCALE = 1.50
 
 
 def _s(v):
@@ -24,6 +27,10 @@ def _g(v):
 
 def _gs(v):
     return _s(v) * GEOMETRY_SCALE
+
+
+def _p(v):
+    return _s(v) * GEOMETRY_SCALE * POCKET_GEOMETRY_SCALE
 
 CONFIG = {
     "seed": 1337,
@@ -162,39 +169,39 @@ CONFIG = {
     "pockets": {
         "enabled": True,
         "center_radius": _s(153.0),
-        "entry_width": _gs(30.0),
+        "entry_width": _p(30.0),
         "entry_gate": {
-            "target_width": _g(10.0), "rock_radius": _g(1.3),
-            "irregularity": 0.04, "height": _g(2.4),
+            "target_width": _p(10.0), "rock_radius": _p(1.3),
+            "irregularity": 0.04, "height": _p(2.4),
         },
         "rock_arc": {
-            "span_deg": 168.0, "target_spacing": _gs(7.95),
+            "span_deg": 168.0, "target_spacing": _p(7.95),
             "min_segments": 22, "max_segments": 30,
             "large_ratio": 0.18, "small_ratio": 0.18,
-            "gap_min": _gs(0.45), "gap_max": _gs(1.05),
-            "inward_limit": _gs(0.75), "outward_limit": _gs(1.05),
-            "rotation_variance": 0.14, "entry_end_clear": _gs(0.75),
-            "taper_start": 0.68, "seed": 1337, "connect_gap": _gs(1.5),
+            "gap_min": _p(0.45), "gap_max": _p(1.05),
+            "inward_limit": _p(0.75), "outward_limit": _p(1.05),
+            "rotation_variance": 0.14, "entry_end_clear": _p(0.75),
+            "taper_start": 0.68, "seed": 1337, "connect_gap": _p(1.5),
             "classes": {
-                "small": {"diam": (_gs(5.4), _gs(6.3)), "height": (_gs(6.9), _gs(8.1))},
-                "medium": {"diam": (_gs(6.3), _gs(7.2)), "height": (_gs(8.1), _gs(9.6))},
-                "large": {"diam": (_gs(7.2), _gs(8.1)), "height": (_gs(9.6), _gs(11.4))},
+                "small": {"diam": (_p(5.4), _p(6.3)), "height": (_p(6.9), _p(8.1))},
+                "medium": {"diam": (_p(6.3), _p(7.2)), "height": (_p(8.1), _p(9.6))},
+                "large": {"diam": (_p(7.2), _p(8.1)), "height": (_p(9.6), _p(11.4))},
             },
             "fortified_fence": {
                 "enabled": True, "anchor_every_v3": 2,
-                "wall_height_v3": _g(1.72), "terminal_height_v3": _g(1.48),
-                "wall_thickness_v3": _g(0.88), "wall_outward_offset_v3": _g(0.64),
-                "foundation_thickness_v3": _g(0.92), "foundation_height_v3": _g(0.36),
-                "cap_height_v3": _g(0.28), "cap_overhang_v3": _g(0.12),
-                "anchor_post_thickness_v3": _g(0.24), "anchor_post_height_v3": _g(1.88),
-                "brace_thickness_v3": _g(0.075), "aether_every_v3": 4,
+                "wall_height_v3": _p(1.72), "terminal_height_v3": _p(1.48),
+                "wall_thickness_v3": _p(0.88), "wall_outward_offset_v3": _p(0.64),
+                "foundation_thickness_v3": _p(0.92), "foundation_height_v3": _p(0.36),
+                "cap_height_v3": _p(0.28), "cap_overhang_v3": _p(0.12),
+                "anchor_post_thickness_v3": _p(0.24), "anchor_post_height_v3": _p(1.88),
+                "brace_thickness_v3": _p(0.075), "aether_every_v3": 4,
                 "structure_seed": 7349,
             },
         },
-        "side_size": {"width": _gs(84.0), "depth": _gs(54.0)},
-        "cover_margin": _gs(4.2), "fairness_tolerance": _s(1.5),
+        "side_size": {"width": _p(84.0), "depth": _p(54.0)},
+        "cover_margin": _p(4.2), "fairness_tolerance": _s(1.5),
         "cover": {
-            "pct_max": 0.15, "min_passage": _gs(9.0), "max_objects": 3,
+            "pct_max": 0.15, "min_passage": _p(9.0), "max_objects": 3,
             "min_score": 1.5, "w_los": 3.0, "w_flank": 1.0,
             "w_defensive": 1.5, "w_movement": 3.0, "w_choke": 4.0,
         },
