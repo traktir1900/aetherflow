@@ -32,6 +32,7 @@ import geometry.terrain as terrain
 import geometry.structures as structures
 import geometry.pockets as pockets
 import geometry.boundary as boundary
+import geometry.capture_platform_runtime as capture_platform_runtime
 import combat.simulation as simulation
 
 
@@ -47,6 +48,7 @@ def _reload_runtime_modules():
     """Reload modules intentionally edited during iterative Blender runs."""
     global gameplay_cover_module, altar_rotation_module, validation_module
     global terrain_refinement_module, gameplay_symmetry_module, height_transitions_module, terrain
+    global capture_platform_runtime
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
@@ -56,6 +58,8 @@ def _reload_runtime_modules():
     validation_module = importlib.reload(validation_module)
     gameplay_symmetry_module = importlib.reload(gameplay_symmetry_module)
     height_transitions_module = importlib.reload(height_transitions_module)
+    capture_platform_runtime = importlib.reload(capture_platform_runtime)
+    capture_platform_runtime.install_capture_platform_runtime(structures)
 
 
 def _get_backup_collection():
@@ -231,6 +235,10 @@ def run_pipeline(ctx=None, export=True):
         structures.generate_core_combat_cover(ctx)
         structures.generate_roads(ctx)
         ramps = structures.generate_ramps(ctx)
+        button_links = capture_platform_runtime.bind_capture_buttons_to_routes(ctx)
+        print("  -> capture button routing: {} | links={}".format(
+            "PASS" if button_links["passed"] else "FAIL",
+            len(button_links["bindings"])))
         print("  -> graded ramps built: {}".format(len(ramps)))
 
         print("[STAGE 5/10] Procedural rocks")
@@ -309,11 +317,12 @@ def run_pipeline(ctx=None, export=True):
         print("[STAGE 9/10] Validation")
         report = validation_module.run_validation(ctx, nav_report=nav)
         report["height_transitions"] = height_transition_report
+        report["capture_button_routing"] = button_links
 
         symmetry_errors, symmetry_summary = gameplay_symmetry_module.validate_gameplay_symmetry(ctx, cfg)
         report["gameplay_symmetry"] = symmetry_summary
         report["errors"].extend(symmetry_errors)
-        report["ok"] = len(report["errors"]) == 0
+        report["ok"] = len(report["errors"]) == 0 and button_links["passed"]
         print("  -> GAMEPLAY SYMMETRY: {} | plane={} | tolerance={:.2f}m".format(
             "PASS" if symmetry_summary["passed"] else "FAIL",
             symmetry_summary["plane"], symmetry_summary["tolerance_m"]))
@@ -348,6 +357,7 @@ def run_pipeline(ctx=None, export=True):
             "gameplay_cover": cover,
             "terrain_refinement": profile,
             "height_transitions": height_transition_report,
+            "capture_button_routing": button_links,
             "map_data": out_path,
         }
 
