@@ -170,7 +170,7 @@ def _install_base_prop_cleanup():
         result = original(*args, **kwargs)
         ctx = args[0] if args else kwargs.get("ctx")
         if ctx is not None:
-            removed = _remove_named_objects(ctx, {"Blue_Shop", "Red_Shop", "Blue_Shop.001", "Red_Shop.001"})
+            removed = _remove_named_prefix_objects(ctx, ("Blue_Shop", "Red_Shop"))
             if removed:
                 print("  -> removed unwanted base shops: {}".format(removed))
         return result
@@ -236,7 +236,7 @@ print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall o
 print("[VIZ-01] PATCH ACTIVE: reviewed visual accents disabled")
 print("[V0.6.4.1] RESOURCE FOUNDATION: loaded by core.pipeline as Stage 6C")
 print("[V0.6.4.3] ENVIRONMENT + PERIMETER: all reviewed-out environment accents disabled")
-print("[LEGACY PROPS] PATCH ACTIVE: Turret_Crown + Blue_Shop + Red_Shop removed")
+print("[LEGACY PROPS] PATCH ACTIVE: Crown turret + Blue/Red shops removed; shops reserved for UE5")
 
 def run():
     geometry.map_v064_runtime.remove_obsolete_central_cube()
