@@ -49,12 +49,14 @@ import geometry.pockets
 import geometry.boundary
 import geometry.crown_sanctum_runtime
 import geometry.map_v064_runtime
+import core.world_silhouette
 
 geometry.structures = importlib.reload(geometry.structures)
 geometry.pockets = importlib.reload(geometry.pockets)
 geometry.boundary = importlib.reload(geometry.boundary)
 geometry.crown_sanctum_runtime = importlib.reload(geometry.crown_sanctum_runtime)
 geometry.map_v064_runtime = importlib.reload(geometry.map_v064_runtime)
+core.world_silhouette = importlib.reload(core.world_silhouette)
 
 KEEP_MIN, KEEP_MAX = 5, 24
 
@@ -109,14 +111,33 @@ def _install_crown_sanctum():
 def _install_v064_map_patches():
     geometry.map_v064_runtime.install_outer_boundary_crown_opening(geometry.boundary)
 
+
+def _install_viz01():
+    """Append VIZ-01 macro visual generation after the existing perimeter pass."""
+    original = geometry.boundary.generate_outer_boundary
+    if getattr(original, "_aetherflow_viz01", False):
+        return
+    def wrapper(*args, **kwargs):
+        result = original(*args, **kwargs)
+        ctx = args[0] if args else kwargs.get("ctx")
+        if ctx is not None:
+            viz = core.world_silhouette.generate_world_silhouette(ctx)
+            if isinstance(result, dict):
+                result["viz01"] = viz
+        return result
+    wrapper._aetherflow_viz01 = True
+    geometry.boundary.generate_outer_boundary = wrapper
+
 _install_pocket_opening()
 _install_crown_sanctum()
 _install_v064_map_patches()
+_install_viz01()
 core.pipeline = importlib.reload(core.pipeline)
 
 print("[POCKET OPENING] PATCH ACTIVE: ArcRock01-04 + ArcRock25-28 removed")
 print("[CROWN SANCTUM] PATCH ACTIVE: smooth rise + boss button + ruined half-coliseum")
 print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall opening")
+print("[VIZ-01] PATCH ACTIVE: mirrored macro world silhouette, non-blocking")
 
 def run():
     # Remove the obsolete/default cube before every generation, including maps
