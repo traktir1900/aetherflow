@@ -42,12 +42,14 @@ def setup_materials(ctx):
     make_material(ctx, "rock", (0.22, 0.21, 0.20), roughness=0.9)
     make_material(ctx, "road", (0.42, 0.38, 0.30), roughness=0.8)
     make_material(ctx, "cover", (0.28, 0.26, 0.24), roughness=0.7, metallic=0.1)
-    # Functional pocket floor: a lighter, distinct tone so each pocket reads as
-    # ONE clear gameplay zone from the top-down view (readability, not decor).
     make_material(ctx, "pocket_floor", (0.34, 0.32, 0.28), roughness=0.85)
     make_material(ctx, "altar", (0.55, 0.45, 0.15), roughness=0.4, metallic=0.3)
     make_material(ctx, "altar_glow", (0.7, 0.4, 1.0),
                   emission_color=(0.7, 0.4, 1.0), emission_strength=4.0)
+    # Functional road-center light strip.
+    make_material(ctx, "road_light", (0.18, 0.55, 1.0),
+                  emission_color=(0.18, 0.55, 1.0), emission_strength=6.0,
+                  roughness=0.35)
     make_material(ctx, "blue_team", (0.05, 0.25, 0.85),
                   emission_color=(0.1, 0.4, 1.0), emission_strength=1.2)
     make_material(ctx, "red_team", (0.85, 0.08, 0.08),
