@@ -46,7 +46,6 @@ def setup_materials(ctx):
     make_material(ctx, "altar", (0.55, 0.45, 0.15), roughness=0.4, metallic=0.3)
     make_material(ctx, "altar_glow", (0.7, 0.4, 1.0),
                   emission_color=(0.7, 0.4, 1.0), emission_strength=4.0)
-    # Functional road-center light strip.
     make_material(ctx, "road_light", (0.18, 0.55, 1.0),
                   emission_color=(0.18, 0.55, 1.0), emission_strength=6.0,
                   roughness=0.35)
@@ -59,7 +58,6 @@ def setup_materials(ctx):
     make_material(ctx, "red_crystal", (0.9, 0.1, 0.1),
                   emission_color=(1.0, 0.2, 0.15), emission_strength=3.5)
 
-    # Height-tint debug material (visualization only, used by Terrain_Real).
     mat = bpy.data.materials.new(name="MAT_Height_Debug")
     mat.use_nodes = True
     nodes = mat.node_tree.nodes
