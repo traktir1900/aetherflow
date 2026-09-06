@@ -50,6 +50,7 @@ import geometry.boundary
 import geometry.crown_sanctum_runtime
 import geometry.map_v064_runtime
 import core.world_silhouette
+import core.environment_perimeter
 
 geometry.structures = importlib.reload(geometry.structures)
 geometry.pockets = importlib.reload(geometry.pockets)
@@ -57,6 +58,7 @@ geometry.boundary = importlib.reload(geometry.boundary)
 geometry.crown_sanctum_runtime = importlib.reload(geometry.crown_sanctum_runtime)
 geometry.map_v064_runtime = importlib.reload(geometry.map_v064_runtime)
 core.world_silhouette = importlib.reload(core.world_silhouette)
+core.environment_perimeter = importlib.reload(core.environment_perimeter)
 
 KEEP_MIN, KEEP_MAX = 5, 24
 
@@ -113,7 +115,7 @@ def _install_v064_map_patches():
 
 
 def _install_viz01():
-    """Append VIZ-01 macro visual generation after the existing perimeter pass."""
+    """Append VIZ-01 and V0.6.4.3 visual generation after the perimeter pass."""
     original = geometry.boundary.generate_outer_boundary
     if getattr(original, "_aetherflow_viz01", False):
         return
@@ -122,8 +124,10 @@ def _install_viz01():
         ctx = args[0] if args else kwargs.get("ctx")
         if ctx is not None:
             viz = core.world_silhouette.generate_world_silhouette(ctx)
+            env = core.environment_perimeter.generate_environment_perimeter(ctx)
             if isinstance(result, dict):
                 result["viz01"] = viz
+                result["v0643_environment"] = env
         return result
     wrapper._aetherflow_viz01 = True
     geometry.boundary.generate_outer_boundary = wrapper
@@ -139,6 +143,7 @@ print("[CROWN SANCTUM] PATCH ACTIVE: smooth rise + boss button + ruined half-col
 print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall opening")
 print("[VIZ-01] PATCH ACTIVE: mirrored macro world silhouette, non-blocking")
 print("[V0.6.4.1] RESOURCE FOUNDATION: loaded by core.pipeline as Stage 6C")
+print("[V0.6.4.3] ENVIRONMENT + PERIMETER: visual-only perimeter formations + Crown/Core landmarks")
 
 def run():
     geometry.map_v064_runtime.remove_obsolete_central_cube()
