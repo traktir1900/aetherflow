@@ -50,6 +50,7 @@ import geometry.boundary
 import geometry.crown_sanctum_runtime
 import geometry.map_v064_runtime
 import core.world_silhouette
+import core.resource_foundation
 
 geometry.structures = importlib.reload(geometry.structures)
 geometry.pockets = importlib.reload(geometry.pockets)
@@ -57,6 +58,7 @@ geometry.boundary = importlib.reload(geometry.boundary)
 geometry.crown_sanctum_runtime = importlib.reload(geometry.crown_sanctum_runtime)
 geometry.map_v064_runtime = importlib.reload(geometry.map_v064_runtime)
 core.world_silhouette = importlib.reload(core.world_silhouette)
+core.resource_foundation = importlib.reload(core.resource_foundation)
 
 KEEP_MIN, KEEP_MAX = 5, 24
 
@@ -128,20 +130,37 @@ def _install_viz01():
     wrapper._aetherflow_viz01 = True
     geometry.boundary.generate_outer_boundary = wrapper
 
+
+def _install_resource_foundation():
+    """Append V0.6.4.1 resource marker generation after VIZ-01."""
+    original = geometry.boundary.generate_outer_boundary
+    if getattr(original, "_aetherflow_resources", False):
+        return
+    def wrapper(*args, **kwargs):
+        result = original(*args, **kwargs)
+        ctx = args[0] if args else kwargs.get("ctx")
+        if ctx is not None:
+            resource_report = core.resource_foundation.generate_resource_foundation(ctx)
+            if isinstance(result, dict):
+                result["resource_foundation"] = resource_report
+        return result
+    wrapper._aetherflow_resources = True
+    geometry.boundary.generate_outer_boundary = wrapper
+
 _install_pocket_opening()
 _install_crown_sanctum()
 _install_v064_map_patches()
 _install_viz01()
+_install_resource_foundation()
 core.pipeline = importlib.reload(core.pipeline)
 
 print("[POCKET OPENING] PATCH ACTIVE: ArcRock01-04 + ArcRock25-28 removed")
 print("[CROWN SANCTUM] PATCH ACTIVE: smooth rise + boss button + ruined half-coliseum")
 print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall opening")
 print("[VIZ-01] PATCH ACTIVE: mirrored macro world silhouette, non-blocking")
+print("[V0.6.4.1] PATCH ACTIVE: mirrored Speed Shrine + Health Relic resource foundation")
 
 def run():
-    # Remove the obsolete/default cube before every generation, including maps
-    # opened from older Blender scenes where it sits outside managed collections.
     geometry.map_v064_runtime.remove_obsolete_central_cube()
     return core.pipeline.run_pipeline()
 
