@@ -3,9 +3,11 @@
 Each capture platform gets a central interaction button taking exactly 70% of
 the platform radius. The remaining 30% is a circular capture indicator ring.
 The button is registered as the logical capture-control anchor used by roads,
-ramps and export. The ring road network also receives luminous center guides
-at 20% of parent road width, visually linking all five capture platforms.
+ramps and export. Crown is a raised objective, so its visual capture control
+is corrected from the actual generated mesh elevation after the sanctum exists.
 """
+import importlib
+import math
 import bmesh
 from mathutils import Vector
 
@@ -28,7 +30,6 @@ def _annulus(ctx, name, center, inner_r, outer_r, height, material, meta=None):
     verts_bottom_inner = []
     verts_bottom_outer = []
 
-    import math
     for i in range(segments):
         a = 2.0 * math.pi * (i / float(segments))
         ca, sa = math.cos(a), math.sin(a)
@@ -142,7 +143,6 @@ def _build_overlays(ctx):
         ctx.capture_buttons[pname] = button
         built += 2
 
-    crown_neighbors = _platform_neighbors("Crown")
     print(
         "  -> Capture platform overlays: button=70% radius | "
         "remaining 30%=capture indicator ring | logical anchors=5 | built={}".format(built)
@@ -150,7 +150,7 @@ def _build_overlays(ctx):
     print(
         "  -> Crown capture node: button=CaptureButton_Crown | "
         "indicator=CaptureIndicatorRing_Crown | neighbors={}".format(
-            ", ".join("CaptureButton_{}".format(n) for n in crown_neighbors)
+            ", ".join("CaptureButton_{}".format(n) for n in _platform_neighbors("Crown"))
         )
     )
     return built
@@ -201,26 +201,35 @@ def bind_capture_buttons_to_routes(ctx):
 
 
 def install_capture_platform_runtime(structures_module):
-    """Wrap capture generation and add button/ring + road-center light guides."""
+    """Wrap capture generation and apply the raised-Crown visual correction."""
     original = getattr(structures_module, "generate_capture_points", None)
     if original is None or getattr(original, WRAPPER_MARKER, False):
         return False
-
-    try:
-        import importlib
-        import geometry.road_light_guides_runtime as _road_light
-        _road_light = importlib.reload(_road_light)
-    except Exception as exc:
-        _road_light = None
-        print("  [ROAD LIGHT] unavailable: {}".format(exc))
 
     def wrapper(*args, **kwargs):
         result = original(*args, **kwargs)
         ctx = args[0] if args else kwargs.get("ctx")
         if ctx is not None:
             _build_overlays(ctx)
-            if _road_light is not None:
-                _road_light.generate(ctx)
+            try:
+                import geometry.crown_capture_visual_runtime as crown_visual
+                crown_visual = importlib.reload(crown_visual)
+                crown_report = crown_visual.apply(ctx)
+                ctx.crown_capture_visual = crown_report
+            except Exception as exc:
+                print("  [CROWN VISUAL] post-generation pass failed: {}".format(exc))
+                ctx.crown_capture_visual = {
+                    "passed": False,
+                    "reason": "EXCEPTION:{}".format(type(exc).__name__),
+                }
+
+            try:
+                import geometry.road_light_guides_runtime as road_light
+                road_light = importlib.reload(road_light)
+                ctx.road_light_guides = road_light.generate(ctx)
+            except Exception as exc:
+                print("  [ROAD LIGHT] generation failed: {}".format(exc))
+                ctx.road_light_guides = []
         return result
 
     setattr(wrapper, WRAPPER_MARKER, True)
