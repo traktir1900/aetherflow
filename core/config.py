@@ -89,9 +89,15 @@ CONFIG = {
         "pocket_block_size": tuple(_gs(v) for v in (7.5, 3.75, 5.0)),
         "south_screen_size": tuple(_gs(v) for v in (12.5, 3.75, 7.0)),
     },
+    # Six central Altar cover blocks arranged as a loose hexagonal ring, leaving
+    # a clear playable center. Paired positions remain mirror-symmetric across
+    # the Y axis; rotations make each blocker tangent to the ring.
     "core_cover_positions": {
-        "north_pillar_y": _s(10.0), "side_wall_x": _s(11.0), "side_wall_y": _s(2.0),
-        "pocket_x": _s(7.5), "pocket_y": _s(-9.0), "south_screen_y": _s(-14.0),
+        "north_pillar_y": _s(17.4), "side_wall_x": _s(15.0), "side_wall_y": _s(8.7),
+        "pocket_x": _s(15.0), "pocket_y": _s(-8.7), "south_screen_y": _s(-17.4),
+        "side_wall_rot_west": 60.0, "side_wall_rot_east": 120.0,
+        "pocket_rot_sw": 120.0, "pocket_rot_se": 60.0,
+        "north_pillar_rot": 0.0, "south_screen_rot": 0.0,
     },
     "altar_protectors": {
         "enabled": True, "count": 4, "symmetry_plane": "BOTH_AXES",
