@@ -4,7 +4,7 @@
 
 **IN PROGRESS — implementation present; fresh Blender runtime still required for final closure.**
 
-v0.6.4 is the current documentation version for the boundary/environment pass and the associated gameplay-presentation work that became necessary while exercising the v0.6.3.2 pipeline.
+v0.6.4 is the current documentation version for the boundary/environment pass and associated gameplay-presentation corrections exercised while stabilizing the v0.6.3.2 pipeline.
 
 ## Scope
 
@@ -13,7 +13,7 @@ v0.6.4 covers:
 - global outer elliptical boundary;
 - Crown outer-wall opening;
 - Crown Sanctum presentation and raised-objective visibility;
-- capture-point interaction overlays;
+- explicit capture-objective presentation stack for all five objectives;
 - visual center-light road guides;
 - route binding from roads/ramps to capture controls;
 - runtime validation compatibility for visual-only and boundary-specific geometry;
@@ -51,26 +51,50 @@ The Crown remains the fifth northern capture point and is augmented by a separat
 Current Crown presentation contract:
 
 - smooth semi-oval rise;
-- central Crown Boss Button / Aether Button;
+- separate `Crown_BossButton` / **Aether Button** for the boss;
 - ruined half-coliseum open toward the south/front;
 - **lower throne plate only**;
 - upper throne tiers and connector structures removed;
-- capture control remains distinct from the boss button.
+- the Crown capture system remains a separate gameplay layer.
 
-The latest runtime reports a raised Crown support surface and a post-generation visibility correction for the capture control.
+### 3. Explicit Crown capture stack
 
-### 3. Capture Button + Indicator
+Crown is **not** represented by the boss button. The capture objective has its own physical platform and its own capture-control visuals:
 
-All five objectives receive:
+```text
+CapturePlatform_Crown
+├── CaptureIndicatorRing_Crown
+└── CaptureButton_Crown
 
-- `CaptureButton_<Point>` — logical interaction anchor;
-- `CaptureIndicatorRing_<Point>` — visual capture-state ring.
+Crown_BossRise / Crown_Throne
+└── Crown_BossButton (Aether Button)
+```
 
-The button occupies **70% of the objective-platform radius**. The remaining outer 30% is reserved for the indicator ring.
+The same three-layer capture stack exists for the other four objectives:
 
-The capture button metadata stores its objective identity, logical capture role, road anchor and neighboring capture buttons. Roads and ramps are then bound to these logical anchors.
+- `CapturePlatform_<Point>` — real physical capture-objective surface;
+- `CaptureIndicatorRing_<Point>` — visual capture-state ring;
+- `CaptureButton_<Point>` — logical capture-control surface/anchor.
 
-### 4. Crown visual links and road light guides
+The platform is the gameplay surface. The ring and capture control are overlays on that platform. `Crown_BossButton` is a separate boss interaction and must never be used as the capture platform, capture control or navigation node.
+
+The capture-control radius remains **70% of the platform radius**, with the outer 30% reserved for the capture indicator ring.
+
+### 4. Crown height correction
+
+The Crown capture ring and capture button are now seated against the **actual top of `CapturePlatform_Crown`**. They are no longer positioned using the top of the boss rise or boss button.
+
+This keeps the capture system physically attached to the objective platform while allowing the higher Crown Sanctum boss geometry to remain independent.
+
+The post-generation metadata explicitly records:
+
+- `capture_platform = CapturePlatform_Crown`;
+- `capture_indicator = CaptureIndicatorRing_Crown`;
+- `capture_control = CaptureButton_Crown`;
+- `boss_button_separate = Crown_BossButton`;
+- `boss_button_not_support = true`.
+
+### 5. Crown capture links and road light guides
 
 The Crown capture control receives two short visual-only links to the neighboring objective controls:
 
@@ -79,9 +103,9 @@ The Crown capture control receives two short visual-only links to the neighborin
 
 The ring road network receives thin center light guides. These guides are visual-only and must not affect navigation or collision.
 
-### 5. Ramp-width correction
+### 6. Ramp-width correction
 
-The explicit ramp builder previously generated ramps below the intended 4 m group-width contract. The current configuration was increased so that the builder's 60% runtime multiplier targets the required minimum group width.
+The explicit ramp builder previously generated ramps below the intended 4 m group-width contract. The current configuration was increased so that the builder's runtime multiplier targets the required minimum group width.
 
 This is a geometry correction only; it does not move the objective anchors.
 
@@ -147,14 +171,19 @@ Therefore:
 5. A validation filter may remove only a confirmed false positive with an explicit reason and narrow name/type scope.
 6. A version is not closed while genuine validation errors remain.
 7. `PASS`, `FAILED`, `WARNING`, `EXACT`, `APPROXIMATION` and `DATA MISSING` must retain their literal report meaning.
+8. `CapturePlatform_Crown`, `CaptureIndicatorRing_Crown` and `CaptureButton_Crown` are separate capture-object entities.
+9. `Crown_BossButton` is a separate boss interaction entity and must never substitute for the Crown capture platform.
 
 ## Closure gate
 
 v0.6.4 is complete only after a fresh Blender 5.2 runtime verifies:
 
 - validation gate passes with no genuine errors;
-- Crown visual correction remains visible;
-- capture buttons and indicator rings exist for all 5 objectives;
+- `CapturePlatform_<Point>` exists for all 5 objectives;
+- `CaptureIndicatorRing_<Point>` exists for all 5 objectives;
+- `CaptureButton_<Point>` exists for all 5 objectives;
+- Crown capture controls sit on `CapturePlatform_Crown`, not on the boss rise/button;
+- `Crown_BossButton` remains a separate boss interaction;
 - capture routing remains complete;
 - Crown outer-wall opening remains intentional and reachable;
 - ramp widths meet the 4 m group target;
