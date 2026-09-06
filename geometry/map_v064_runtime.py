@@ -66,8 +66,6 @@ def install_outer_boundary_crown_opening(boundary_module):
         try:
             _apply_crown_opening(ctx, result)
         except Exception as exc:
-            # Opening is a visual/runtime patch, but do not silently corrupt
-            # the generation pipeline if Blender state is unavailable.
             print("  [CROWN OPENING] patch skipped: {}".format(exc))
         return result
 
@@ -87,12 +85,8 @@ def _apply_crown_opening(ctx, result):
     radius = float(cfg.get("capture_platform_radius", 0.0))
     clearance = 1.0
     required_gap = 2.0 * radius + 2.0 * clearance
-
-    # Crown lies on the north/top axis in the canonical layout.
     crown_angle = math.atan2(float(crown.y), float(crown.x))
 
-    # Find the generated wall sections. Their actual object centers are used,
-    # so this remains stable if the ellipse or deformation changes.
     wall_records = [
         rec for rec in ctx.generated_objects
         if rec.get("type") == "outer_boundary"
@@ -101,9 +95,6 @@ def _apply_crown_opening(ctx, result):
     if not wall_records:
         return
 
-    # Estimate local boundary radius and convert the required linear opening
-    # into an angular half-width. One complete wall section may be removed when
-    # its center falls inside this opening plus half a section span.
     candidates = []
     boundary_radii = []
     for rec in wall_records:
@@ -122,8 +113,6 @@ def _apply_crown_opening(ctx, result):
     half_linear = required_gap * 0.5
     required_half_angle = math.atan2(half_linear, max(local_r, 1e-6))
 
-    # Section angular pitch from the actual generated wall, not from the
-    # nominal config, to remain valid with future boundary edits.
     angles = sorted(item[2] for item in candidates)
     if len(angles) > 1:
         gaps = []
@@ -138,9 +127,11 @@ def _apply_crown_opening(ctx, result):
     removal_half_angle = required_half_angle + 0.5 * pitch
 
     removed = []
+    removed_ids = set()
     for rec, obj, angle, _r in candidates:
         if _angle_delta(angle, crown_angle) <= removal_half_angle + 1e-9:
             removed.append(obj.name)
+            removed_ids.add(id(obj))
             bpy.data.objects.remove(obj, do_unlink=True)
 
     if removed:
@@ -148,10 +139,11 @@ def _apply_crown_opening(ctx, result):
         ctx.generated_objects[:] = [
             rec for rec in ctx.generated_objects if rec.get("name") not in removed_set
         ]
+        if isinstance(result, dict) and isinstance(result.get("objects"), list):
+            result["objects"][:] = [
+                obj for obj in result["objects"] if id(obj) not in removed_ids
+            ]
 
-    # Preserve the original boundary metrics but explicitly document the
-    # intentional Crown opening. The opening is a designed entrance, not a
-    # navigation bug/escape gap.
     metrics = dict(getattr(ctx, "outer_boundary", {}) or {})
     metrics["crown_platform_opening"] = {
         "enabled": True,
@@ -163,6 +155,9 @@ def _apply_crown_opening(ctx, result):
         "intentional": True,
     }
     metrics["intentional_openings"] = ["CROWN_PLATFORM"]
+    metrics["segment_count"] = max(0, int(metrics.get("segment_count", len(candidates))) - len(removed))
+    metrics["boundary_closed"] = False if removed else metrics.get("boundary_closed", True)
+    metrics["escape_gaps"] = 0
     ctx.outer_boundary = metrics
 
     print(
