@@ -20,6 +20,7 @@ from core.layout import build_layout
 from core.navigation import build_grid, run_navigation_checks
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
+import core.resource_foundation as resource_foundation_module
 
 import core.gameplay_cover as gameplay_cover_module
 import core.altar_rotation as altar_rotation_module
@@ -48,7 +49,7 @@ def _reload_runtime_modules():
     """Reload modules intentionally edited during iterative Blender runs."""
     global gameplay_cover_module, altar_rotation_module, validation_module
     global terrain_refinement_module, gameplay_symmetry_module, height_transitions_module, terrain
-    global capture_platform_runtime
+    global capture_platform_runtime, resource_foundation_module
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
@@ -59,6 +60,7 @@ def _reload_runtime_modules():
     gameplay_symmetry_module = importlib.reload(gameplay_symmetry_module)
     height_transitions_module = importlib.reload(height_transitions_module)
     capture_platform_runtime = importlib.reload(capture_platform_runtime)
+    resource_foundation_module = importlib.reload(resource_foundation_module)
     capture_platform_runtime.install_capture_platform_runtime(structures)
 
 
@@ -270,6 +272,14 @@ def run_pipeline(ctx=None, export=True):
         moved_boundary = gameplay_cover_module.repair_outer_boundary_for_legacy_bounds(ctx)
         print("  -> legacy-bounds boundary repair: {} sections adjusted".format(moved_boundary))
 
+        print("[STAGE 6C/10] Resource Foundation")
+        resource_report = resource_foundation_module.generate_resource_foundation(ctx)
+        print("  -> resource foundation: {} | resource_objects={} | symmetry={} | max_error={:.6f}m".format(
+            "PASS" if resource_report.get("symmetry_passed") else "FAIL",
+            len(resource_report.get("objects", [])),
+            "PASS" if resource_report.get("symmetry_passed") else "FAIL",
+            resource_report.get("max_error_m", 0.0)))
+
         bpy.context.view_layer.update()
 
         print("[STAGE 7/10] Navigation (obstacle-aware grid)")
@@ -318,6 +328,7 @@ def run_pipeline(ctx=None, export=True):
         report = validation_module.run_validation(ctx, nav_report=nav)
         report["height_transitions"] = height_transition_report
         report["capture_button_routing"] = button_links
+        report["resource_foundation"] = resource_report
 
         symmetry_errors, symmetry_summary = gameplay_symmetry_module.validate_gameplay_symmetry(ctx, cfg)
         report["gameplay_symmetry"] = symmetry_summary
@@ -358,6 +369,7 @@ def run_pipeline(ctx=None, export=True):
             "terrain_refinement": profile,
             "height_transitions": height_transition_report,
             "capture_button_routing": button_links,
+            "resource_foundation": resource_report,
             "map_data": out_path,
         }
 
