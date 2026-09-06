@@ -2,7 +2,8 @@
 
 Runtime-only compatibility layer for the iterative Blender generator:
 - removes the obsolete central/default Cube including Blender suffix variants;
-- removes only cube objects that are actually near the map center;
+- removes the default cube even when an older scene has renamed or transformed
+  the primitive, as long as it is still the small cube at the map origin;
 - opens the global outer wall on the Crown axis with 1 m clearance on each side;
 - keeps the opening deterministic and records it in ctx.outer_boundary.
 """
@@ -15,7 +16,6 @@ _CUBE_NAMES = {
     "centralcube",
     "central_cube",
     "centercube",
-    "center_cube",
 }
 
 
@@ -31,29 +31,59 @@ def _normalized_name(name):
     return key
 
 
+def _looks_like_small_default_cube(obj):
+    """Detect an old Blender default cube by geometry, not only by object name."""
+    data = getattr(obj, "data", None)
+    verts = getattr(data, "vertices", None)
+    if verts is None or len(verts) != 8:
+        return False
+
+    try:
+        xs = [float(v.co.x) for v in verts]
+        ys = [float(v.co.y) for v in verts]
+        zs = [float(v.co.z) for v in verts]
+        dims = (max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs))
+    except Exception:
+        return False
+
+    # The Blender default Cube is a small near-unit cube after scene creation.
+    # Allow modest transforms so old scenes with a renamed/scaled default cube
+    # are still cleaned, but do not touch large gameplay structures.
+    if min(dims) <= 1e-6 or max(dims) > 4.0:
+        return False
+    if max(dims) / min(dims) > 1.15:
+        return False
+    return True
+
+
 def _is_obsolete_central_cube(obj):
-    """Match the old central cube robustly without deleting legitimate props."""
+    """Match the old central/default cube robustly without deleting real props."""
     if obj is None or getattr(obj, "type", None) != "MESH":
         return False
-    if _normalized_name(getattr(obj, "name", "")) not in _CUBE_NAMES:
-        return False
+
     loc = getattr(obj, "location", None)
     if loc is None:
         return False
-    # The obsolete cube belongs to the original scene origin. Keep the cleanup
-    # deliberately local so named cube props elsewhere on the map survive.
-    return math.hypot(float(loc.x), float(loc.y)) <= 10.0
+
+    # The obsolete cube belongs to the original scene origin. Keep cleanup
+    # local so legitimate cube/box props elsewhere on the map survive.
+    if math.hypot(float(loc.x), float(loc.y)) > 10.0:
+        return False
+
+    name_match = _normalized_name(getattr(obj, "name", "")) in _CUBE_NAMES
+    return name_match or _looks_like_small_default_cube(obj)
 
 
 def remove_obsolete_central_cube(ctx=None):
-    """Remove every obsolete central Cube/Cube.### near the map origin."""
+    """Remove every obsolete default/central cube near the map origin."""
     import bpy
 
     removed = []
     for obj in list(bpy.data.objects):
         if not _is_obsolete_central_cube(obj):
             continue
-        removed.append(obj.name)
+        obj_name = str(obj.name)
+        removed.append(obj_name)
         bpy.data.objects.remove(obj, do_unlink=True)
 
     if ctx is not None and removed and hasattr(ctx, "generated_objects"):
