@@ -1,13 +1,19 @@
-"""AetherFlow v0.6.4 Crown capture visual correction.
+"""AetherFlow v0.6.4 Crown capture presentation correction.
 
-The Crown objective is a raised gameplay platform with a boss button/rise on the
-same XY anchor. The normal capture overlay is generated for all five objectives,
-but on Crown it can be hidden by the larger boss button. This post-generation
-pass uses the ACTUAL generated mesh elevation and seats the Crown capture ring
-and capture button visibly above the raised Crown sanctum.
+Crown is a normal capture objective PLUS a separate Crown Sanctum boss area.
+The capture stack is always:
 
-It also adds two short visual-only light-guide links from Crown's capture button
-to the adjacent WestMonolith/EastMonolith buttons.
+    CapturePlatform_Crown
+        -> CaptureIndicatorRing_Crown
+        -> CaptureButton_Crown
+
+The boss stack is separate:
+
+    Crown_BossRise / Crown_Throne
+        -> Crown_BossButton (Aether Button)
+
+The capture controls must be seated on the physical capture platform. They
+must never be lifted above the boss button or treated as the boss button.
 """
 import bmesh
 from mathutils import Vector
@@ -116,7 +122,7 @@ def _button_record(ctx, name):
 
 
 def apply(ctx):
-    """Seat Crown capture visuals on the real raised surface and link neighbors."""
+    """Seat Crown capture controls on the real capture platform surface."""
     import bpy
 
     crown_platform = bpy.data.objects.get("CapturePlatform_Crown")
@@ -132,22 +138,22 @@ def apply(ctx):
     platform_min, platform_top = _world_z_bounds(crown_platform)
     boss_min, boss_top = _world_z_bounds(boss_button)
     rise_min, rise_top = _world_z_bounds(boss_rise)
+    if platform_top is None:
+        return {"passed": False, "reason": "NO_CROWN_CAPTURE_PLATFORM_HEIGHT"}
 
-    support_candidates = [v for v in (platform_top, boss_top, rise_top) if v is not None]
-    support_top = max(support_candidates) if support_candidates else platform_top
-    if support_top is None:
-        return {"passed": False, "reason": "NO_CROWN_SURFACE_HEIGHT"}
+    # IMPORTANT: Capture presentation belongs to the capture platform.
+    # Do not use boss_top/rise_top as support for the capture ring or button.
+    # The Crown Boss Button is a separate gameplay object on the boss rise.
+    capture_support_top = platform_top
 
-    # Keep the objective button on the raised Crown structure. Because the boss
-    # button is larger than the capture button, seat the capture overlay above
-    # the boss button rather than letting it disappear inside that geometry.
     ring_clearance = 0.08
     button_clearance = 0.06
 
-    _set_material(crown_ring, ctx.get_material("road_light") or ctx.get_material("altar_glow"))
-    _set_material(crown_button, ctx.get_material("road_light") or ctx.get_material("altar_glow"))
+    capture_material = ctx.get_material("road_light") or ctx.get_material("altar_glow")
+    _set_material(crown_ring, capture_material)
+    _set_material(crown_button, capture_material)
 
-    ring_bottom = support_top + ring_clearance
+    ring_bottom = capture_support_top + ring_clearance
     _set_bottom_z(crown_ring, ring_bottom)
     ring_min, ring_top = _world_z_bounds(crown_ring)
 
@@ -158,27 +164,32 @@ def apply(ctx):
     for rec, role in (
         (_button_record(ctx, "CaptureButton_Crown"), "capture_button"),
         (_button_record(ctx, "CaptureIndicatorRing_Crown"), "capture_indicator"),
+        (_button_record(ctx, "CapturePlatform_Crown"), "capture_platform"),
     ):
         if rec is None:
             continue
         meta = rec.setdefault("meta", {})
         meta.update({
-            "surface_anchor": "CrownPlatform/CrownSanctum",
-            "actual_support_top_z": round(support_top, 3),
+            "surface_anchor": "CapturePlatform_Crown",
+            "capture_platform": "CapturePlatform_Crown",
+            "capture_indicator": "CaptureIndicatorRing_Crown",
+            "capture_control": "CaptureButton_Crown",
+            "boss_button_separate": "Crown_BossButton",
+            "actual_capture_platform_top_z": round(capture_support_top, 3),
             "actual_world_bottom_z": round(
                 btn_min if role == "capture_button" and btn_min is not None
                 else ring_min if role == "capture_indicator" and ring_min is not None
+                else platform_min if role == "capture_platform" and platform_min is not None
                 else 0.0,
                 3,
             ),
-            "visible_above_crown_sanctum": True,
+            "visible_above_capture_platform": True,
             "raised_platform_aware": True,
+            "boss_button_not_support": True,
             "post_generation_corrected": True,
         })
 
-    # Two short visual links: Crown -> WestMonolith and Crown -> EastMonolith.
-    # The existing ring road guides remain authoritative; these links make the
-    # Crown control itself visually connected to the neighboring controls.
+    # Two short visual links: Crown capture control -> adjacent capture controls.
     guide_width = float(ctx.config["ring_road_width"]) * 0.20
     made = 0
     for neighbor in ("WestMonolith", "EastMonolith"):
@@ -189,7 +200,9 @@ def apply(ctx):
         ncenter = neighbor_obj.matrix_world.translation
         ccenter = crown_button.matrix_world.translation
         start_z = btn_top if btn_top is not None else button_bottom
-        end_z = nmin if nmin is not None else get_height_at_point(neighbor_obj.location, ctx.config, ctx.layout) + 0.15
+        end_z = nmin if nmin is not None else get_height_at_point(
+            neighbor_obj.location, ctx.config, ctx.layout
+        ) + 0.15
         name = "CrownCaptureLink_Crown_{}".format(neighbor)
         old = bpy.data.objects.get(name)
         if old is not None:
@@ -221,9 +234,10 @@ def apply(ctx):
 
     bpy.context.view_layer.update()
     print(
-        "  -> [CROWN VISUAL] support_top={:.3f}m | indicator_bottom={}m | "
-        "button_bottom={}m | raised_platform=True | visible=True".format(
-            support_top,
+        "  -> [CROWN VISUAL] capture_platform=CapturePlatform_Crown | "
+        "platform_top={:.3f}m | indicator_bottom={}m | button_bottom={}m | "
+        "boss_button=Crown_BossButton (SEPARATE)".format(
+            capture_support_top,
             "{:.3f}".format(ring_min) if ring_min is not None else "NA",
             "{:.3f}".format(btn_min) if btn_min is not None else "NA",
         )
@@ -233,7 +247,8 @@ def apply(ctx):
     )
     return {
         "passed": True,
-        "support_top_z": round(support_top, 3),
+        "capture_platform_top_z": round(capture_support_top, 3),
+        "boss_button_separate": True,
         "indicator_bottom_z": round(ring_min, 3) if ring_min is not None else None,
         "button_bottom_z": round(btn_min, 3) if btn_min is not None else None,
         "neighbor_links": made,
