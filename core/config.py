@@ -168,7 +168,9 @@ CONFIG = {
     },
     "pockets": {
         "enabled": True,
-        "center_radius": _s(153.0),
+        # Move all four pockets 1.0 m farther outward from the ring road.
+        # _s(156) = 52.0 m vs previous _s(153) = 51.0 m.
+        "center_radius": _s(156.0),
         "entry_width": _p(30.0),
         "entry_gate": {
             "target_width": _p(10.0), "rock_radius": _p(1.3),
