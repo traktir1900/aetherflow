@@ -62,6 +62,25 @@ core.environment_perimeter = importlib.reload(core.environment_perimeter)
 
 KEEP_MIN, KEEP_MAX = 5, 24
 
+
+def _remove_named_objects(ctx, names):
+    """Remove only explicit legacy props without touching gameplay structures."""
+    import bpy
+    targets = set(names)
+    removed = []
+    for obj in list(bpy.data.objects):
+        if obj.name in targets:
+            removed.append(obj.name)
+            bpy.data.objects.remove(obj, do_unlink=True)
+    if ctx is not None and hasattr(ctx, "generated_objects") and removed:
+        removed_set = set(removed)
+        ctx.generated_objects[:] = [
+            rec for rec in ctx.generated_objects
+            if str(rec.get("name", "")) not in removed_set
+        ]
+    return removed
+
+
 def _install_pocket_opening():
     original = geometry.pockets._build_rock_arc
     if getattr(original, "_aetherflow_opening", False):
@@ -119,9 +138,28 @@ def _install_crown_sanctum():
                     ]
             except Exception:
                 pass
+            removed_turret = _remove_named_objects(ctx, {"Turret_Crown"})
+            if removed_turret:
+                print("  -> removed unwanted Crown turret: {}".format(removed_turret))
         return result
     wrapper._aetherflow_crown_sanctum = True
     geometry.structures.generate_capture_points = wrapper
+
+
+def _install_base_prop_cleanup():
+    original = geometry.structures.generate_bases
+    if getattr(original, "_aetherflow_base_prop_cleanup", False):
+        return
+    def wrapper(*args, **kwargs):
+        result = original(*args, **kwargs)
+        ctx = args[0] if args else kwargs.get("ctx")
+        if ctx is not None:
+            removed = _remove_named_objects(ctx, {"Blue_Shop", "Red_Shop", "Blue_Shop.001", "Red_Shop.001"})
+            if removed:
+                print("  -> removed unwanted base shops: {}".format(removed))
+        return result
+    wrapper._aetherflow_base_prop_cleanup = True
+    geometry.structures.generate_bases = wrapper
 
 
 def _install_v064_map_patches():
@@ -148,6 +186,7 @@ def _install_viz01():
 
 _install_pocket_opening()
 _install_crown_sanctum()
+_install_base_prop_cleanup()
 _install_v064_map_patches()
 _install_viz01()
 core.pipeline = importlib.reload(core.pipeline)
@@ -158,6 +197,7 @@ print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall o
 print("[VIZ-01] PATCH ACTIVE: mirrored macro world silhouette, non-blocking")
 print("[V0.6.4.1] RESOURCE FOUNDATION: loaded by core.pipeline as Stage 6C")
 print("[V0.6.4.3] ENVIRONMENT + PERIMETER: visual-only perimeter formations + Crown/Core landmarks")
+print("[LEGACY PROPS] PATCH ACTIVE: Turret_Crown + Blue_Shop + Red_Shop removed")
 
 def run():
     geometry.map_v064_runtime.remove_obsolete_central_cube()
