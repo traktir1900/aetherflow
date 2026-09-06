@@ -37,8 +37,6 @@ CONFIG = {
     "outer_ring_radius": _s(137.5),
     "base_radius": _s(255.0),
     "base_spread_deg": 40.0,
-    # Pockets were 1m farther from the road at _s(153)=51m; move them
-    # another 4m outward: 55m actual center radius.
     "center_radius": _s(165.0),
     "core_transition_radius": _s(35.0),
     "south_rift_blend_radius": _s(62.5),
@@ -89,26 +87,19 @@ CONFIG = {
         "pocket_block_size": tuple(_gs(v) for v in (7.5, 3.75, 5.0)),
         "south_screen_size": tuple(_gs(v) for v in (12.5, 3.75, 7.0)),
     },
-    # Six central Altar cover blocks arranged as a loose hexagonal ring, leaving
-    # a clear playable center. Paired positions remain mirror-symmetric across
-    # the Y axis; rotations make each blocker tangent to the ring.
     "core_cover_positions": {
-        "north_pillar_y": _s(17.4), "side_wall_x": _s(15.0), "side_wall_y": _s(8.7),
-        "pocket_x": _s(15.0), "pocket_y": _s(-8.7), "south_screen_y": _s(-17.4),
-        "side_wall_rot_west": 60.0, "side_wall_rot_east": 120.0,
-        "pocket_rot_sw": 120.0, "pocket_rot_se": 60.0,
-        "north_pillar_rot": 0.0, "south_screen_rot": 0.0,
+        "north_pillar_y": _s(10.0), "side_wall_x": _s(11.0), "side_wall_y": _s(2.0),
+        "pocket_x": _s(7.5), "pocket_y": _s(-9.0), "south_screen_y": _s(-14.0),
     },
     "altar_protectors": {
-        "enabled": True, "count": 4, "symmetry_plane": "BOTH_AXES",
-        "mirror_axis": "x -> -x; y -> -y", "front_back_mirror": True,
+        "enabled": True, "count": 5, "symmetry_plane": "Y_AXIS",
+        "mirror_axis": "x -> -x", "front_back_mirror": False,
         "non_blocking_navigation": True, "ring_offset_from_altar_m": 3.5,
         "protector_radius_m": 0.8, "protector_height_m": 2.6,
-        "layout": "CARDINAL_CENTERED",
+        "protector_length_m": 3.6, "protector_depth_m": 1.25,
+        "layout": "CROWN_SIDE_OPEN_FIVE",
     },
     "ring_road_width": _gs(12.0), "base_road_width": _gs(8.0),
-    # Capture ramps must satisfy the 4m min-group-width contract. The explicit
-    # ramp builder uses 60% of this value, so 50 source units -> 4.0m runtime.
     "north_ramp_width": _gs(50.0), "flank_choke_width": _gs(12.5),
     "road_z_offset": _s(0.05), "ramp_run_length": _s(24.0),
     "shrine_road_offset": _s(25.0), "speed_shrine_radius": _gs(8.75),
