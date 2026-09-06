@@ -16,17 +16,14 @@ def _vec3(v):
 
 
 def _build_base_shops(ctx):
-    """Create temporary rectangular shop shells behind each base's flat edge.
+    """Create temporary rectangular shop shells immediately outside each base's flat D-edge.
 
-    The shop currently spans the full straight rear edge of the semi-oval base.
-    It is deliberately a simple rectangle for the blockout stage; gameplay
-    logic, doors, shelves, NPCs and visual detailing are deferred.
+    The shop width spans the complete straight edge of the semi-oval base. Its
+    local Y axis points outward, so the block sits beside the straight edge
+    instead of extending back across the rounded/base area.
     """
     cfg = ctx.config
-    width = float(cfg.get(
-        "base_shop_width",
-        cfg.get("base_platform_width_radius", 0.0) * 2.0,
-    ))
+    width = float(cfg.get("base_shop_width", cfg.get("base_platform_width_radius", 0.0) * 2.0))
     depth = float(cfg.get("base_shop_depth", 0.0))
     height = float(cfg.get("base_shop_height", 0.0))
     gap = float(cfg.get("base_shop_gap", 0.0))
@@ -35,10 +32,7 @@ def _build_base_shops(ctx):
     if width <= 0.0 or depth <= 0.0 or height <= 0.0:
         return built
 
-    for team, base_key, material_name in [
-        ("Blue", "BlueBase", "blue_team"),
-        ("Red", "RedBase", "red_team"),
-    ]:
+    for team, base_key, material_name in [("Blue", "BlueBase", "blue_team"), ("Red", "RedBase", "red_team")]:
         base_pos = ctx.layout[base_key].copy()
         base_pos.z = float(base_pos.z)
 
@@ -46,21 +40,15 @@ def _build_base_shops(ctx):
         if toward_center.length < 1e-6:
             toward_center = Vector((0.0, 1.0, 0.0))
         toward_center.normalize()
-
-        # Flat base edge is at the anchor. Shop occupies the space outward,
-        # i.e. opposite the center-facing direction.
         outward = -toward_center
-        side = Vector((-toward_center.y, toward_center.x, 0.0))
-        rot_z = math.atan2(side.y, side.x)
 
+        # Local X spans the flat D-edge; local Y points outward from the base.
+        rot_z = math.atan2(outward.y, outward.x) - math.pi / 2.0
         center = base_pos + outward * (gap + depth * 0.5)
+
         bm = bmesh.new()
         bmesh.ops.create_cube(bm, size=1.0)
-        bmesh.ops.scale(
-            bm,
-            vec=Vector((width, depth, height)),
-            verts=bm.verts,
-        )
+        bmesh.ops.scale(bm, vec=Vector((width, depth, height)), verts=bm.verts)
         bmesh.ops.rotate(
             bm,
             cent=Vector((0.0, 0.0, 0.0)),
@@ -88,16 +76,14 @@ def _build_base_shops(ctx):
                 "purpose": "base_shop",
                 "rear_of_base": True,
                 "spans_full_base_flat_edge": True,
+                "adjacent_to_flat_edge": True,
+                "orientation": "outward_from_base",
                 "navigation_blocker": False,
             },
         )
         built.append(obj)
 
-    print(
-        "  -> Base shops: {} temporary rear rectangles | full flat-edge span".format(
-            len(built)
-        )
-    )
+    print("  -> Base shops: {} temporary rectangles | adjacent to straight D-edge | full-width".format(len(built)))
     return built
 
 
@@ -107,15 +93,9 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
     half = cfg["ground_half_size"]
     world_half = cfg["world_floor_half_size"]
 
-    # Temporary blockout shop geometry is generated at export/save stage so it
-    # remains outside gameplay topology for now.
     _build_base_shops(ctx)
 
-    terrain = {
-        "ground_half_size": half,
-        "world_floor_half_size": world_half,
-        "anchors": {},
-    }
+    terrain = {"ground_half_size": half, "world_floor_half_size": world_half, "anchors": {}}
     for key in ("Center", "Crown", "WestMonolith", "EastMonolith", "SWMonolith", "SEMonolith", "BlueBase", "RedBase", "SouthRift"):
         if key in layout:
             terrain["anchors"][key] = _vec3(layout[key])
@@ -153,13 +133,14 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
                 "height": shop_height,
                 "rear_of_base": True,
                 "spans_full_base_flat_edge": True,
+                "adjacent_to_flat_edge": True,
+                "orientation": "outward_from_base",
             },
         }
-        # Backward-compatible radius field for consumers still expecting it.
         entry["radius"] = cfg.get("base_platform_radius", base_width / 2.0)
         bases.append(entry)
 
-    data = {
+    return {
         "version": get_version(),
         "generator": "AetherFlow procedural pipeline",
         "seed": cfg.get("seed"),
@@ -176,7 +157,6 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
         "navigation": nav,
         "validation": validation,
     }
-    return data
 
 
 def write_map_data(ctx, path, sim=None, nav=None, validation=None):
