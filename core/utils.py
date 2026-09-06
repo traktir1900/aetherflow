@@ -2,7 +2,7 @@
 AetherFlow :: core/utils.py
 Scene helpers with SAFE generation semantics + real object transforms.
 
-clear_scene() is destructive.  It is gated by config["scene"]["allow_scene_reset"]
+clear_scene() is destructive. It is gated by config["scene"]["allow_scene_reset"]
 (default False) so a manual .blend — including the Aether Altar, Aether Crown,
 user assets and hand-placed objects — is never erased unless the operator
 explicitly enables a full reset in a dedicated procedural scene.
@@ -12,7 +12,7 @@ collections are cleared, everything else is left untouched.
 
 finalize_bmesh() re-bases every mesh around its centroid and stores the
 centroid in obj.location, so every generated object carries a REAL world
-transform.  Export, navigation blockers and validation all rely on this.
+transform. Export, navigation blockers and validation all rely on this.
 """
 import bpy
 from mathutils import Vector, Matrix
@@ -70,6 +70,26 @@ def setup_collections(ctx):
         ctx.collections[name] = coll
 
 
+def _persist_meta_properties(obj, kind, meta):
+    """Persist audit/gameplay flags as Blender custom properties.
+
+    Generation-time metadata historically lived only in MapContext, which made
+    the read-only auditor unable to distinguish intentional non-blockers (for
+    example temporary base shops) from real gameplay collision geometry after a
+    scene was saved.  Keep the complete metadata under a namespaced JSON blob
+    and also expose the two boolean blocker flags directly for lightweight
+    raycast/navigation consumers.
+    """
+    meta = dict(meta or {})
+    obj["aetherflow_kind"] = str(kind)
+    obj["aetherflow_meta_json"] = __import__("json").dumps(meta, ensure_ascii=False, sort_keys=True)
+
+    if "navigation_blocker" in meta:
+        obj["navigation_blocker"] = bool(meta["navigation_blocker"])
+    if "los_blocker" in meta:
+        obj["los_blocker"] = bool(meta["los_blocker"])
+
+
 def finalize_bmesh(bm, name, collection_key, material, ctx, kind="prop", dims=None, meta=None):
     """Turn a bmesh into a real object with a real transform, then register it
     for export / navigation / validation."""
@@ -94,5 +114,6 @@ def finalize_bmesh(bm, name, collection_key, material, ctx, kind="prop", dims=No
     ctx.get_collection(collection_key).objects.link(obj)
     if material:
         obj.data.materials.append(material)
+    _persist_meta_properties(obj, kind, meta)
     ctx.register(obj, kind, dims=dims, meta=meta)
     return obj
