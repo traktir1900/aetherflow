@@ -246,6 +246,7 @@ def generate_resource_foundation(ctx):
             len(created), len([o for o in created if o.get("resource_type") == "SpeedShrine"]),
             len([o for o in created if o.get("resource_type") == "HealthRelic"]),
             "PASS" if report["passed"] else "FAIL", report["max_error_m"])
+    )
     return {
         "enabled": True,
         "pairs": ["SpeedShrine", "HealthRelic"],
