@@ -4,25 +4,13 @@ AetherFlow :: main.py  (v0.6.1)
 THIN ENTRY POINT.  All generation lives in core.pipeline — main.py only:
   1. locates the project root (NO hardcoded machine paths),
   2. puts it on sys.path,
-  3. calls core.pipeline.run_pipeline().
+  3. reloads editable geometry modules for iterative Blender runs,
+  4. calls core.pipeline.run_pipeline().
 
-Project-root discovery, in order:
-  1. the executing main.py itself (__file__, abspath + realpath normalized);
-  2. Blender Text Block sources — the active text in the Scripting editor and
-     any open text block loaded from disk (edit_text / space_data.text /
-     bpy.data.texts filepaths). A script OPENED from disk keeps its filepath
-     even when executed from inside Blender;
-  3. the folder of the open .blend file (bpy.data.filepath);
-  4. script paths passed on the command line
-     (`blender --background x.blend --python main.py`);
-  5. every directory already on sys.path;
-  6. the current working directory.
-
-From EACH starting point the search WALKS UP the directory tree and checks
-<dir>/core/config.py at every level, so the project is found regardless of
-where Blender is installed and which directory it was started from.  Nothing
-is restricted to the Blender install folder or the drive root.
+Project-root discovery is intentionally independent from the Blender install
+folder and supports scripts opened from Blender's Text Editor.
 """
+import importlib
 import os
 import sys
 
@@ -34,11 +22,6 @@ def _is_project_dir(path):
 
 
 def _walk_up(start_dir, probed):
-    """Check start_dir and every parent up to the filesystem root.
-
-    Returns the project root or None.  Every directory actually checked is
-    recorded in `probed` (deduplicated, order preserved) for diagnostics.
-    """
     try:
         p = os.path.abspath(os.path.realpath(start_dir))
     except (OSError, ValueError):
@@ -55,7 +38,6 @@ def _walk_up(start_dir, probed):
 
 
 def _candidate_starts():
-    """Ordered starting points for the project-root search."""
     starts = []
 
     def add_file(path):
@@ -141,7 +123,7 @@ if PROJECT_ROOT is None:
         "    main.py from the project folder (a pasted Text Block has no\n"
         "    filepath and cannot be resolved), or\n"
         "  * open a .blend that lies inside the project folder, or\n"
-        "  * run: blender --background <project>" + os.sep + "AetherFlow.blend"
+        "  * run blender --background <project>" + os.sep + "AetherFlow.blend"
         " --python <project>" + os.sep + "main.py"
     )
 
@@ -155,6 +137,14 @@ print(PROJECT_ROOT)
 print("=" * 60)
 
 import core.pipeline  # noqa: E402
+import geometry.structures  # noqa: E402
+
+# Blender keeps imported Python modules cached. Explicitly reload the edited
+# geometry module so rerunning the real main.py immediately uses the curved
+# road implementation without restarting Blender.
+geometry.structures = importlib.reload(geometry.structures)
+core.pipeline = importlib.reload(core.pipeline)
+# pipeline imports the same module object, now containing the refreshed code.
 
 
 def run():
