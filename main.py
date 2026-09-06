@@ -138,13 +138,82 @@ print("=" * 60)
 
 import core.pipeline  # noqa: E402
 import geometry.structures  # noqa: E402
+import geometry.pockets  # noqa: E402
 
 # Blender keeps imported Python modules cached. Explicitly reload the edited
-# geometry module so rerunning the real main.py immediately uses the curved
-# road implementation without restarting Blender.
+# geometry modules so rerunning the real main.py immediately uses the current
+# geometry implementation without restarting Blender.
 geometry.structures = importlib.reload(geometry.structures)
+geometry.pockets = importlib.reload(geometry.pockets)
 core.pipeline = importlib.reload(core.pipeline)
 # pipeline imports the same module object, now containing the refreshed code.
+
+
+# v0.6.3 pocket opening refinement:
+# Keep the existing pocket location/shape, but remove the front-side arc-rocks
+# on the circular run from ArcRock05 through ArcRock24. In generated numbering
+# this clears ArcRock01-04 and ArcRock25-28, leaving a single readable opening
+# between ArcRock24 and ArcRock05. The exact same wrapper is used for the
+# canonical pocket on each mirror pair, so x -> -x symmetry is preserved.
+_POCKET_OPEN_START = 5
+_POCKET_OPEN_END = 24
+
+
+def _install_pocket_arc_opening():
+    original = geometry.pockets._build_rock_arc
+
+    def _build_rock_arc_opening(*args, **kwargs):
+        result = original(*args, **kwargs)
+        try:
+            arc_objs, arc_keep, metrics = result
+        except (TypeError, ValueError):
+            return result
+
+        kept_objs = []
+        kept_keep = []
+        removed = []
+        for obj, keep in zip(arc_objs, arc_keep):
+            idx = None
+            marker = "_ArcRock"
+            if marker in getattr(obj, "name", ""):
+                tail = obj.name.split(marker, 1)[1]
+                digits = "".join(ch for ch in tail if ch.isdigit())
+                if digits:
+                    idx = int(digits)
+            if idx is not None and not (_POCKET_OPEN_START <= idx <= _POCKET_OPEN_END):
+                removed.append(obj)
+                continue
+            kept_objs.append(obj)
+            kept_keep.append(keep)
+
+        if not removed:
+            return result
+
+        try:
+            import bpy
+            for obj in removed:
+                bpy.data.objects.remove(obj, do_unlink=True)
+        except Exception:
+            pass
+
+        removed_ids = {id(obj) for obj in removed}
+        ctx = args[0] if args else None
+        if ctx is not None and hasattr(ctx, "generated_objects"):
+            ctx.generated_objects[:] = [
+                rec for rec in ctx.generated_objects
+                if id(rec.get("object")) not in removed_ids
+            ]
+
+        metrics = dict(metrics or {})
+        metrics["segment_count"] = len(kept_objs)
+        metrics["opening"] = "ArcRock24 -> ArcRock05"
+        metrics["opening_removed"] = [getattr(obj, "name", "") for obj in removed]
+        return kept_objs, kept_keep, metrics
+
+    geometry.pockets._build_rock_arc = _build_rock_arc_opening
+
+
+_install_pocket_arc_opening()
 
 
 def run():
