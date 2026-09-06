@@ -15,6 +15,95 @@ def _vec3(v):
     return [round(float(v.x), 3), round(float(v.y), 3), round(float(v.z), 3)]
 
 
+def _plain(value):
+    """Convert Blender/math values into JSON-safe plain Python values."""
+    if isinstance(value, Vector):
+        return _vec3(value)
+    if isinstance(value, dict):
+        return {str(k): _plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _record_export(rec):
+    """Serialize one ctx.generated_objects record without losing live identity."""
+    obj = rec.get("object")
+    dims = rec.get("dimensions")
+    if dims is None and obj is not None:
+        dims = tuple(float(v) for v in obj.dimensions)
+    location = _vec3(obj.location) if obj is not None else [0.0, 0.0, 0.0]
+    return {
+        "name": str(rec.get("name", getattr(obj, "name", "Object"))),
+        "type": str(rec.get("type", "unknown")),
+        "location": location,
+        "dimensions": _plain(list(dims)) if dims is not None else None,
+        "meta": _plain(rec.get("meta") or {}),
+    }
+
+
+def _build_generated_buckets(ctx):
+    """Export the complete generated-object registry into stable audit buckets.
+
+    The registry is the authoritative per-run source for geometry that used to
+    exist only in Blender memory.  Buckets are intentionally redundant: each
+    object is kept in `objects`, while gameplay consumers also get focused
+    `cover`, `rocks`, `roads`, `ramps`, `floors`, and `props` lists.
+    """
+    objects = [_record_export(rec) for rec in ctx.generated_objects]
+    buckets = {
+        "objects": objects,
+        "cover": [],
+        "rocks": [],
+        "roads": [],
+        "ramps": [],
+        "floors": [],
+        "props": [],
+        "terrain_objects": [],
+        "landmarks": [],
+    }
+
+    for item in objects:
+        kind = item["type"]
+        meta = item.get("meta") or {}
+        name = item["name"]
+        element = str(meta.get("element", "")).lower()
+
+        if kind == "cover":
+            buckets["cover"].append(item)
+        elif kind == "altar_obstacle":
+            # Keep altar blockers visible to both legacy and v0.6 auditors.
+            buckets["cover"].append(item)
+            buckets["rocks"].append(item)
+        elif kind == "rock":
+            buckets["rocks"].append(item)
+        elif kind == "road":
+            buckets["roads"].append(item)
+        elif kind == "ramp":
+            buckets["ramps"].append(item)
+        elif kind == "floor":
+            buckets["floors"].append(item)
+        elif kind in ("terrain", "safety_floor"):
+            buckets["terrain_objects"].append(item)
+        elif kind in ("altar", "landmark"):
+            buckets["landmarks"].append(item)
+        else:
+            buckets["props"].append(item)
+
+        # Some legacy tooling classifies by element rather than type.
+        if element == "interior_cover" and item not in buckets["cover"]:
+            buckets["cover"].append(item)
+        if element == "cover" and item not in buckets["cover"]:
+            buckets["cover"].append(item)
+
+    return buckets
+
+
 def _build_base_shops(ctx):
     """Create temporary rectangular shop shells immediately outside each base's flat D-edge.
 
@@ -79,11 +168,12 @@ def _build_base_shops(ctx):
                 "adjacent_to_flat_edge": True,
                 "orientation": "outward_from_base",
                 "navigation_blocker": False,
+                "los_blocker": False,
             },
         )
         built.append(obj)
 
-    print("  -> Base shops: {} temporary rectangles | adjacent to straight D-edge | full-width".format(len(built)))
+    print("  -> Base shops: {} temporary rectangles | adjacent to straight D-edge | full-width | non-blocking".format(len(built)))
     return built
 
 
@@ -94,6 +184,7 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
     world_half = cfg["world_floor_half_size"]
 
     _build_base_shops(ctx)
+    buckets = _build_generated_buckets(ctx)
 
     terrain = {"ground_half_size": half, "world_floor_half_size": world_half, "anchors": {}}
     for key in ("Center", "Crown", "WestMonolith", "EastMonolith", "SWMonolith", "SEMonolith", "BlueBase", "RedBase", "SouthRift"):
@@ -135,10 +226,26 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
                 "spans_full_base_flat_edge": True,
                 "adjacent_to_flat_edge": True,
                 "orientation": "outward_from_base",
+                "navigation_blocker": False,
+                "los_blocker": False,
             },
         }
         entry["radius"] = cfg.get("base_platform_radius", base_width / 2.0)
         bases.append(entry)
+
+    # Stable Altar landmark contract used by the gameplay auditor.
+    landmarks = list(buckets["landmarks"])
+    if not any(item.get("type") == "altar" for item in landmarks):
+        altar = buckets["objects"]
+        altar = next((item for item in altar if item["name"] == "Altar_Base"), None)
+        if altar is not None:
+            landmarks.append({
+                "name": altar["name"],
+                "type": "altar",
+                "location": altar["location"],
+                "dimensions": altar["dimensions"],
+                "meta": altar.get("meta", {}),
+            })
 
     return {
         "version": get_version(),
@@ -153,6 +260,16 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
         "terrain": terrain,
         "capture_points": capture_points,
         "bases": bases,
+        "pockets": _plain(ctx.pockets),
+        "landmarks": _plain(landmarks),
+        "cover": buckets["cover"],
+        "rocks": buckets["rocks"],
+        "roads": buckets["roads"],
+        "ramps": buckets["ramps"],
+        "floors": buckets["floors"],
+        "props": buckets["props"],
+        "terrain_objects": buckets["terrain_objects"],
+        "objects": buckets["objects"],
         "simulation": sim,
         "navigation": nav,
         "validation": validation,
