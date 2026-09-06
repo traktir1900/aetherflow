@@ -105,6 +105,20 @@ def _install_crown_sanctum():
         ctx = args[0] if args else kwargs.get("ctx")
         if ctx is not None:
             geometry.crown_sanctum_runtime.generate(ctx)
+            # Crown Sanctum should keep the architectural half-coliseum, rise,
+            # and boss button, but not the four legacy flanking pillar props.
+            try:
+                import bpy
+                for obj in list(bpy.data.objects):
+                    if obj.name.startswith("Crown_ColiseumPillar"):
+                        bpy.data.objects.remove(obj, do_unlink=True)
+                if hasattr(ctx, "generated_objects"):
+                    ctx.generated_objects[:] = [
+                        rec for rec in ctx.generated_objects
+                        if not str(rec.get("name", "")).startswith("Crown_ColiseumPillar")
+                    ]
+            except Exception:
+                pass
         return result
     wrapper._aetherflow_crown_sanctum = True
     geometry.structures.generate_capture_points = wrapper
