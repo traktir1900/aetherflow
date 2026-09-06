@@ -1,10 +1,11 @@
 """AetherFlow V0.6.4.1 — Resource Foundation.
 
-Creates six neutral visual resource locations from the authoritative map layout:
-three Speed Shrines and three Health Relics. The placement is gameplay-driven,
-deterministic, and team-symmetric wherever a flank pair exists. Geometry is
-visual-only and non-blocking; actual resource gameplay remains a future
-UE5/runtime system.
+Creates eleven neutral visual resource locations from the authoritative map layout:
+three Speed Shrines and eight Health Relics. Health Relics include three
+rotation/return resources plus one resource at each of the five capture points.
+The placement is gameplay-driven, deterministic, and team-symmetric wherever a
+flank pair exists. Geometry is visual-only and non-blocking; actual resource
+gameplay remains a future UE5/runtime system.
 """
 import math
 
@@ -29,15 +30,9 @@ def _material(ctx, name, fallback="rock"):
 
 def _new_resource_mesh(name, center, radius, material, ctx, resource_type, resource_id,
                        anchor, supporting, role, mirror_id=None):
-    """Create one complete resource marker as one Blender object.
-
-    Keeping each gameplay resource as a single object makes the six-resource
-    layout explicit and avoids turning one gameplay pickup into four unrelated
-    scene objects.
-    """
+    """Create one complete resource marker as one Blender object."""
     bm = bmesh.new()
 
-    # Low technical plinth.
     bmesh.ops.create_cone(
         bm,
         cap_ends=True,
@@ -49,7 +44,6 @@ def _new_resource_mesh(name, center, radius, material, ctx, resource_type, resou
         calc_uvs=False,
     )
 
-    # Raised central beacon.
     beacon_radius = radius * 0.18
     beacon_height = radius * 0.95
     beacon = bmesh.ops.create_cone(
@@ -68,7 +62,6 @@ def _new_resource_mesh(name, center, radius, material, ctx, resource_type, resou
         verts=beacon.get("verts", []),
     )
 
-    # One visible ring, built procedurally for Blender 5.2 compatibility.
     ring_radius = radius * 0.78
     tube = max(radius * 0.08, 0.06)
     segments = 28
@@ -190,6 +183,7 @@ def generate_resource_foundation(ctx):
     health_offset_y = float(cfg.get("health_offset_y", -3.5))
     speed_north_t = float(cfg.get("speed_north_t", 0.55))
     health_south_t = float(cfg.get("health_south_t", 0.55))
+    capture_health_offset = float(cfg.get("capture_health_offset_m", 1.8))
 
     speed_flank = center.lerp(west, speed_t)
     speed_flank_y = float(speed_flank.y) + speed_offset_y
@@ -199,11 +193,8 @@ def generate_resource_foundation(ctx):
     health_flank_y = float(health_flank.y) + health_offset_y
     health_x = abs(float(health_flank.x))
 
-    # Central Speed Shrine controls the Crown approach / north rotation.
     speed_north = center.lerp(crown, speed_north_t)
 
-    # Central Health Relic controls the south return / base approach. The
-    # midpoint between the two bases keeps the location team-neutral.
     base_midpoint = blue_base.lerp(red_base, 0.5)
     health_south = center.lerp(base_midpoint, health_south_t)
 
@@ -239,19 +230,60 @@ def generate_resource_foundation(ctx):
             health_material),
     ]
 
+    # One additional Health Relic at every capture point. The relic sits on the
+    # inward-facing side of the capture platform so it supports contest/retreat
+    # decisions without occupying the objective itself.
+    capture_platform_radius = float(ctx.config.get("capture_platform_radius", 0.0))
+    capture_points = ["Crown", "EastMonolith", "SEMonolith", "SWMonolith", "WestMonolith"]
+    for point_name in capture_points:
+        point = layout[point_name]
+        radial = Vector((point.x, point.y, 0.0))
+        radial_len = radial.length
+        if radial_len <= CENTERLINE_TOLERANCE_M:
+            inward = Vector((0.0, -1.0, 0.0))
+        else:
+            inward = Vector((-radial.x / radial_len, -radial.y / radial_len, 0.0))
+        offset = capture_platform_radius + capture_health_offset
+        resource_point = point + inward * offset
+        mirror_id = None
+        if point_name == "WestMonolith":
+            mirror_id = "HealthRelic_Capture_East"
+        elif point_name == "EastMonolith":
+            mirror_id = "HealthRelic_Capture_West"
+        elif point_name == "SWMonolith":
+            mirror_id = "HealthRelic_Capture_SE"
+        elif point_name == "SEMonolith":
+            mirror_id = "HealthRelic_Capture_SW"
+        created.append(
+            _resource_location(
+                ctx,
+                "HealthRelic",
+                "HealthRelic_Capture_{}".format(point_name),
+                float(resource_point.x),
+                float(resource_point.y),
+                health_radius,
+                "{} capture point".format(point_name),
+                "CapturePointApproach",
+                "capture_point_health",
+                health_material,
+                mirror_id=mirror_id,
+            )
+        )
+
     report = audit_resource_symmetry(created)
+    speed_count = len([o for o in created if o.get("resource_type") == "SpeedShrine"])
+    health_count = len([o for o in created if o.get("resource_type") == "HealthRelic"])
     print(
-        "  -> V0.6.4.1 resources: total=6 | SpeedShrine=3 | HealthRelic=3 | "
-        "visual_objects={} | symmetry={} | max_error={:.6f}m".format(
-            len(created), len([o for o in created if o.get("resource_type") == "SpeedShrine"]),
-            len([o for o in created if o.get("resource_type") == "HealthRelic"]),
+        "  -> V0.6.4.1 resources: total={} | SpeedShrine={} | HealthRelic={} | "
+        "capture_health=5 | visual_objects={} | symmetry={} | max_error={:.6f}m".format(
+            len(created), speed_count, health_count, len(created),
             "PASS" if report["passed"] else "FAIL", report["max_error_m"])
     )
     return {
         "enabled": True,
         "pairs": ["SpeedShrine", "HealthRelic"],
         "resource_types": ["SpeedShrine", "HealthRelic"],
-        "markers": 6,
+        "markers": len(created),
         "objects": created,
         **report,
     }
