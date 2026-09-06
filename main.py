@@ -81,6 +81,24 @@ def _remove_named_objects(ctx, names):
     return removed
 
 
+def _remove_named_prefix_objects(ctx, prefixes):
+    """Remove only explicit generated visual-prop name families."""
+    import bpy
+    prefixes = tuple(prefixes)
+    removed = []
+    for obj in list(bpy.data.objects):
+        if any(obj.name.startswith(prefix) for prefix in prefixes):
+            removed.append(obj.name)
+            bpy.data.objects.remove(obj, do_unlink=True)
+    if ctx is not None and hasattr(ctx, "generated_objects") and removed:
+        removed_set = set(removed)
+        ctx.generated_objects[:] = [
+            rec for rec in ctx.generated_objects
+            if str(rec.get("name", "")) not in removed_set
+        ]
+    return removed
+
+
 def _install_pocket_opening():
     original = geometry.pockets._build_rock_arc
     if getattr(original, "_aetherflow_opening", False):
@@ -177,6 +195,14 @@ def _install_viz01():
         if ctx is not None:
             viz = core.world_silhouette.generate_world_silhouette(ctx)
             env = core.environment_perimeter.generate_environment_perimeter(ctx)
+            # Remove the reviewed-out Crown approach props. Keep Crown itself,
+            # its platform, boss sanctum, and all authoritative gameplay geometry.
+            removed_crown_props = _remove_named_prefix_objects(
+                ctx,
+                ("CrownApproachLandmark01", "CrownApproachLandmark02"),
+            )
+            if removed_crown_props:
+                print("  -> removed unwanted Crown approach props: {}".format(removed_crown_props))
             if isinstance(result, dict):
                 result["viz01"] = viz
                 result["v0643_environment"] = env
