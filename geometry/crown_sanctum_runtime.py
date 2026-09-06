@@ -33,8 +33,11 @@ def _cube(ctx, name, center, size, rot_z, kind="cover", material_key="rock", met
 
 
 def _smooth_rise(ctx, center, ground_z):
-    outer_a = 15.75
-    outer_b = 10.50
+    # Current rise height: 0.441m. Keep the low profile.
+    # Reduce the previous semi-oval footprint by 50% while keeping it aligned
+    # with the coliseum wall.
+    outer_a = 7.875
+    outer_b = 5.25
     button_r = 3.2
     height = 0.441
     rings = 18
@@ -75,8 +78,8 @@ def _smooth_rise(ctx, center, ground_z):
             "rise_height_m": height,
             "approach": "SMOOTH_SEMI_OVAL",
             "alignment": "ALONG_COLISEUM_WALL",
-            "outer_extent_scale": 1.50,
-            "height_scale": 0.315,
+            "outer_extent_scale": 0.75,
+            "footprint_scale_from_previous": 0.50,
             "button_seated_on_rise": True,
             "anchor_unchanged": True,
         },
@@ -87,8 +90,6 @@ def _boss_button(ctx, center, ground_z):
     radius = 3.2
     height = 0.25
     rise_height = 0.441
-    # The button is placed ON TOP of the rise. Its bottom rests exactly at the
-    # rise top and its center is half its thickness above that surface.
     top_z = ground_z + rise_height + height
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=40, radius1=radius, radius2=radius, depth=height)
@@ -192,6 +193,7 @@ def generate(ctx):
     created.extend(_half_coliseum(ctx, center, ground_z))
     print(
         "  -> Crown Sanctum: rise=0.441m | button seated on rise | "
-        "semi-oval approach=31.5x21.0m | ruined half-coliseum=18.4x11.5m"
+        "semi-oval approach=15.75x10.50m (-50% from previous) | "
+        "ruined half-coliseum=18.4x11.5m | aligned along coliseum wall"
     )
     return created
