@@ -25,6 +25,7 @@ OBJECTIVE_NEAR_MAX = 18.0
 OBJECTIVE_FAR_MIN = 21.0
 OBJECTIVE_FAR_MAX = 28.0
 OBJECTIVE_COVER_PAIR_MIN = 10.0
+OBJECTIVE_COVER_GEOMETRY_SCALE = 1.0 / 3.0
 
 
 def _objective_basis(point):
@@ -127,10 +128,6 @@ def _pick_objective_cover(ctx, pname, point):
     if far:
         selected.append(far[0])
 
-    # Hard invariant: every objective gets exactly two pieces. If the optimizer
-    # cannot provide the second valid candidate, add a deterministic deep-flank
-    # fallback on the opposite tangent side. This fallback is NEVER another
-    # near-ring piece.
     if not selected:
         selected.append(_make_fallback((-15.0 * scale, 4.5 * scale), 0, scale))
 
@@ -139,8 +136,6 @@ def _pick_objective_cover(ctx, pname, point):
         deep_x = -24.0 * scale if first_x >= 0.0 else 24.0 * scale
         selected.append(_make_fallback((deep_x, 7.0 * scale), 1, scale))
 
-    # Absolute safety: force one near ring + one deep ring while preserving the
-    # optimizer's chosen candidates whenever they satisfy the tactical bands.
     selected.sort(key=_dist_local)
     if not _valid_tactical(selected[0], scale, OBJECTIVE_NEAR_MIN, OBJECTIVE_NEAR_MAX):
         selected[0] = _make_fallback((-15.0 * scale, 4.5 * scale), 0, scale)
@@ -157,6 +152,10 @@ def _make_cover(ctx, name, objective_name, point, local_x, local_y,
     u, t = _objective_basis(point)
     pos = point + t * local_x + u * local_y
     pos.z = get_height_at_point(pos, cfg, ctx.layout)
+
+    geometry_scale = OBJECTIVE_COVER_GEOMETRY_SCALE
+    radius *= geometry_scale
+    height *= geometry_scale
 
     bm = bmesh.new()
     bmesh.ops.create_icosphere(bm, subdivisions=2, radius=radius)
@@ -197,6 +196,7 @@ def _make_cover(ctx, name, objective_name, point, local_x, local_y,
             "cover_role": role,
             "cover_source": "shared_cover_optimizer",
             "objective": objective_name,
+            "geometry_scale": geometry_scale,
             "footprint_radius": radius * 1.20,
             "rot_z": yaw_deg,
             "optimizer_score": round(float(source_score), 3),
@@ -298,23 +298,17 @@ def _paired_objective_plan(ctx):
         analyses[target] = dict(source_stats)
 
     crown_specs, crown_stats = _pick_objective_cover(ctx, "Crown", layout["Crown"])
-    # Crown lies on the mirror plane. Generate its second piece as the exact
-    # mirror of the first. The selected pair therefore has identical size and
-    # world-space dimensions but opposite X displacement from the axis.
     crown_mirrors = []
     if crown_specs:
         first = crown_specs[0]
-        mirrored_world = Vector((-_spec_world_xy(layout["Crown"], first).x,
-                                 _spec_world_xy(layout["Crown"], first).y,
-                                 0.0))
+        first_world = _spec_world_xy(layout["Crown"], first)
+        mirrored_world = Vector((-first_world.x, first_world.y, 0.0))
         mirrored_local = _world_to_local(layout["Crown"], mirrored_world)
         mirror_spec = dict(first)
         mirror_spec["local"] = mirrored_local
         crown_mirrors.append(mirror_spec)
 
     crown_plan = list(crown_specs[:1]) + crown_mirrors
-    # Absolute contract: Crown still gets two pieces even if the optimiser
-    # returned an empty/degenerate candidate list.
     if not crown_plan:
         crown_plan = _pick_objective_cover(ctx, "Crown", layout["Crown"])[0]
     if len(crown_plan) < 2 and crown_plan:
@@ -344,7 +338,6 @@ def generate_objective_cover(ctx):
         point = ctx.layout[pname]
         specs = list(plans.get(pname, []))
         if len(specs) < 2:
-            # This should never happen, but preserve the hard two-piece contract.
             specs, fallback_stats = _pick_objective_cover(ctx, pname, point)
             analyses[pname] = fallback_stats
         specs = specs[:OBJECTIVE_COVER_MAX]
@@ -394,4 +387,5 @@ def run_gameplay_cover_pass(ctx):
             "generation_mode": "canonical-plan + exact world-space mirror",
             "crown_self_mirrored": True,
         },
+        "geometry_scale": OBJECTIVE_COVER_GEOMETRY_SCALE,
     }
