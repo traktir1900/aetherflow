@@ -1,6 +1,6 @@
 """
-AetherFlow :: core/config.py  (v0.6.3.2)
-SCALE-DRIVEN CONFIG — the single source for all map dimensions.
+AetherFlow :: core/config.py (v0.6.3.2)
+SCALE-DRIVEN CONFIG — single source for map dimensions.
 """
 
 GROUND_HALF_SIZE = 100.0
@@ -8,14 +8,22 @@ WORLD_FLOOR_HALF_SIZE = 110.0
 _BASE_HALF = 300.0
 _S = GROUND_HALF_SIZE / _BASE_HALF
 
-# Visual/gameplay prop scale: keep the map footprint and anchors fixed,
-# but reduce pocket and objective-turret geometry to 40% of the old size.
-# This is a 60% size reduction. Gameplay-critical symmetry remains enforced.
-POCKET_TURRET_GEOMETRY_SCALE = 0.40
+# Global geometry reduction requested for the generated object layer.
+# Map footprint, anchors and terrain remain fixed; physical structures use 40%.
+GEOMETRY_SCALE = 0.40
+POCKET_TURRET_GEOMETRY_SCALE = GEOMETRY_SCALE
 
 
 def _s(v):
     return v * _S
+
+
+def _g(v):
+    return v * GEOMETRY_SCALE
+
+
+def _gs(v):
+    return _s(v) * GEOMETRY_SCALE
 
 CONFIG = {
     "seed": 1337,
@@ -66,44 +74,44 @@ CONFIG = {
         "plane": "Y_AXIS",
         "transform": "(x,y,z) -> (-x,y,z)",
         "tolerance_m": 0.25,
-        "apply_to": [
-            "bases", "capture_points", "roads", "ramps", "pockets",
-            "gameplay_cover", "altar_protectors", "terrain_heights",
-            "gameplay_markers", "future_spawns", "future_shops"
-        ],
+        "apply_to": ["bases", "capture_points", "roads", "ramps", "pockets",
+                      "gameplay_cover", "altar_protectors", "terrain_heights",
+                      "gameplay_markers", "future_spawns", "future_shops"],
         "decorative_exempt": True,
         "validation_is_hard_gate": True,
     },
-    "capture_platform_radius": _s(20.0),
-    "capture_platform_height": _s(1.5),
-    "turret_offset": _s(27.5) * POCKET_TURRET_GEOMETRY_SCALE,
-    "turret_radius_base": _s(4.5) * POCKET_TURRET_GEOMETRY_SCALE,
-    "turret_radius_top": _s(2.25) * POCKET_TURRET_GEOMETRY_SCALE,
-    "turret_depth": _s(10.0) * POCKET_TURRET_GEOMETRY_SCALE,
-    "turret_z_offset": _s(5.0) * POCKET_TURRET_GEOMETRY_SCALE,
+
+    # Objective / base geometry: reduced, but XY anchors remain fixed.
+    "capture_platform_radius": _gs(20.0),
+    "capture_platform_height": _gs(1.5),
+    "turret_offset": _gs(27.5),
+    "turret_radius_base": _gs(4.5),
+    "turret_radius_top": _gs(2.25),
+    "turret_depth": _gs(10.0),
+    "turret_z_offset": _gs(5.0),
     "altar": {
-        "base_radius1": _s(4.5), "base_radius2": _s(4.0),
-        "base_depth": _s(0.8), "crown_radius": _s(1.4), "crown_z": _s(2.0),
+        "base_radius1": _gs(4.5), "base_radius2": _gs(4.0),
+        "base_depth": _gs(0.8), "crown_radius": _gs(1.4), "crown_z": _gs(2.0),
     },
     "choke_rock": {
-        "radius1": _s(2.8), "radius2": _s(1.5), "depth": _s(4.5),
-        "lateral_extra": _s(2.5), "z_offset": _s(2.25),
+        "radius1": _gs(2.8), "radius2": _gs(1.5), "depth": _gs(4.5),
+        "lateral_extra": _gs(2.5), "z_offset": _gs(2.25),
     },
     "core_cover": {
-        "north_pillar_size": (_s(6.25), _s(6.25), _s(8.75)),
-        "north_pillar_offset": _s(2.5),
-        "side_wall_main": (_s(10.0), _s(3.0), _s(6.25)),
-        "side_wall_wing": (_s(3.75), _s(3.0), _s(5.0)),
-        "pocket_block_size": (_s(7.5), _s(3.75), _s(5.0)),
-        "south_screen_size": (_s(12.5), _s(3.75), _s(7.0)),
+        "north_pillar_size": tuple(_gs(v) for v in (6.25, 6.25, 8.75)),
+        "north_pillar_offset": _gs(2.5),
+        "side_wall_main": tuple(_gs(v) for v in (10.0, 3.0, 6.25)),
+        "side_wall_wing": tuple(_gs(v) for v in (3.75, 3.0, 5.0)),
+        "pocket_block_size": tuple(_gs(v) for v in (7.5, 3.75, 5.0)),
+        "south_screen_size": tuple(_gs(v) for v in (12.5, 3.75, 7.0)),
     },
     "core_cover_positions": {
+        # Positions are anchors and intentionally stay fixed for topology.
         "north_pillar_y": _s(10.0), "side_wall_x": _s(11.0), "side_wall_y": _s(2.0),
         "pocket_x": _s(7.5), "pocket_y": _s(-9.0), "south_screen_y": _s(-14.0),
     },
     "altar_protectors": {
-        "enabled": True,
-        "count": 4,
+        "enabled": True, "count": 4,
         "symmetry_plane": "BOTH_AXES",
         "mirror_axis": "x -> -x; y -> -y",
         "front_back_mirror": True,
@@ -113,14 +121,24 @@ CONFIG = {
         "protector_height_m": 2.6,
         "layout": "CARDINAL_CENTERED",
     },
-    "ring_road_width": _s(12.0), "base_road_width": _s(8.0),
-    "north_ramp_width": _s(12.0), "flank_choke_width": _s(12.5),
-    "road_z_offset": _s(0.05), "ramp_run_length": _s(24.0),
-    "shrine_road_offset": _s(25.0), "speed_shrine_radius": _s(8.75), "health_relic_radius": _s(6.25),
-    "base_platform_radius": _s(35.0), "base_platform_height": _s(1.5),
-    "base_crystal_height": _s(15.0), "base_crystal_radius": _s(5.0),
+
+    # Movement surfaces are narrowed too; route anchors and topology stay fixed.
+    "ring_road_width": _gs(12.0),
+    "base_road_width": _gs(8.0),
+    "north_ramp_width": _gs(12.0),
+    "flank_choke_width": _gs(12.5),
+    "road_z_offset": _s(0.05),
+    "ramp_run_length": _s(24.0),
+    "shrine_road_offset": _s(25.0),
+    "speed_shrine_radius": _gs(8.75),
+    "health_relic_radius": _gs(6.25),
+    "base_platform_radius": _gs(35.0),
+    "base_platform_height": _gs(1.5),
+    "base_crystal_height": _gs(15.0),
+    "base_crystal_radius": _gs(5.0),
     "rock": {
-        "count_core": 6, "radius_min": _s(2.0), "radius_max": _s(4.2),
+        "count_core": 6,
+        "radius_min": _gs(2.0), "radius_max": _gs(4.2),
         "scale_y_min": 0.7, "scale_y_max": 1.15, "irregularity": 0.32,
     },
     "navigation": {"cells": 128, "max_slope_deg": 50.0},
@@ -134,47 +152,58 @@ CONFIG = {
         "bounds_margin": _s(6.0), "max_object_height": _s(30.0),
         "overlap_tolerance": _s(0.2), "require_all_capture_points": True,
         "require_both_bases": True, "reject_duplicate_names": True,
-        "require_gameplay_symmetry": True,
-        "gameplay_symmetry_tolerance_m": 0.25,
+        "require_gameplay_symmetry": True, "gameplay_symmetry_tolerance_m": 0.25,
     },
     "scene": {
         "allow_scene_reset": False,
-        "managed_collections": ["Terrain", "Bases", "CapturePoints", "Roads", "Ramps", "Decorations", "Rocks", "CoreCover", "Pockets", "DebugSightlines"],
+        "managed_collections": ["Terrain", "Bases", "CapturePoints", "Roads", "Ramps",
+                                "Decorations", "Rocks", "CoreCover", "Pockets", "DebugSightlines"],
     },
     "pockets": {
         "enabled": True,
-        "center_radius": _s(153.0), "entry_width": _s(30.0) * POCKET_TURRET_GEOMETRY_SCALE,
-        "entry_gate": {"target_width": 10.0 * POCKET_TURRET_GEOMETRY_SCALE, "rock_radius": 1.3 * POCKET_TURRET_GEOMETRY_SCALE, "irregularity": 0.04, "height": 2.4 * POCKET_TURRET_GEOMETRY_SCALE},
+        "center_radius": _s(153.0),
+        "entry_width": _gs(30.0),
+        "entry_gate": {
+            "target_width": _g(10.0), "rock_radius": _g(1.3),
+            "irregularity": 0.04, "height": _g(2.4),
+        },
         "rock_arc": {
-            "span_deg": 168.0, "target_spacing": _s(7.95) * POCKET_TURRET_GEOMETRY_SCALE, "min_segments": 22, "max_segments": 30,
-            "large_ratio": 0.18, "small_ratio": 0.18, "gap_min": _s(0.45) * POCKET_TURRET_GEOMETRY_SCALE, "gap_max": _s(1.05) * POCKET_TURRET_GEOMETRY_SCALE,
-            "inward_limit": _s(0.75) * POCKET_TURRET_GEOMETRY_SCALE, "outward_limit": _s(1.05) * POCKET_TURRET_GEOMETRY_SCALE, "rotation_variance": 0.14,
-            "entry_end_clear": _s(0.75) * POCKET_TURRET_GEOMETRY_SCALE, "taper_start": 0.68, "seed": 1337, "connect_gap": _s(1.5) * POCKET_TURRET_GEOMETRY_SCALE,
+            "span_deg": 168.0, "target_spacing": _gs(7.95),
+            "min_segments": 22, "max_segments": 30,
+            "large_ratio": 0.18, "small_ratio": 0.18,
+            "gap_min": _gs(0.45), "gap_max": _gs(1.05),
+            "inward_limit": _gs(0.75), "outward_limit": _gs(1.05),
+            "rotation_variance": 0.14, "entry_end_clear": _gs(0.75),
+            "taper_start": 0.68, "seed": 1337, "connect_gap": _gs(1.5),
             "classes": {
-                "small": {"diam": (_s(5.4) * POCKET_TURRET_GEOMETRY_SCALE, _s(6.3) * POCKET_TURRET_GEOMETRY_SCALE), "height": (_s(6.9) * POCKET_TURRET_GEOMETRY_SCALE, _s(8.1) * POCKET_TURRET_GEOMETRY_SCALE)},
-                "medium": {"diam": (_s(6.3) * POCKET_TURRET_GEOMETRY_SCALE, _s(7.2) * POCKET_TURRET_GEOMETRY_SCALE), "height": (_s(8.1) * POCKET_TURRET_GEOMETRY_SCALE, _s(9.6) * POCKET_TURRET_GEOMETRY_SCALE)},
-                "large": {"diam": (_s(7.2) * POCKET_TURRET_GEOMETRY_SCALE, _s(8.1) * POCKET_TURRET_GEOMETRY_SCALE), "height": (_s(9.6) * POCKET_TURRET_GEOMETRY_SCALE, _s(11.4) * POCKET_TURRET_GEOMETRY_SCALE)},
+                "small": {"diam": (_gs(5.4), _gs(6.3)), "height": (_gs(6.9), _gs(8.1))},
+                "medium": {"diam": (_gs(6.3), _gs(7.2)), "height": (_gs(8.1), _gs(9.6))},
+                "large": {"diam": (_gs(7.2), _gs(8.1)), "height": (_gs(9.6), _gs(11.4))},
             },
             "fortified_fence": {
-                "enabled": True, "anchor_every_v3": 2, "wall_height_v3": 1.72 * POCKET_TURRET_GEOMETRY_SCALE,
-                "terminal_height_v3": 1.48 * POCKET_TURRET_GEOMETRY_SCALE, "wall_thickness_v3": 0.88 * POCKET_TURRET_GEOMETRY_SCALE,
-                "wall_outward_offset_v3": 0.64 * POCKET_TURRET_GEOMETRY_SCALE, "foundation_thickness_v3": 0.92 * POCKET_TURRET_GEOMETRY_SCALE,
-                "foundation_height_v3": 0.36 * POCKET_TURRET_GEOMETRY_SCALE, "cap_height_v3": 0.28 * POCKET_TURRET_GEOMETRY_SCALE, "cap_overhang_v3": 0.12 * POCKET_TURRET_GEOMETRY_SCALE,
-                "anchor_post_thickness_v3": 0.24 * POCKET_TURRET_GEOMETRY_SCALE, "anchor_post_height_v3": 1.88 * POCKET_TURRET_GEOMETRY_SCALE,
-                "brace_thickness_v3": 0.075 * POCKET_TURRET_GEOMETRY_SCALE, "aether_every_v3": 4, "structure_seed": 7349,
+                "enabled": True, "anchor_every_v3": 2,
+                "wall_height_v3": _g(1.72), "terminal_height_v3": _g(1.48),
+                "wall_thickness_v3": _g(0.88), "wall_outward_offset_v3": _g(0.64),
+                "foundation_thickness_v3": _g(0.92), "foundation_height_v3": _g(0.36),
+                "cap_height_v3": _g(0.28), "cap_overhang_v3": _g(0.12),
+                "anchor_post_thickness_v3": _g(0.24), "anchor_post_height_v3": _g(1.88),
+                "brace_thickness_v3": _g(0.075), "aether_every_v3": 4,
+                "structure_seed": 7349,
             },
         },
-        "side_size": {"width": _s(84.0) * POCKET_TURRET_GEOMETRY_SCALE, "depth": _s(54.0) * POCKET_TURRET_GEOMETRY_SCALE},
-        "cover_margin": _s(4.2) * POCKET_TURRET_GEOMETRY_SCALE, "fairness_tolerance": _s(1.5),
+        "side_size": {"width": _gs(84.0), "depth": _gs(54.0)},
+        "cover_margin": _gs(4.2), "fairness_tolerance": _s(1.5),
         "cover": {
-            "pct_max": 0.15, "min_passage": _s(9.0) * POCKET_TURRET_GEOMETRY_SCALE, "max_objects": 3,
+            "pct_max": 0.15, "min_passage": _gs(9.0), "max_objects": 3,
             "min_score": 1.5, "w_los": 3.0, "w_flank": 1.0,
             "w_defensive": 1.5, "w_movement": 3.0, "w_choke": 4.0,
         },
     },
     "outer_boundary": {
-        "enabled": True, "segments": 48, "semi_minor_max": 109.0, "semi_major_max": 109.0,
-        "organic_deformation": 0.25, "wall_height_min": 5.0, "wall_height_max": 8.0,
+        "enabled": True, "segments": 48,
+        "semi_minor_max": 109.0, "semi_major_max": 109.0,
+        "organic_deformation": 0.25,
+        "wall_height_min": 5.0, "wall_height_max": 8.0,
         "formation_height_min": 8.0, "formation_height_max": 12.0,
         "wall_thickness_min": 3.0, "wall_thickness_max": 6.0,
         "internal_depth_factor": 1.0, "outer_clearance_min": 0.0,
