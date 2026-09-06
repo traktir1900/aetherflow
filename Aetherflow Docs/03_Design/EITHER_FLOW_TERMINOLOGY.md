@@ -36,6 +36,18 @@ The central terrain/combat landmark around the exact world origin. This is the i
 ### Aether Altar / Altar
 The central altar/combat area at the center of the map. **The gameplay name remains Altar.** Do not rename the Altar to Core or Crown.
 
+### Altar Reward
+The controlled central-objective reward package. The current design lock is intentionally modest and avoids stacking a direct combat super-buff with Crown Blessing.
+
+While a team controls Altar:
+
+- **+20 Gold/min** to that team;
+- **+5% Movement Speed only while travelling on Roads / Flow roads**.
+
+When Altar is captured, it triggers a **10-second global enemy reveal** for the capturing team: enemy heroes are revealed on the map for 10 seconds. This is a capture pulse, not permanent vision.
+
+Altar rewards are intended as economy, rotation and information advantages rather than direct damage amplification.
+
 ### Crown
 The **fifth capture point at the top/northern part of the map**. Crown is a capture objective and is distinct from the central Altar.
 
@@ -229,9 +241,7 @@ Whether a direct visibility ray between gameplay positions is blocked by map geo
 ### Camping Risk
 The risk that a player can hold a disproportionately strong stationary position with limited counterplay.
 
----
-
-# 6.1 Crown Boss / Crown Sanctum
+### 6.1 Crown Boss / Crown Sanctum
 
 ### Crown Boss
 The neutral boss located at the northern Crown area. The Crown Boss is a PvE objective that can be defeated by either team and grants a temporary team-wide strategic buff.
@@ -413,6 +423,8 @@ Unreal Engine 5 foundation and runtime integration.
 16. **Aether Button** is the canonical name for the central pressure button under the living boss.
 17. **Crown Blessing** is the canonical name for the temporary team buff awarded for defeating the Crown Boss.
 18. Crown Sanctum access should remain broadly symmetric and should not depend on a single mandatory choke entrance.
+19. **Altar Reward** is the canonical name for the Altar control package: +20 Gold/min while controlled, +5% movement speed only on Roads / Flow roads while controlled, and a 10-second enemy-hero reveal pulse on capture.
+20. Altar rewards must remain separate from Crown Blessing and must not create a direct stacked super-buff state by default.
 
 ---
 
