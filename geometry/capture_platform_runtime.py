@@ -2,10 +2,10 @@
 
 Each capture platform gets a central interaction button taking exactly 70% of
 the platform radius. The remaining 30% is a circular capture indicator ring.
-The button is now registered as the logical capture-control anchor used by
-roads/ramps/export, while capture-state gameplay itself remains unchanged.
+The button is registered as the logical capture-control anchor used by roads,
+ramps and export. The ring road network also receives luminous center guides
+at 20% of parent road width, visually linking all five capture platforms.
 """
-import math
 import bmesh
 from mathutils import Vector
 
@@ -23,27 +23,23 @@ def _annulus(ctx, name, center, inner_r, outer_r, height, material, meta=None):
     segments = max(24, int(ctx.config.get("circle_segments", 28)))
     top_z = center.z + height
     bm = bmesh.new()
-
     verts_top_inner = []
     verts_top_outer = []
     verts_bottom_inner = []
     verts_bottom_outer = []
 
+    import math
     for i in range(segments):
         a = 2.0 * math.pi * (i / float(segments))
         ca, sa = math.cos(a), math.sin(a)
-        verts_bottom_inner.append(
-            bm.verts.new((center.x + inner_r * ca, center.y + inner_r * sa, center.z))
-        )
-        verts_bottom_outer.append(
-            bm.verts.new((center.x + outer_r * ca, center.y + outer_r * sa, center.z))
-        )
-        verts_top_inner.append(
-            bm.verts.new((center.x + inner_r * ca, center.y + inner_r * sa, top_z))
-        )
-        verts_top_outer.append(
-            bm.verts.new((center.x + outer_r * ca, center.y + outer_r * sa, top_z))
-        )
+        verts_bottom_inner.append(bm.verts.new(
+            (center.x + inner_r * ca, center.y + inner_r * sa, center.z)))
+        verts_bottom_outer.append(bm.verts.new(
+            (center.x + outer_r * ca, center.y + outer_r * sa, center.z)))
+        verts_top_inner.append(bm.verts.new(
+            (center.x + inner_r * ca, center.y + inner_r * sa, top_z)))
+        verts_top_outer.append(bm.verts.new(
+            (center.x + outer_r * ca, center.y + outer_r * sa, top_z)))
 
     for i in range(segments):
         j = (i + 1) % segments
@@ -163,24 +159,17 @@ def bind_capture_buttons_to_routes(ctx):
         start = meta.get("start")
         end = meta.get("end")
         point = meta.get("point")
-
         if start in button_names:
             bind_record(rec, "start", start)
         if end in button_names:
             bind_record(rec, "end", end)
         if point in button_names:
             bind_record(rec, "end", point)
-
-        # North ramp uses its explicit generated name/curve rather than a
-        # start/end metadata pair; its destination is the Crown button.
         if rec["name"] == "North_Ramp_Crown_Core":
             bind_record(rec, "end", "Crown")
 
     for pname in RING_NODES:
-        touching = [
-            b for b in bindings
-            if "CaptureButton_{}".format(pname) in b
-        ]
+        touching = [b for b in bindings if "CaptureButton_{}".format(pname) in b]
         if not touching:
             missing.append(pname)
 
@@ -193,16 +182,26 @@ def bind_capture_buttons_to_routes(ctx):
 
 
 def install_capture_platform_runtime(structures_module):
-    """Wrap capture-point generation and add platform button + ring geometry."""
+    """Wrap capture generation and add button/ring + road-center light guides."""
     original = getattr(structures_module, "generate_capture_points", None)
     if original is None or getattr(original, WRAPPER_MARKER, False):
         return False
+
+    try:
+        import importlib
+        import geometry.road_light_guides_runtime as _road_light
+        _road_light = importlib.reload(_road_light)
+    except Exception as exc:
+        _road_light = None
+        print("  [ROAD LIGHT] unavailable: {}".format(exc))
 
     def wrapper(*args, **kwargs):
         result = original(*args, **kwargs)
         ctx = args[0] if args else kwargs.get("ctx")
         if ctx is not None:
             _build_overlays(ctx)
+            if _road_light is not None:
+                _road_light.generate(ctx)
         return result
 
     setattr(wrapper, WRAPPER_MARKER, True)
