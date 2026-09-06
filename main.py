@@ -5,10 +5,8 @@ THIN ENTRY POINT.  All generation lives in core.pipeline — main.py only:
   1. locates the project root (NO hardcoded machine paths),
   2. puts it on sys.path,
   3. reloads editable geometry modules for iterative Blender runs,
-  4. calls core.pipeline.run_pipeline().
-
-Project-root discovery is intentionally independent from the Blender install
-folder and supports scripts opened from Blender's Text Editor.
+  4. installs the v0.6.3 pocket arc opening refinement,
+  5. calls core.pipeline.run_pipeline().
 """
 import importlib
 import os
@@ -146,15 +144,13 @@ import geometry.pockets  # noqa: E402
 geometry.structures = importlib.reload(geometry.structures)
 geometry.pockets = importlib.reload(geometry.pockets)
 core.pipeline = importlib.reload(core.pipeline)
-# pipeline imports the same module object, now containing the refreshed code.
 
 
-# v0.6.3 pocket opening refinement:
-# Keep the existing pocket location/shape, but remove the front-side arc-rocks
-# on the circular run from ArcRock05 through ArcRock24. In generated numbering
-# this clears ArcRock01-04 and ArcRock25-28, leaving a single readable opening
-# between ArcRock24 and ArcRock05. The exact same wrapper is used for the
-# canonical pocket on each mirror pair, so x -> -x symmetry is preserved.
+# v0.6.3 pocket arc opening refinement.
+# The canonical generated pocket arc contains 28 numbered ArcRock objects.
+# Keep ArcRock05..ArcRock24 and remove ArcRock01..04 + ArcRock25..28, creating
+# the intended open passage between ArcRock24 and ArcRock05. This is applied
+# to both canonical pockets and therefore mirrors exactly to East/SE.
 _POCKET_OPEN_START = 5
 _POCKET_OPEN_END = 24
 
@@ -164,56 +160,67 @@ def _install_pocket_arc_opening():
 
     def _build_rock_arc_opening(*args, **kwargs):
         result = original(*args, **kwargs)
-        try:
-            arc_objs, arc_keep, metrics = result
-        except (TypeError, ValueError):
+        if not isinstance(result, tuple) or len(result) != 3:
             return result
 
+        arc_objs, arc_keep, metrics = result
+        ctx = args[0] if args else kwargs.get("ctx")
         kept_objs = []
         kept_keep = []
-        removed = []
+        removed_names = []
+
         for obj, keep in zip(arc_objs, arc_keep):
+            name = getattr(obj, "name", "")
             idx = None
             marker = "_ArcRock"
-            if marker in getattr(obj, "name", ""):
-                tail = obj.name.split(marker, 1)[1]
-                digits = "".join(ch for ch in tail if ch.isdigit())
+            if marker in name:
+                suffix = name.split(marker, 1)[1]
+                digits = ""
+                for ch in suffix:
+                    if ch.isdigit():
+                        digits += ch
+                    elif digits:
+                        break
                 if digits:
                     idx = int(digits)
+
             if idx is not None and not (_POCKET_OPEN_START <= idx <= _POCKET_OPEN_END):
-                removed.append(obj)
+                removed_names.append(name)
+                try:
+                    import bpy
+                    if obj.name in bpy.data.objects:
+                        bpy.data.objects.remove(obj, do_unlink=True)
+                except Exception as exc:
+                    print("  [POCKET OPENING] remove failed for {}: {}".format(name, exc))
                 continue
+
             kept_objs.append(obj)
             kept_keep.append(keep)
 
-        if not removed:
-            return result
-
-        try:
-            import bpy
-            for obj in removed:
-                bpy.data.objects.remove(obj, do_unlink=True)
-        except Exception:
-            pass
-
-        removed_ids = {id(obj) for obj in removed}
-        ctx = args[0] if args else None
-        if ctx is not None and hasattr(ctx, "generated_objects"):
+        if ctx is not None and hasattr(ctx, "generated_objects") and removed_names:
+            removed_set = set(removed_names)
             ctx.generated_objects[:] = [
                 rec for rec in ctx.generated_objects
-                if id(rec.get("object")) not in removed_ids
+                if rec.get("name") not in removed_set
             ]
 
         metrics = dict(metrics or {})
         metrics["segment_count"] = len(kept_objs)
         metrics["opening"] = "ArcRock24 -> ArcRock05"
-        metrics["opening_removed"] = [getattr(obj, "name", "") for obj in removed]
+        metrics["opening_removed"] = list(removed_names)
+
+        print("  [POCKET OPENING] kept ArcRock{:02d}..ArcRock{:02d} | removed={}".format(
+            _POCKET_OPEN_START, _POCKET_OPEN_END, len(removed_names)))
+        if removed_names:
+            print("  [POCKET OPENING] removed: {}".format(", ".join(removed_names)))
+
         return kept_objs, kept_keep, metrics
 
     geometry.pockets._build_rock_arc = _build_rock_arc_opening
 
 
 _install_pocket_arc_opening()
+print("[POCKET OPENING] PATCH ACTIVE: ArcRock01-04 + ArcRock25-28 will be removed")
 
 
 def run():
