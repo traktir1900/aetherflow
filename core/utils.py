@@ -24,10 +24,31 @@ def _managed_names():
     return CONFIG.get("scene", {}).get("managed_collections", [])
 
 
+def _remove_default_center_cube():
+    """Remove only Blender's untouched starter Cube at the map origin.
+
+    This is intentionally narrow: user-created objects and arbitrary cubes are
+    preserved. The target must be a mesh named exactly ``Cube`` and its origin
+    must be effectively at world (0, 0, 0).
+    """
+    obj = bpy.data.objects.get("Cube")
+    if obj is None or obj.type != 'MESH':
+        return False
+
+    loc = obj.matrix_world.translation
+    if loc.length > 0.001:
+        return False
+
+    bpy.data.objects.remove(obj, do_unlink=True)
+    print("[SCENE] Removed Blender default center Cube at world origin.")
+    return True
+
+
 def clear_scene(ctx):
     """
     SAFE_UPDATE (default): remove only objects inside the managed AetherFlow
-    collections.  User content outside them is preserved.
+    collections and the untouched default Blender center Cube. User content
+    outside managed collections is preserved.
 
     GENERATE_NEW_SCENE: full wipe — only when config["scene"]["allow_scene_reset"]
     is explicitly True.
@@ -58,8 +79,11 @@ def clear_scene(ctx):
     for mesh in list(bpy.data.meshes):
         if mesh.users == 0:
             bpy.data.meshes.remove(mesh)
+
+    default_cube_removed = _remove_default_center_cube()
     print("[SCENE] SAFE_UPDATE: cleared {} objects in managed collections "
-          "(user scene preserved).".format(removed))
+          "(user scene preserved); default_center_cube_removed={}.".format(
+              removed, default_cube_removed))
 
 
 def setup_collections(ctx):
