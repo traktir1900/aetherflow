@@ -96,7 +96,7 @@ CONFIG = {
         "mirror_axis": "x -> -x", "front_back_mirror": False,
         "non_blocking_navigation": True, "ring_offset_from_altar_m": 3.5,
         "protector_radius_m": 0.8, "protector_height_m": 2.6,
-        "protector_length_m": 3.6, "protector_depth_m": 1.25,
+        "protector_length_m": 1.8, "protector_depth_m": 0.625,
         "layout": "CROWN_SIDE_OPEN_FIVE",
     },
     "ring_road_width": _gs(12.0), "base_road_width": _gs(8.0),
