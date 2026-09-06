@@ -42,6 +42,10 @@ def generate_capture_points(ctx):
     plat_r = cfg["capture_platform_radius"]
     plat_h = cfg["capture_platform_height"]
     for pname in RING_NODES:
+        # Crown is a logical/PvE Lord anchor. Its Sanctum owns the physical
+        # geometry; do not create a normal capture platform or turret there.
+        if pname == "Crown":
+            continue
         pos = ctx.layout[pname].copy()
         pos.z = get_height_at_point(pos, cfg, ctx.layout)
         bm = bmesh.new()

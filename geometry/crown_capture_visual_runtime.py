@@ -1,19 +1,14 @@
 """AetherFlow v0.6.4 Crown capture presentation correction.
 
-Crown is a normal capture objective PLUS a separate Crown Sanctum boss area.
-The capture stack is always:
-
-    CapturePlatform_Crown
-        -> CaptureIndicatorRing_Crown
-        -> CaptureButton_Crown
-
-The boss stack is separate:
+Crown is a PvE Sanctum logical anchor. Its named indicator and button are
+export/navigation anchors only; there is deliberately no CapturePlatform_Crown.
+The boss stack is:
 
     Crown_BossRise / Crown_Throne
         -> Crown_BossButton (Aether Button)
 
-The capture controls must be seated on the physical capture platform. They
-must never be lifted above the boss button or treated as the boss button.
+The named controls are seated on the Sanctum rise and must never be treated as
+the boss button or as normal capture gameplay.
 """
 import bmesh
 from mathutils import Vector
@@ -122,29 +117,24 @@ def _button_record(ctx, name):
 
 
 def apply(ctx):
-    """Seat Crown capture controls on the real capture platform surface."""
+    """Seat Crown logical controls on the Sanctum rise without a platform."""
     import bpy
 
-    crown_platform = bpy.data.objects.get("CapturePlatform_Crown")
     crown_button = bpy.data.objects.get("CaptureButton_Crown")
     crown_ring = bpy.data.objects.get("CaptureIndicatorRing_Crown")
     boss_button = bpy.data.objects.get("Crown_BossButton")
     boss_rise = bpy.data.objects.get("Crown_BossRise")
 
-    if crown_platform is None or crown_button is None or crown_ring is None:
-        print("  [CROWN VISUAL] missing Crown platform/capture overlay objects")
+    if crown_button is None or crown_ring is None or boss_rise is None:
+        print("  [CROWN VISUAL] missing Crown Sanctum/logical overlay objects")
         return {"passed": False, "reason": "MISSING_CROWN_CAPTURE_OBJECTS"}
 
-    platform_min, platform_top = _world_z_bounds(crown_platform)
-    boss_min, boss_top = _world_z_bounds(boss_button)
+    _boss_min, _boss_top = _world_z_bounds(boss_button)
     rise_min, rise_top = _world_z_bounds(boss_rise)
-    if platform_top is None:
-        return {"passed": False, "reason": "NO_CROWN_CAPTURE_PLATFORM_HEIGHT"}
+    if rise_top is None:
+        return {"passed": False, "reason": "NO_CROWN_SANCTUM_SUPPORT_HEIGHT"}
 
-    # IMPORTANT: Capture presentation belongs to the capture platform.
-    # Do not use boss_top/rise_top as support for the capture ring or button.
-    # The Crown Boss Button is a separate gameplay object on the boss rise.
-    capture_support_top = platform_top
+    capture_support_top = rise_top
 
     ring_clearance = 0.08
     button_clearance = 0.06
@@ -164,27 +154,25 @@ def apply(ctx):
     for rec, role in (
         (_button_record(ctx, "CaptureButton_Crown"), "capture_button"),
         (_button_record(ctx, "CaptureIndicatorRing_Crown"), "capture_indicator"),
-        (_button_record(ctx, "CapturePlatform_Crown"), "capture_platform"),
     ):
         if rec is None:
             continue
         meta = rec.setdefault("meta", {})
         meta.update({
-            "surface_anchor": "CapturePlatform_Crown",
-            "capture_platform": "CapturePlatform_Crown",
+            "surface_anchor": "Crown_BossRise",
+            "capture_platform": None,
             "capture_indicator": "CaptureIndicatorRing_Crown",
             "capture_control": "CaptureButton_Crown",
             "boss_button_separate": "Crown_BossButton",
-            "actual_capture_platform_top_z": round(capture_support_top, 3),
+            "actual_sanctum_support_top_z": round(capture_support_top, 3),
             "actual_world_bottom_z": round(
                 btn_min if role == "capture_button" and btn_min is not None
                 else ring_min if role == "capture_indicator" and ring_min is not None
-                else platform_min if role == "capture_platform" and platform_min is not None
                 else 0.0,
                 3,
             ),
-            "visible_above_capture_platform": True,
-            "raised_platform_aware": True,
+            "pve_sanctum_anchor": True,
+            "normal_capture_platform_absent": True,
             "boss_button_not_support": True,
             "post_generation_corrected": True,
         })
@@ -234,8 +222,8 @@ def apply(ctx):
 
     bpy.context.view_layer.update()
     print(
-        "  -> [CROWN VISUAL] capture_platform=CapturePlatform_Crown | "
-        "platform_top={:.3f}m | indicator_bottom={}m | button_bottom={}m | "
+        "  -> [CROWN VISUAL] sanctum_support=Crown_BossRise | "
+        "support_top={:.3f}m | indicator_bottom={}m | button_bottom={}m | "
         "boss_button=Crown_BossButton (SEPARATE)".format(
             capture_support_top,
             "{:.3f}".format(ring_min) if ring_min is not None else "NA",
@@ -247,7 +235,7 @@ def apply(ctx):
     )
     return {
         "passed": True,
-        "capture_platform_top_z": round(capture_support_top, 3),
+        "sanctum_support_top_z": round(capture_support_top, 3),
         "boss_button_separate": True,
         "indicator_bottom_z": round(ring_min, 3) if ring_min is not None else None,
         "button_bottom_z": round(btn_min, 3) if btn_min is not None else None,

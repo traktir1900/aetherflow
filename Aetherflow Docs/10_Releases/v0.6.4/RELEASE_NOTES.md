@@ -40,7 +40,7 @@ From the latest supplied v0.6.4 Blender run:
 1. Fresh runtime validation after the latest validation compatibility changes is still missing.
 2. Ramp width correction has not yet been confirmed by a new Blender run.
 3. Crown structural overlap warnings remain open for review.
-4. Resource objects are not created by the current active pipeline.
+4. The new Resource Foundation stage has not been verified in a fresh Blender runtime.
 5. No final MAP LOCK approval exists.
 
 ## Release gate

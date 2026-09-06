@@ -28,7 +28,7 @@ import math
 from mathutils import Vector
 
 from core.heightmap import get_height_at_point
-from core.layout import BASES, capture_point_names
+from core.layout import BASES, physical_capture_point_names
 
 _TERRAIN_EXEMPT = ("terrain", "safety_floor")
 
@@ -240,7 +240,7 @@ def run_validation(ctx, nav_report=None):
     # --- capture points: exactly the full set of 5 ---------------------------
     cp_names = {r["meta"].get("point") for r in by_type.get("capture_point", [])}
     if vcfg.get("require_all_capture_points", True):
-        for p in capture_point_names():
+        for p in physical_capture_point_names():
             if p not in cp_names:
                 errors.append("MISSING CAPTURE POINT: {}".format(p))
 

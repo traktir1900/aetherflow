@@ -65,6 +65,10 @@ CONFIG = {
     "resource_foundation": {"enabled": True, "speed_anchor_t": 0.52, "health_anchor_t": 0.52,
         "speed_offset_y": -3.5, "health_offset_y": -3.5, "speed_shrine_radius": 1.4,
         "health_relic_radius": 1.2, "capture_health_offset_m": 0.75, "require_exact_mirror": True},
+    # ``base_platform_radius`` remains the compatibility radius for validators
+    # and data consumers.  The generated base itself is the semi-oval defined
+    # by width_radius/depth below.
+    "base_platform_radius": _gs(52.5),
     "base_platform_width_radius": _gs(52.5), "base_platform_depth": _gs(52.5),
     "base_platform_height": _gs(1.5), "base_crystal_height": _gs(15.0), "base_crystal_radius": _gs(5.0),
     "base_shop_width": _gs(105.0), "base_shop_depth": _gs(18.0), "base_shop_height": _gs(16.0),
@@ -95,7 +99,7 @@ CONFIG = {
                 "cap_overhang_v3": _p(0.12), "anchor_post_thickness_v3": _p(0.24), "anchor_post_height_v3": _p(1.88),
                 "brace_thickness_v3": _p(0.075), "aether_every_v3": 4, "structure_seed": 7349}},
         "side_size": {"width": _p(84.0), "depth": _p(54.0)}, "cover_margin": _p(4.2), "fairness_tolerance": _s(1.5),
-        "cover": {"pct_max": 0.15, "min_passage": _p(9.0), "max_objects": 3, "min_score": 1.5,
+        "cover": {"pct_max": 0.15, "min_passage": 3.0, "max_objects": 3, "min_score": 1.5,
                   "w_los": 3.0, "w_flank": 1.0, "w_defensive": 1.5, "w_movement": 3.0, "w_choke": 4.0}},
     "outer_boundary": {"enabled": True, "segments": 48, "semi_minor_max": 109.0, "semi_major_max": 109.0,
         "organic_deformation": 0.25, "wall_height_min": 5.0, "wall_height_max": 8.0,

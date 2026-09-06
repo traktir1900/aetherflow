@@ -3,12 +3,10 @@ import json
 import math
 import os
 
-import bmesh
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
-from core.layout import BASES, capture_point_names
+from core.layout import BASES, physical_capture_point_names
 from core.version import get_version
-from core.utils import finalize_bmesh
 
 
 def _vec3(v):
@@ -121,6 +119,12 @@ def _build_base_shops(ctx):
     if width <= 0.0 or depth <= 0.0 or height <= 0.0:
         return built
 
+    # Base-shop mesh construction is a Blender-only compatibility path.  Keep
+    # the engine-free export contract importable for the pure-Python tests.
+    import bmesh
+    from mathutils import Matrix
+    from core.utils import finalize_bmesh
+
     for team, base_key, material_name in [("Blue", "BlueBase", "blue_team"), ("Red", "RedBase", "red_team")]:
         base_pos = ctx.layout[base_key].copy()
         base_pos.z = float(base_pos.z)
@@ -183,7 +187,6 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
     half = cfg["ground_half_size"]
     world_half = cfg["world_floor_half_size"]
 
-    _build_base_shops(ctx)
     buckets = _build_generated_buckets(ctx)
 
     terrain = {"ground_half_size": half, "world_floor_half_size": world_half, "anchors": {}}
@@ -198,14 +201,11 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
         "height": cfg["capture_platform_height"],
         "button": "CaptureButton_{}".format(p),
         "indicator": "CaptureIndicatorRing_{}".format(p),
-    } for p in capture_point_names()]
+    } for p in physical_capture_point_names()]
 
     bases = []
     base_width = cfg.get("base_platform_width_radius", cfg.get("base_platform_radius", 0.0) / 2.0) * 2.0
     base_depth = cfg.get("base_platform_depth", cfg.get("base_platform_radius", 0.0))
-    shop_width = cfg.get("base_shop_width", base_width)
-    shop_depth = cfg.get("base_shop_depth", 0.0)
-    shop_height = cfg.get("base_shop_height", 0.0)
     for b in BASES:
         shape = "semi_oval" if "base_platform_width_radius" in cfg else "circle"
         entry = {
@@ -215,20 +215,6 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
             "height": cfg["base_platform_height"],
             "width": base_width,
             "depth": base_depth,
-            "shop": {
-                "name": "{}_Shop".format("Blue" if b == "BlueBase" else "Red"),
-                "shape": "rectangle",
-                "stage": "blockout",
-                "width": shop_width,
-                "depth": shop_depth,
-                "height": shop_height,
-                "rear_of_base": True,
-                "spans_full_base_flat_edge": True,
-                "adjacent_to_flat_edge": True,
-                "orientation": "outward_from_base",
-                "navigation_blocker": False,
-                "los_blocker": False,
-            },
         }
         entry["radius"] = cfg.get("base_platform_radius", base_width / 2.0)
         bases.append(entry)
@@ -259,6 +245,15 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
         },
         "terrain": terrain,
         "capture_points": capture_points,
+        "crown": {
+            "mode": "PVE_LORD_SANCTUM",
+            "logical_anchor": "Crown",
+            "position": _vec3(layout["Crown"]),
+            "capture_button": "CaptureButton_Crown",
+            "capture_indicator": "CaptureIndicatorRing_Crown",
+            "boss_button": "Crown_BossButton",
+            "physical_capture_platform": None,
+        },
         "bases": bases,
         "pockets": _plain(ctx.pockets),
         "landmarks": _plain(landmarks),

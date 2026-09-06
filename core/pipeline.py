@@ -21,6 +21,7 @@ from core.navigation import build_grid, run_navigation_checks
 from core.export import write_map_data
 from core.rocks import scatter_core_rocks
 import core.resource_foundation as resource_foundation_module
+import core.ue5_export as ue5_export_module
 
 import core.gameplay_cover as gameplay_cover_module
 import core.altar_rotation as altar_rotation_module
@@ -49,7 +50,7 @@ def _reload_runtime_modules():
     """Reload modules intentionally edited during iterative Blender runs."""
     global gameplay_cover_module, altar_rotation_module, validation_module
     global terrain_refinement_module, gameplay_symmetry_module, height_transitions_module, terrain
-    global capture_platform_runtime, resource_foundation_module
+    global capture_platform_runtime, resource_foundation_module, ue5_export_module
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
@@ -61,6 +62,7 @@ def _reload_runtime_modules():
     height_transitions_module = importlib.reload(height_transitions_module)
     capture_platform_runtime = importlib.reload(capture_platform_runtime)
     resource_foundation_module = importlib.reload(resource_foundation_module)
+    ue5_export_module = importlib.reload(ue5_export_module)
     capture_platform_runtime.install_capture_platform_runtime(structures)
 
 
@@ -343,11 +345,24 @@ def run_pipeline(ctx=None, export=True):
             print("  [validation warn] " + w)
 
         out_path = None
+        ue5_manifest_path = None
+        ue5_collection_report = None
         if export:
             print("[STAGE 10/10] Export map_data.json")
+            ue5_collection_report = ue5_export_module.prepare_collections(ctx)
             out_path = write_map_data(
                 ctx, os.path.join(_project_root(), "export", "map_data.json"),
                 sim=sim, nav=nav, validation=report)
+            ue5_manifest_path, _ue5_manifest = ue5_export_module.write_manifest(
+                ctx,
+                os.path.join(_project_root(), "AetherFlow_UE5_Export"),
+                validation=report,
+                collection_report=ue5_collection_report,
+            )
+            print("[UE5 EXPORT] collections={} | manifest={}".format(
+                "PASS" if ue5_collection_report.get("prepared") else "FAIL",
+                ue5_manifest_path,
+            ))
 
             if report.get("ok", False):
                 bpy.ops.wm.save_as_mainfile()
@@ -371,6 +386,8 @@ def run_pipeline(ctx=None, export=True):
             "capture_button_routing": button_links,
             "resource_foundation": resource_report,
             "map_data": out_path,
+            "ue5_manifest": ue5_manifest_path,
+            "ue5_collections": ue5_collection_report,
         }
 
     except Exception as exc:

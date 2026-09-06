@@ -156,11 +156,13 @@ The runtime still reports several `SOLID OVERLAP` warnings among Crown coliseum 
 
 The v0.6.4 roadmap still reserves this phase for environment and resources, but the supplied runtime/auditor explicitly reports that no Shrine/Relic/Resource-named objects were created by the current tool.
 
-Therefore:
+Since that supplied runtime, the active pipeline has gained a deterministic
+`Resource Foundation` stage.  It creates three Speed Shrines and eight Health
+Relics (including one inward-facing relic per capture point) and records a
+resource-symmetry report in the export/validation result.  This code is
+present but remains **runtime-unverified** until a fresh Blender 5.2 run.
 
-- resource system: **NOT IMPLEMENTED in the current map generator**;
-- environment dressing beyond existing procedural geometry: **not closed**;
-- resource placement must be tracked as separate implementation work rather than claimed complete.
+Environment dressing beyond existing procedural geometry is still not closed.
 
 ## Non-negotiable constraints
 

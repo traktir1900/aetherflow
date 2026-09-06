@@ -1,10 +1,8 @@
 """AetherFlow capture platform runtime geometry + logical anchors.
 
-Each capture platform gets a central interaction button taking exactly 70% of
-the platform radius. The remaining 30% is a circular capture indicator ring.
-The button is registered as the logical capture-control anchor used by roads,
-ramps and export. Crown is a raised objective, so its visual capture control
-is corrected from the actual generated mesh elevation after the sanctum exists.
+Each normal capture platform gets a central interaction button taking exactly
+70% of the platform radius. Crown is a logical PvE Sanctum anchor: it keeps
+its named button/ring as export anchors, but has no capture platform or turret.
 """
 import importlib
 import math
@@ -116,7 +114,9 @@ def _build_overlays(ctx):
     for pname in RING_NODES:
         pos = ctx.layout[pname].copy()
         terrain_z = get_height_at_point(pos, cfg, ctx.layout)
-        platform_top_z = terrain_z + plat_h
+        # Crown has no normal capture platform. Its controls are repositioned
+        # onto the Sanctum rise by the Crown visual pass after generation.
+        platform_top_z = terrain_z + (plat_h if pname != "Crown" else 0.0)
         ring_base = Vector((pos.x, pos.y, platform_top_z + platform_lift))
         neighbors = _platform_neighbors(pname)
 
