@@ -105,11 +105,11 @@ CONFIG = {
     "road_z_offset": _s(0.05), "ramp_run_length": _s(24.0),
     "shrine_road_offset": _s(25.0), "speed_shrine_radius": _gs(8.75),
     "health_relic_radius": _gs(6.25),
-    # Base footprint: 1.5x the previous 35-unit round radius baseline.
-    # The platform is generated as a semi-oval/D-shape: flat rear edge
-    # points away from the battlefield, rounded edge faces toward center.
-    "base_platform_width_radius": _gs(35.0 * 1.5),
-    "base_platform_depth": _gs(35.0 * 1.5),
+    # Base platform: old circular diameter was _gs(70). The new semi-oval
+    # keeps the same center anchor, enlarges both principal dimensions by 1.5x
+    # (105m x 52.5m), and rounds toward the battlefield.
+    "base_platform_width_radius": _gs(52.5),
+    "base_platform_depth": _gs(52.5),
     "base_platform_height": _gs(1.5),
     "base_crystal_height": _gs(15.0),
     "base_crystal_radius": _gs(5.0),
