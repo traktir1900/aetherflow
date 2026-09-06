@@ -1,8 +1,10 @@
 """AetherFlow Crown Boss Sanctum runtime geometry.
 
 Crown Boss Sanctum keeps the existing Crown XY anchor. The boss button is
-physically seated on top of the smooth semi-oval rise rather than floating or
-sitting inside it.
+physically seated on top of the smooth semi-oval rise. The rear half-oval
+coliseum is layered upward with two architectural plate tiers and tapered
+columns, creating a throne-like silhouette while keeping the southern/front
+side open.
 """
 import math
 import bmesh
@@ -20,8 +22,7 @@ def _cube(ctx, name, center, size, rot_z, kind="cover", material_key="rock", met
     bmesh.ops.scale(bm, vec=Vector(size), verts=bm.verts)
     if rot_z:
         bmesh.ops.rotate(
-            bm,
-            cent=Vector((0, 0, 0)),
+            bm, cent=Vector((0, 0, 0)),
             matrix=Matrix.Rotation(math.radians(rot_z), 4, "Z"),
             verts=bm.verts,
         )
@@ -32,10 +33,24 @@ def _cube(ctx, name, center, size, rot_z, kind="cover", material_key="rock", met
     )
 
 
+def _tapered_column(ctx, name, center, height, radius_bottom, radius_top, material_key="rock", meta=None):
+    bm = bmesh.new()
+    bmesh.ops.create_cone(
+        bm, cap_ends=True, segments=12,
+        radius1=radius_bottom, radius2=radius_top, depth=height,
+    )
+    bmesh.ops.translate(
+        bm, verts=bm.verts,
+        vec=Vector((center[0], center[1], center[2] + height / 2.0)),
+    )
+    return finalize_bmesh(
+        bm, name, COLLECTION, ctx.get_material(material_key), ctx,
+        kind="cover", dims=(radius_bottom * 2, radius_bottom * 2, height),
+        meta=meta or {},
+    )
+
+
 def _smooth_rise(ctx, center, ground_z):
-    # Current rise height: 0.441m. Keep the low profile.
-    # Reduce the previous semi-oval footprint by 50% while keeping it aligned
-    # with the coliseum wall.
     outer_a = 7.875
     outer_b = 5.25
     button_r = 3.2
@@ -44,7 +59,6 @@ def _smooth_rise(ctx, center, ground_z):
     segs = 72
     bm = bmesh.new()
     rings_v = []
-
     for j in range(rings + 1):
         t = j / float(rings)
         s = t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
@@ -56,33 +70,19 @@ def _smooth_rise(ctx, center, ground_z):
             ang = 2.0 * math.pi * i / segs
             row.append(bm.verts.new((center.x + a * math.cos(ang), center.y + b * math.sin(ang), z)))
         rings_v.append(row)
-
     for j in range(rings):
         for i in range(segs):
             ni = (i + 1) % segs
             bm.faces.new((rings_v[j][i], rings_v[j][ni], rings_v[j + 1][ni], rings_v[j + 1][i]))
     bm.faces.new(tuple(reversed(rings_v[-1])))
-
     return finalize_bmesh(
-        bm,
-        "Crown_BossRise",
-        COLLECTION,
-        ctx.get_material("stone"),
-        ctx,
-        kind="landmark",
-        dims=(outer_a * 2, outer_b * 2, height),
-        meta={
-            "landmark": "CrownBossSanctum",
-            "element": "smooth_semi_oval_rise",
-            "walkable": True,
-            "rise_height_m": height,
-            "approach": "SMOOTH_SEMI_OVAL",
-            "alignment": "ALONG_COLISEUM_WALL",
-            "outer_extent_scale": 0.75,
-            "footprint_scale_from_previous": 0.50,
-            "button_seated_on_rise": True,
-            "anchor_unchanged": True,
-        },
+        bm, "Crown_BossRise", COLLECTION, ctx.get_material("stone"), ctx,
+        kind="landmark", dims=(outer_a * 2, outer_b * 2, height),
+        meta={"landmark": "CrownBossSanctum", "element": "smooth_semi_oval_rise",
+              "walkable": True, "rise_height_m": height,
+              "approach": "SMOOTH_SEMI_OVAL", "alignment": "ALONG_COLISEUM_WALL",
+              "outer_extent_scale": 0.75, "footprint_scale_from_previous": 0.50,
+              "button_seated_on_rise": True, "anchor_unchanged": True},
     )
 
 
@@ -93,27 +93,14 @@ def _boss_button(ctx, center, ground_z):
     top_z = ground_z + rise_height + height
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=40, radius1=radius, radius2=radius, depth=height)
-    bmesh.ops.translate(
-        bm,
-        verts=bm.verts,
-        vec=Vector((center.x, center.y, ground_z + rise_height + height / 2.0)),
-    )
+    bmesh.ops.translate(bm, verts=bm.verts, vec=Vector((center.x, center.y, ground_z + rise_height + height / 2.0)))
     return finalize_bmesh(
-        bm,
-        "Crown_BossButton",
-        COLLECTION,
-        ctx.get_material("altar_glow"),
-        ctx,
-        kind="landmark",
-        dims=(radius * 2, radius * 2, height),
-        meta={
-            "landmark": "CrownBoss",
-            "element": "button",
-            "boss_stand_point": [round(center.x, 3), round(center.y, 3), round(top_z, 3)],
-            "button_on_rise": True,
-            "button_base_z": round(ground_z + rise_height, 3),
-            "active_when_boss_dead": True,
-        },
+        bm, "Crown_BossButton", COLLECTION, ctx.get_material("altar_glow"), ctx,
+        kind="landmark", dims=(radius * 2, radius * 2, height),
+        meta={"landmark": "CrownBoss", "element": "button",
+              "boss_stand_point": [round(center.x, 3), round(center.y, 3), round(top_z, 3)],
+              "button_on_rise": True, "button_base_z": round(ground_z + rise_height, 3),
+              "active_when_boss_dead": True},
     )
 
 
@@ -125,7 +112,6 @@ def _half_coliseum(ctx, center, ground_z):
     max_h = 2.2
     segments = 16
     created = []
-
     for i in range(segments):
         theta0 = math.pi * i / segments
         theta1 = math.pi * (i + 1) / segments
@@ -142,45 +128,59 @@ def _half_coliseum(ctx, center, ground_z):
         h = min_h + (max_h - min_h) * (0.65 * centre_bias + 0.35 * wave)
         h = max(min_h, min(max_h, h))
         span = max(1.3, min(2.0, a * math.pi / segments * 1.10))
-        created.append(_cube(
-            ctx,
-            "Crown_ColiseumBlock{:02d}".format(i + 1),
-            (center.x + x, center.y + y, ground_z + h / 2.0),
-            (span, wall_t, h),
-            yaw,
-            kind="cover",
-            material_key="rock",
-            meta={
-                "landmark": "CrownBossSanctum",
-                "element": "ruined_half_coliseum",
-                "segment": i + 1,
-                "open_direction": "south",
-                "symmetry": "x -> -x",
-            },
-        ))
+        created.append(_cube(ctx, "Crown_ColiseumBlock{:02d}".format(i + 1),
+                             (center.x + x, center.y + y, ground_z + h / 2.0),
+                             (span, wall_t, h), yaw, kind="cover", material_key="rock",
+                             meta={"landmark": "CrownBossSanctum", "element": "ruined_half_coliseum",
+                                   "segment": i + 1, "open_direction": "south", "symmetry": "x -> -x"}))
 
-    for idx, (px, py, h) in enumerate((
-        (-0.88, 0.36, 1.65),
-        (-0.62, 0.78, 2.35),
-        (0.62, 0.78, 2.35),
-        (0.88, 0.36, 1.65),
-    ), 1):
+    for idx, (px, py, h) in enumerate(((-0.88, 0.36, 1.65), (-0.62, 0.78, 2.35),
+                                        (0.62, 0.78, 2.35), (0.88, 0.36, 1.65)), 1):
         size = 0.65 if abs(px) > 0.8 else 0.8
-        created.append(_cube(
-            ctx,
-            "Crown_ColiseumPillar{:02d}".format(idx),
-            (center.x + a * px, center.y + b * py, ground_z + h / 2.0),
-            (size, size, h),
-            0.0,
-            kind="cover",
-            material_key="rock",
-            meta={
-                "landmark": "CrownBossSanctum",
-                "element": "ruined_pillar",
-                "symmetry": "x -> -x",
-                "open_direction": "south",
-            },
-        ))
+        created.append(_cube(ctx, "Crown_ColiseumPillar{:02d}".format(idx),
+                             (center.x + a * px, center.y + b * py, ground_z + h / 2.0),
+                             (size, size, h), 0.0, kind="cover", material_key="rock",
+                             meta={"landmark": "CrownBossSanctum", "element": "ruined_pillar",
+                                   "symmetry": "x -> -x", "open_direction": "south"}))
+
+    # Two stacked stone plate tiers, slightly inset as they rise.
+    for tier, z_center, slab_t in ((1, 2.55, 0.42), (2, 3.20, 0.34)):
+        ta = a * (1.0 - 0.08 * tier)
+        tb = b * (1.0 - 0.08 * tier)
+        plate_depth = 0.68 - 0.08 * tier
+        for i in range(segments):
+            theta0 = math.pi * i / segments
+            theta1 = math.pi * (i + 1) / segments
+            theta = 0.5 * (theta0 + theta1)
+            if i in (3, 7, 11, 15):
+                continue
+            x = ta * math.cos(theta)
+            y = tb * math.sin(theta)
+            tx = -ta * math.sin(theta)
+            ty = tb * math.cos(theta)
+            yaw = math.degrees(math.atan2(ty, tx))
+            span = max(0.95, min(1.65, ta * math.pi / segments * 1.05))
+            created.append(_cube(
+                ctx, "Crown_ThronePlate_T{}_{:02d}".format(tier, i + 1),
+                (center.x + x, center.y + y, ground_z + z_center),
+                (span, plate_depth, slab_t), yaw, kind="cover", material_key="stone",
+                meta={"landmark": "CrownBossSanctum", "element": "throne_plate",
+                      "tier": tier, "symmetry": "x -> -x", "open_direction": "south"}))
+
+        for idx, angle_deg in enumerate((28.0, 62.0, 118.0, 152.0), 1):
+            ang = math.radians(angle_deg)
+            x = ta * math.cos(ang)
+            y = tb * math.sin(ang)
+            col_h = 1.15 if tier == 1 else 0.95
+            rb = 0.50 if tier == 1 else 0.42
+            rt = 0.28 if tier == 1 else 0.23
+            created.append(_tapered_column(
+                ctx, "Crown_ThroneColumn_T{}_{:02d}".format(tier, idx),
+                (center.x + x, center.y + y, ground_z + z_center + slab_t / 2.0),
+                col_h, rb, rt, material_key="rock",
+                meta={"landmark": "CrownBossSanctum", "element": "tapered_throne_column",
+                      "tier": tier, "symmetry": "x -> -x", "open_direction": "south",
+                      "taper": "WIDE_BOTTOM_NARROW_TOP"}))
     return created
 
 
@@ -191,9 +191,6 @@ def generate(ctx):
     ground_z = get_height_at_point(Vector((center.x, center.y, 0.0)), ctx.config, ctx.layout)
     created = [_smooth_rise(ctx, center, ground_z), _boss_button(ctx, center, ground_z)]
     created.extend(_half_coliseum(ctx, center, ground_z))
-    print(
-        "  -> Crown Sanctum: rise=0.441m | button seated on rise | "
-        "semi-oval approach=15.75x10.50m (-50% from previous) | "
-        "ruined half-coliseum=18.4x11.5m | aligned along coliseum wall"
-    )
+    print("  -> Crown Sanctum: rise=0.441m | button seated on rise | semi-oval=7.88x5.25m | "
+          "coliseum=18.4x11.5m | throne tiers=2 | tapered columns | symmetric")
     return created
