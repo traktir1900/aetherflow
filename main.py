@@ -195,8 +195,17 @@ def _install_viz01():
         if ctx is not None:
             viz = core.world_silhouette.generate_world_silhouette(ctx)
             env = core.environment_perimeter.generate_environment_perimeter(ctx)
-            # Remove the reviewed-out Crown approach props. Keep Crown itself,
-            # its platform, boss sanctum, and all authoritative gameplay geometry.
+            # Reviewed out: all Environment Perimeter Spire props along the circle.
+            removed_perimeter_spires = _remove_named_prefix_objects(
+                ctx,
+                ("EnvPerimeterSpire", "EnvironmentPerimeterSpire"),
+            )
+            if removed_perimeter_spires:
+                print("  -> removed unwanted Environment Perimeter Spires: {}".format(
+                    removed_perimeter_spires
+                ))
+            # Reviewed out: Crown approach props. Keep Crown itself, its
+            # platform, boss sanctum, and authoritative gameplay geometry.
             removed_crown_props = _remove_named_prefix_objects(
                 ctx,
                 ("CrownApproachLandmark01", "CrownApproachLandmark02"),
