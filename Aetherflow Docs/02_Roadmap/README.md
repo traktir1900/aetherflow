@@ -10,7 +10,7 @@
 
 # ФАЗА 1 — BLENDER / PYTHON / ИГРОВАЯ КАРТА
 
-## v0.6.1 — ТЕКУЩАЯ БАЗА
+## v0.6.1 — БАЗА
 
 Исходная рабочая версия процедурной карты.
 
@@ -34,7 +34,7 @@
 - валидация;
 - экспорт map_data.json.
 
-**Важно:** v0.6.1 не переделывается с нуля. Следующие версии используют её как зафиксированный фундамент.
+v0.6.1 используется как зафиксированный фундамент для последующих refinement-версий.
 
 ---
 
@@ -60,36 +60,22 @@
 
 ## v0.6.3.1 — TERRAIN REFINEMENT — CLOSED
 
-Баланс baseline зафиксирован. Blue/Red fairness = 0.0%, 5/5 objectives, 4/4 pockets reachable, navigation problems = 0, evaluated-mesh intersections = 0, gameplay symmetry = PASS, terrain slope audit = PASS (26.14° < 35°). XY bases/objectives frozen.
+Baseline зафиксирован: Blue/Red fairness = 0.0%, 5/5 objectives, 4/4 pockets reachable, navigation problems = 0, evaluated-mesh intersections = 0, gameplay symmetry = PASS. XY bases/objectives frozen.
 
-Остались отдельные технические cleanup items: legacy outer-boundary bbox warnings и Altar export/inspection mismatch. Они не изменяют командную fairness baseline.
+## v0.6.3.2 — HEIGHT TRANSITIONS — IMPLEMENTED / TECHNICAL CLOSURE CARRIED INTO v0.6.4
 
-## v0.6.3.2 — HEIGHT TRANSITIONS — CURRENT
+Система высотных переходов и minion traversal audit реализованы. Последний supplied runtime показал dedicated minion traversal **PASS** для обеих зеркальных сценариев, но общий Stage 9 validation завершился `FAILED` из-за технических validation/model issues и Crown structural-overlap warnings.
 
-### Baseline lock
+Общие правила остаются:
 
-Контрольные значения из v0.6.3.1:
-
-- Blue/Red route-time difference: **0.0%**;
-- objectives: **5/5**;
-- pockets reachable: **4/4**;
-- navigation problems: **0**;
-- evaluated-mesh intersections: **0**;
-- gameplay symmetry: **PASS**;
-- terrain slope design limit: **35°**;
-- base/objective XY: **FROZEN**.
-
-### Work
-
-Проверить slope, ramps, walkability, minion traversal, LOS changes и combat readability. Исправлять только реальные проблемы.
-
-### Hard constraints
-
-- не менять XY координаты bases/objectives;
-- сохранять Y-axis gameplay symmetry `(x,y,z) -> (-x,y,z)`;
-- не допускать новых gameplay-breaking chokepoints;
-- после каждого material change выполнять regression validation;
-- сохранить baseline fairness или зафиксировать любое отклонение как отдельный измеренный результат.
+- combat slope <= 15°;
+- minion-safe slope <= 18°;
+- walkable <= 25°;
+- ramp <= 30°;
+- hard terrain ceiling = 35°;
+- adjacent height step <= 0.75 м;
+- minion corridor target = 1.30 м;
+- group/ramp width target = 4.0 м.
 
 ## v0.6.3.3 — ROAD NETWORK REFINEMENT
 
@@ -117,9 +103,58 @@
 
 ---
 
-# v0.6.4 — BOUNDARY + ENVIRONMENT + RESOURCES
+# v0.6.4 — BOUNDARY + ENVIRONMENT + RESOURCES — CURRENT
 
-Расширение внешней среды, ресурсов и проверки игровых границ после завершения terrain/combat-space refinement.
+### Главная задача
+
+Закрыть внешний периметр, корректно оформить Crown/Boundary interaction, завершить визуальную presentation layer для capture objectives и подготовить среду/resources без нарушения gameplay contract.
+
+### Реализовано
+
+- global elliptical outer boundary;
+- intentional Crown north-wall opening;
+- Crown Sanctum presentation contract с lower throne plate only;
+- отдельный Crown capture button и capture indicator ring;
+- raised-platform-aware Crown capture presentation;
+- two visual-only Crown capture links to adjacent objectives;
+- road center light guides;
+- capture-button route binding;
+- runtime validation compatibility для visual-only guides и dedicated boundary geometry;
+- ramp width configuration correction toward 4 m group target.
+
+### Runtime status
+
+Последний supplied Blender 5.2 runtime:
+
+- terrain slope audit = **PASS (19.88° max)**;
+- capture overlays = **10 objects / 5 logical anchors**;
+- Crown visual correction = **executed**;
+- capture route binding = **PASS, 18 links**;
+- ramps built = **5**;
+- pockets reachable = **4/4**;
+- gameplay symmetry = **PASS**;
+- dedicated minion traversal = **PASS**;
+- final Stage 9 validation = **FAILED**.
+
+### Open gates
+
+- свежий Blender runtime после последних validator/ramp changes;
+- подтверждение 4 m ramp width;
+- review Crown structural overlaps;
+- resource generation remains **NOT IMPLEMENTED** in the active pipeline;
+- final environment dressing remains open;
+- no MAP LOCK.
+
+### Hard constraints
+
+- Base/Objective XY remain frozen;
+- symmetry `(x,y,z) -> (-x,y,z)` remains mandatory;
+- visual guides are navigation-neutral;
+- outer boundary is validated by dedicated footprint rules;
+- false-positive filtering is narrow and evidence-based;
+- validation failure cannot be reclassified as release success.
+
+---
 
 # v0.6.5 — FULL DOMINION SIMULATION + MAP BALANCE
 
