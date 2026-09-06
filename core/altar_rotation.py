@@ -168,24 +168,13 @@ def _build_rectangular_protector(name, position, size, rotation_z, ctx, meta):
 
 
 def generate_altar_obstacles(ctx):
-    """Create exactly five Altar barricades with the Crown/north side open.
-
-    Layout (world space, +Y is Crown/north):
-
-            Altar NORTH / CROWN SIDE — OPEN
-
-              [02 NW]       [01 NE]
-
-        [03 W]                 [04 E]
-
-                    [05 S]
-
-    The composition is mirrored across the authoritative Y-axis symmetry
-    plane (X -> -X): 01 <-> 02 and 03 <-> 04. 05 sits on the symmetry axis.
-    """
+    """Create Altar barricades only when explicitly enabled in config."""
     cfg = ctx.config
-    altar_r = float(cfg["altar"]["base_radius1"])
     protector_cfg = cfg.get("altar_protectors", {})
+    if not protector_cfg.get("enabled", False):
+        return []
+
+    altar_r = float(cfg["altar"]["base_radius1"])
     count = int(protector_cfg.get("count", 5))
     if count != 5:
         raise ValueError("Altar protectors require exactly 5 pieces for the Crown-side-open layout")
@@ -197,8 +186,6 @@ def generate_altar_obstacles(ctx):
     ring_r = altar_r + offset + wall_depth * 0.5
     size = (wall_length, wall_depth, wall_height)
 
-    # Crown is at +Y. Leave the entire +Y sector open while keeping exact
-    # gameplay symmetry across X -> -X.
     lateral_r = ring_r * math.sin(math.radians(45.0))
     axial_r = ring_r * math.cos(math.radians(45.0))
     specs = [
