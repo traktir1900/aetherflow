@@ -1,9 +1,9 @@
 """AetherFlow v0.6.4 map cleanup + Crown perimeter opening patch.
 
 Runtime-only compatibility layer for the iterative Blender generator:
-- removes the obsolete default/central cube when present;
-- opens the global outer wall on the Crown axis so the Crown platform has
-  at least a 1 m clearance on each side of the opening;
+- removes the obsolete central/default Cube including Blender suffix variants;
+- removes only cube objects that are actually near the map center;
+- opens the global outer wall on the Crown axis with 1 m clearance on each side;
 - keeps the opening deterministic and records it in ctx.outer_boundary.
 """
 import math
@@ -19,18 +19,39 @@ _CUBE_NAMES = {
 }
 
 
-def _is_cube_name(name):
+def _normalized_name(name):
     key = str(name or "").strip().lower()
-    return key in _CUBE_NAMES
+    # Blender automatically creates Cube.001 / Cube.002 / ... when the old
+    # default object is duplicated. Treat only a numeric suffix as equivalent
+    # to the canonical name.
+    if "." in key:
+        base, suffix = key.rsplit(".", 1)
+        if suffix.isdigit():
+            key = base
+    return key
+
+
+def _is_obsolete_central_cube(obj):
+    """Match the old central cube robustly without deleting legitimate props."""
+    if obj is None or getattr(obj, "type", None) != "MESH":
+        return False
+    if _normalized_name(getattr(obj, "name", "")) not in _CUBE_NAMES:
+        return False
+    loc = getattr(obj, "location", None)
+    if loc is None:
+        return False
+    # The obsolete cube belongs to the original scene origin. Keep the cleanup
+    # deliberately local so named cube props elsewhere on the map survive.
+    return math.hypot(float(loc.x), float(loc.y)) <= 10.0
 
 
 def remove_obsolete_central_cube(ctx=None):
-    """Remove only explicit obsolete/default cube names; never infer by shape."""
+    """Remove every obsolete central Cube/Cube.### near the map origin."""
     import bpy
 
     removed = []
     for obj in list(bpy.data.objects):
-        if not _is_cube_name(obj.name):
+        if not _is_obsolete_central_cube(obj):
             continue
         removed.append(obj.name)
         bpy.data.objects.remove(obj, do_unlink=True)
@@ -41,8 +62,7 @@ def remove_obsolete_central_cube(ctx=None):
             rec for rec in ctx.generated_objects if rec.get("name") not in removed_set
         ]
 
-    if removed:
-        print("  -> v0.6.4 obsolete central cube removed: {}".format(removed))
+    print("  -> v0.6.4 central cube cleanup: removed={}".format(removed or "NONE"))
     return removed
 
 
