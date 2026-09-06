@@ -1,661 +1,552 @@
-# AetherFlow — Canonical Development Roadmap
+# AetherFlow — Development Roadmap
 
-> **Document status:** ACTIVE / CANONICAL
->
-> This roadmap defines the development order for AetherFlow. It is inspired by the gameplay principles of League of Legends: Dominion / Crystal Scar, but AetherFlow is an original game and must not copy Riot's assets, names, UI art, map geometry or proprietary presentation.
+> **Status:** ACTIVE / CANONICAL  
+> **Starting point:** v0.6.4.0  
+> **Rule:** Do not redo completed systems. Every next version extends the verified current foundation.
 
----
+## 0. CURRENT STATE — v0.6.4.0
 
-# 0. PRODUCT TARGET
+AetherFlow is **not being created from zero**. The current project already contains a procedural 200×200 m gameplay map with 5 objectives, 2 bases, terrain/heightmap, roads, ramps, 4 gameplay pockets, cover, boundary, navigation, LOS analysis, deterministic generation, validation and `map_data.json` export.
 
-AetherFlow is a fast 5v5 competitive action game built around **capture-and-hold territory control**, rapid rotations, short combat cycles and constant objective pressure.
+The current generator also contains capture-platform overlays, route bindings, Crown Sanctum/Crown Boss presentation and base-shop blockouts. The current technical simulation measures traffic, fights, exposure, cover usage and route data, but it is **not yet a full match simulation**: objective ownership is still synthetic and there is no complete player/minion/economy runtime.
 
-The core experience target is the part of Dominion that made the mode structurally different from a traditional MOBA:
+Latest recorded runtime state must be treated literally:
 
-- five important capture objectives;
-- a continuous circular/looping rotation network instead of three lanes;
-- control of objectives is the primary source of team advantage;
-- the enemy base has an abstract health/ticket value rather than being directly attacked;
-- kills, captures and objective advantage all contribute to victory;
-- short travel times and frequent fights;
-- strong comeback potential;
-- meaningful neutral resources and map events;
-- highly readable macro UI showing the state of the whole battlefield.
+- dedicated terrain/minion traversal checks: PASS;
+- 5/5 objectives: present;
+- 4/4 pockets: reachable;
+- gameplay symmetry: PASS;
+- capture-button route binding: PASS;
+- Stage 9 overall validation: FAILED;
+- Crown structural overlap review: OPEN;
+- resource generation: NOT IMPLEMENTED;
+- final MAP LOCK: NOT REACHED.
 
-AetherFlow adds its own identity through **AetherCore / Aether Altar**, **Crown Sanctum / Crown Boss**, the future **Static / Hybrid / Dynamic** modes, and its own art direction and terminology.
-
----
-
-# 1. DESIGN REFERENCE: WHAT WE ARE REPRODUCING AT THE SYSTEM LEVEL
-
-The Dominion reference research establishes several high-value principles.
-
-## 1.1 Map structure
-
-Crystal Scar used five capture points arranged around a circular map. The outer route was the primary rotation layer, while inner connections created interceptions, ambushes and shortcuts. The map was deliberately unlike a conventional three-lane MOBA. citeturn584165search2turn584165search7
-
-**AetherFlow target:** preserve the 5-objective loop, multiple entry/exit routes, internal shortcuts and flank opportunities, while keeping our own geometry, landmarks and base layout.
-
-## 1.2 Objective structure
-
-Dominion capture points had three states: allied, enemy and neutral. Capturing an enemy point required first neutralizing it, then capturing it. A normal champion channel took approximately 10 seconds for one transition; additional participants accelerated progress. Champion damage/movement could interrupt a capture channel. citeturn547633search2turn584165search0
-
-**AetherFlow target:** objectives are not simple on/off buttons. They have ownership, neutralization, capture progress, contesting, defensive pressure and route-driven reinforcement.
-
-## 1.3 Victory model
-
-The Dominion Nexus was untargetable and started at 500 health. Team objective advantage drained enemy Nexus health over time; equal objective control stopped passive drain. Champion takedowns also reduced Nexus health by 2, with kill-based damage disabled once the Nexus was at or below 100 health. A capture also immediately damaged the enemy Nexus. citeturn547633search0turn547633search1
-
-**AetherFlow target:** use an abstract **Team Core / Ticket** model rather than a standard MOBA Nexus siege. Exact values will be balance-tuned in v0.6.5.
-
-## 1.4 Minion pressure
-
-In Dominion, controlled neighboring objectives could create minion waves whose destination was another capture point. The wave did not continue indefinitely around the map; it had a specific objective destination. citeturn584165search0
-
-**AetherFlow target:** minions exist to create objective pressure, not to recreate three-lane farming. Every wave needs a clear source, destination, route and reason for existence.
-
-## 1.5 Map resources
-
-Crystal Scar used health relics, speed shrines and central Greater Relics. Health relics supported sustain, speed shrines accelerated rotations, and the central Greater Relics created contested high-value fights. citeturn547633search5turn584165search4
-
-**AetherFlow target:** resources must change rotation decisions and create risk/reward choices. They should not become random decorative pickups.
-
-## 1.6 Quests / dynamic objectives
-
-Dominion introduced timed capture quests. After roughly five minutes, teams received objectives such as taking an enemy point and defending an allied point; completing them damaged the enemy Nexus and granted a team combat reward. New quests could appear later. citeturn584165search0
-
-**AetherFlow target:** introduce dynamic match objectives only after the basic capture loop is stable. These belong in the later simulation layer, not in the base map generator.
-
-## 1.7 Vision model
-
-The outer route of Crystal Scar was largely revealed, while specific inner passages retained fog-of-war opportunities for ambushes and movement masking. Health relics around objectives were not simply always visible, while central relics were intentionally prominent. citeturn584165search0turn584165search3
-
-**AetherFlow target:** combine a readable macro layer with deliberate local fog pockets. The entire map should not become either fully visible or fully hidden.
-
-## 1.8 UI / information architecture
-
-Historical Dominion HUD screenshots show a persistent top-level team score display, player combat HUD at the bottom, minimap on the right, and prominent event/capture announcements during combat. citeturn444619image2turn278551image1turn278551image4
-
-**AetherFlow target:** prioritize battlefield state over clutter. The player must understand, at a glance:
-
-- team Core/Ticket health;
-- which of five objectives are Blue / Red / Neutral / Contested;
-- where teammates are;
-- where objective pressure is moving;
-- which dynamic event is active;
-- current personal combat state.
+The roadmap therefore starts with **v0.6.4.0 closure**, not with map creation from scratch.
 
 ---
 
-# 2. AETHERFLOW CURRENT FOUNDATION
+# PHASE 1 — FINISH THE EXISTING MAP FOUNDATION
 
-Current repository work already provides a strong technical map foundation:
+## v0.6.4.0 — MAP FOUNDATION CLOSURE
 
-- 200 × 200 m gameplay area;
-- 220 × 220 m world floor;
-- 5 capture objectives;
-- 2 team bases;
-- 4 gameplay pockets;
-- road network and ramps;
-- central AetherCore / Aether Altar;
-- Crown Sanctum presentation;
-- procedural terrain;
-- outer boundary;
-- navigation grid;
-- gameplay cover;
-- deterministic generation;
-- validation;
-- `map_data.json` export.
+**Current version.**
 
-The current v0.6.4 runtime documentation still records **Stage 9 validation as FAILED**, so the map is not considered locked. The current runtime also records resource generation as not implemented. These are open gates, not completed features.
+### Goal
+Bring the existing map generator and generated scene to a clean, repeatable technical baseline.
 
----
+### Actions
+1. Run the fresh Blender 5.2 generation from a clean managed scene.
+2. Verify the outer boundary and intentional Crown opening.
+3. Verify all 5 capture platforms, buttons and indicator rings.
+4. Verify Crown capture layer is separate from Crown Boss layer.
+5. Verify ramp generation and 4 m group-width target.
+6. Review genuine Crown overlaps; do not hide them with broad validation filters.
+7. Verify navigation, LOS, symmetry, pocket reachability and objective access.
+8. Verify obsolete default Cube cleanup.
+9. Verify `map_data.json` export and stable IDs.
+10. Record one authoritative runtime report.
 
-# 3. PHASE 1 — BLENDER / PYTHON / MAP DEVELOPMENT
-
-## v0.6.1 — FOUNDATION — CLOSED
-
-Historical baseline.
-
-Purpose:
-- establish the procedural map;
-- establish deterministic generation;
-- establish five objectives and two bases;
-- establish roads, ramps, pockets, terrain and validation.
-
-No redesign from scratch is permitted.
+### Exit gate
+No unexplained Stage 9 errors. Any remaining warning must have an explicit design disposition. This version is closed only on real Blender evidence.
 
 ---
 
-## v0.6.2 — GAMEPLAY DRESSING / INTERACTION FOUNDATION
+## v0.6.4.1 — RESOURCE FOUNDATION
 
-Purpose:
-- convert geometry into a readable gameplay space;
-- create the data foundation required by UE5;
-- add tactical cover and environmental rules without damaging topology.
+### Goal
+Add the first strategic map resources that make rotation decisions meaningful.
 
-Key work:
-- gameplay cover;
-- rocks and tactical formations;
-- natural environment integration;
-- objective dressing;
-- capture markers;
-- interaction anchors;
-- future shop markers;
-- unified gameplay markers;
-- export extensions;
-- deterministic environment safety.
+### Actions
+1. Define Health Relic spatial markers.
+2. Define Speed Shrine spatial markers.
+3. Define the central Aether resource / landmark resource.
+4. Give every resource a stable ID, radius and gameplay role.
+5. Define respawn placeholders/timers in data only.
+6. Define visibility and interaction anchors.
+7. Add resources to `map_data.json`.
+8. Test Blue/Red access symmetry and alternative approaches.
 
----
-
-## v0.6.3 — TERRAIN / ROUTES / COMBAT-SPACE REFINEMENT
-
-Purpose:
-- fix real measured problems in movement and combat space;
-- preserve objective/base anchors;
-- avoid arbitrary geometry churn.
-
-### v0.6.3.1 — Terrain refinement
-Crown, Core, Monoliths, South Rift and transition profiles.
-
-### v0.6.3.2 — Height transitions
-Hero/minion slopes, ramp safety, group width, route height deltas and traversal audits.
-
-### v0.6.3.3 — Road network refinement
-Base → objective, objective → objective, outer rotation, inner rotation, flank and retreat routes.
-
-### v0.6.3.4 — Ramp refinement
-Verify ramps for hero, minion, group and five-player movement.
-
-### v0.6.3.5 — Pocket refinement
-West/East/SW/SE pockets remain flank, ambush and retreat spaces.
-
-### v0.6.3.6 — Combat cover refinement
-Use the existing optimizer only where tests identify LOS/combat-space problems.
-
-### v0.6.3.7 — Combat-space testing
-1v1, 2v2, 3v3 and 5v5 objective fights plus retreat, flank, interception, defense and assault scenarios.
-
-### v0.6.3.8 — Deathball mitigation
-Use route topology, LOS breaks, controlled chokes and flank opportunities; do not solve deathball by filling the map with obstacles.
+### Exit gate
+Resources exist in the generated scene and export, do not block roads/navigation, and have measured fairness data.
 
 ---
 
-# 4. v0.6.4 — DOMINION-STYLE MAP LOOP COMPLETION
+## v0.6.4.2 — ENVIRONMENT + PERIMETER COMPLETION
 
-**CURRENT PHASE**
+### Goal
+Finish gameplay-aware environmental dressing without changing the map's authoritative topology.
 
-The goal of v0.6.4 is no longer merely "environment polish". It is to make the physical map support the intended fast capture-and-rotate gameplay loop.
+### Actions
+1. Integrate natural perimeter assets into the active generation path.
+2. Improve rocks, cliffs, shrubs, grass and plants by gameplay zone.
+3. Keep objectives, roads, ramps, pockets and combat corridors protected from decorative blockage.
+4. Remove duplicate boundary/pocket fence generation.
+5. Verify visual hierarchy and repetition.
+6. Verify deterministic environment generation.
 
-## 4.1 Objective network
-
-Verify the five-point macro loop:
-
-`Base → Objective → Objective → Objective → Objective → Objective → Base`
-
-Requirements:
-
-- every objective has multiple meaningful approaches;
-- at least one fast macro rotation path exists;
-- flank/interception routes exist without creating a second three-lane map;
-- no objective should become a dead-end;
-- route times between neighboring objectives must remain tightly controlled;
-- Blue/Red symmetry/fairness remains within the existing hard tolerance.
-
-## 4.2 Objective gameplay presentation
-
-Every objective must expose the same conceptual layers:
-
-```text
-Objective Actor
-├── Physical Capture Platform
-├── Capture Indicator
-├── Capture Interaction
-├── Defensive/Offensive tactical space
-└── World-space UI anchor
-```
-
-Crown additionally contains its separate boss layer:
-
-```text
-Crown Capture Objective
-+
-Crown Sanctum / Crown Boss
-```
-
-The boss interaction must never substitute for capture interaction.
-
-## 4.3 Resources
-
-Implement map-resource foundations required for rotation:
-
-- Health Relics;
-- Speed Shrines;
-- central high-value resource / Aether resource;
-- stable respawn timers;
-- resource ownership/visibility rules;
-- UI anchors;
-- export IDs.
-
-The exact AetherFlow resource names and buffs are proprietary AetherFlow design decisions and must be documented before implementation.
-
-## 4.4 Minion objective pressure foundation
-
-Add Blender-side data for:
-
-- source objective;
-- destination objective;
-- route ID;
-- wave spawn point;
-- lane/road class;
-- tactical priority.
-
-No infinite free-roaming minions.
-
-## 4.5 Vision / fog foundation
-
-Define gameplay vision zones:
-
-- permanently readable outer macro routes;
-- controlled fog corridors;
-- pocket ambush zones;
-- objective visibility rules;
-- resource visibility rules.
-
-These rules must later be implemented in UE5, but the map must expose the required spatial markers now.
-
-## 4.6 Capture UI data contract
-
-Prepare data for:
-
-- Neutral;
-- Blue-controlled;
-- Red-controlled;
-- contested;
-- capture progress;
-- neutralization progress;
-- capture direction;
-- objective alert;
-- world-space objective anchor;
-- minimap icon state.
-
-## 4.7 Validation gate
-
-v0.6.4 cannot close while:
-
-- genuine Stage 9 errors remain;
-- Crown structural overlaps remain unresolved without measured acceptance;
-- ramp width is not runtime-verified;
-- navigation problems exist;
-- 4/4 pockets are not reachable;
-- objective route fairness fails;
-- resource generation remains untracked.
+### Exit gate
+Environment is deterministic, gameplay-safe and validated against navigation/LOS.
 
 ---
 
-# 5. v0.6.5 — FULL DOMINION-STYLE MATCH SIMULATION + BALANCE
+## v0.6.4.3 — GAMEPLAY MARKERS + MAP DATA CONTRACT
 
-This is the most important pre-UE5 gameplay phase.
+### Goal
+Complete the Blender-side spatial data contract required by UE5.
 
-## 5.1 Team Core / Ticket model
+### Actions
+1. Unified objective markers.
+2. Base and spawn markers.
+3. Shop markers.
+4. Resource markers.
+5. Capture interaction points.
+6. UI anchors.
+7. Route IDs.
+8. Objective adjacency data.
+9. Minion route source/destination data.
+10. Stable schema/versioning for `map_data.json`.
 
-Implement deterministic team health/ticket simulation.
+### Exit gate
+All gameplay-critical spatial entities are exported through one consistent schema.
 
-The model must support:
+---
 
-- starting health;
-- passive drain based on objective advantage;
-- capture event damage;
-- champion-kill contribution;
-- minimum-health anti-ninja-cap protection;
-- comeback potential;
-- explicit victory condition.
+## v0.6.4.4 — MAP GAMEPLAY READABILITY PASS
 
-Reference baseline: Dominion historically used 500 Nexus health, objective differential drain and -2 for champion takedowns. citeturn547633search0turn547633search1
+### Goal
+Ensure the physical map communicates the intended fast capture/rotation gameplay before runtime implementation.
 
-AetherFlow values must be tuned independently during balance testing.
+### Actions
+1. Verify every objective has multiple approaches.
+2. Verify macro loop and internal shortcuts.
+3. Verify flank/interception routes.
+4. Verify retreat routes.
+5. Verify no objective becomes a dead-end.
+6. Verify central AetherCore does not become an accidental choke trap.
+7. Verify Crown approach/opening readability.
+8. Measure travel-time symmetry.
 
-## 5.2 Objective state machine
+### Exit gate
+The map supports fast 5v5 rotation without turning into a conventional three-lane MOBA.
 
-Authoritative states:
+---
 
-`NEUTRAL → CAPTURING → BLUE / RED → NEUTRALIZING → CONTESTED`
+# PHASE 2 — PRE-UE5 GAMEPLAY SIMULATION
 
-Requirements:
+## v0.6.5.0 — MATCH SIMULATION FOUNDATION
 
-- champion capture channel;
-- interrupt rules;
-- multi-player acceleration with diminishing returns;
-- minion capture pressure;
-- point defense;
-- turret/objective attack behavior where applicable;
-- capture event notifications.
+### Goal
+Turn the current technical map simulation into a deterministic model of an actual AetherFlow match.
 
-## 5.3 Objective differential pressure
+### Actions
+1. Replace synthetic objective ownership with a real objective state machine.
+2. Define Neutral / Blue / Red / Contested / Capturing / Neutralizing states.
+3. Define capture and neutralization timing.
+4. Define interruption rules.
+5. Define multi-player capture acceleration and diminishing returns.
+6. Define objective control pressure.
+7. Define Team Core / Ticket model.
+8. Define victory/defeat conditions.
+9. Add match clock and match phases.
 
-Model the strategic pressure generated by holding:
+### Important
+AetherFlow is **inspired by Dominion's objective-control structure**, but exact values are original AetherFlow balance decisions.
 
-- 0 objectives;
-- 1 objective;
-- 2 objectives;
-- 3 objectives;
-- 4 objectives;
-- 5 objectives.
+### Exit gate
+A complete deterministic simulated match can start, change objective ownership and end with a valid winner.
 
-The system must reward map control without creating an irreversible early snowball.
+---
 
-## 5.4 Minion pressure
+## v0.6.5.1 — MINION OBJECTIVE PRESSURE
 
-Build explicit objective-to-objective waves.
+### Goal
+Create objective-driven minion pressure rather than traditional three-lane farming.
 
-Each wave has:
+### Actions
+1. Objective-to-objective wave definitions.
+2. Source objective.
+3. Destination objective.
+4. Route selection.
+5. Spawn cadence.
+6. Minion role composition.
+7. Target selection.
+8. Objective interaction.
+9. Wave termination.
+10. Gold/reward hooks.
 
-- source;
-- destination;
-- route;
-- spawn cadence;
-- combat behavior;
-- capture behavior;
-- termination condition.
+### Exit gate
+Every simulated wave has an explicit reason, route and destination.
 
-Reference principle: Dominion minions had explicit neighboring objective destinations rather than travelling indefinitely. citeturn584165search0
+---
 
-## 5.5 5v5 scenarios
+## v0.6.5.2 — RESOURCES + MAP EVENTS
 
-Mandatory deterministic scenarios:
+### Goal
+Connect resources and controlled events to the match simulation.
 
-- equal start;
-- one-point advantage;
-- two-point advantage;
-- early center pressure;
-- split push;
+### Actions
+1. Health recovery resource behavior.
+2. Speed/rotation resource behavior.
+3. Central Aether resource contest.
+4. Respawn timers.
+5. Visibility rules.
+6. Resource denial.
+7. Risk/reward scoring.
+8. Optional timed map events.
+
+### Exit gate
+Resources measurably change rotation decisions without dominating the match.
+
+---
+
+## v0.6.5.3 — 5v5 SCENARIO SUITE
+
+### Goal
+Stress-test the map/gameplay loop before UE5 implementation.
+
+### Required scenarios
+- equal opening;
+- early one-point lead;
+- two-point lead;
+- center pressure;
+- split pressure;
 - deathball;
-- backdoor capture;
-- stalled contest;
-- comeback from low Core/Ticket value;
-- prolonged 5v5 objective fight;
+- backdoor attempt;
+- contested objective;
 - resource contest;
 - resource denial;
+- comeback;
+- prolonged 5v5 fight;
 - double-flank interception.
 
-## 5.6 Balance metrics
-
-Collect:
-
-- time-to-first-contact;
+### Metrics
+- first contact;
 - time-to-objective;
-- objective capture time;
+- capture time;
 - neutralization time;
-- route asymmetry;
 - retreat time;
+- route asymmetry;
 - flank availability;
 - objective exposure;
-- LOS advantage;
+- cover/LOS advantage;
 - resource access;
 - deathball concentration;
+- backdoor success;
 - comeback frequency;
-- backdoor success rate;
 - match duration.
 
-## 5.7 Dynamic objective events
-
-Introduce a controlled event layer inspired by Dominion's timed quests, but with original AetherFlow objectives and rewards. Dominion used timed capture/defense quests that rewarded successful teams with Nexus damage and a team combat buff. citeturn584165search0
-
-AetherFlow events must be:
-
-- readable;
-- optional where appropriate;
-- contested;
-- strategically meaningful;
-- non-dominating;
-- deterministic in test mode.
+### Exit gate
+Known balance problems are measurable rather than anecdotal.
 
 ---
 
-# 6. v0.6.6 — MAP LOCK / EXPORT LOCK
+## v0.6.5.4 — DOMINION-STYLE BALANCE PASS, AETHERFLOW RULES
 
-The last Blender/Python milestone before UE5.
+### Goal
+Use the lessons of capture-control games while defining AetherFlow's own numbers and rules.
 
-Requirements:
+### Actions
+1. Tune objective pressure.
+2. Tune Team Core / Ticket drain.
+3. Tune kill contribution.
+4. Tune capture-event impact.
+5. Tune comeback potential.
+6. Tune minion pressure.
+7. Tune resources.
+8. Tune map event frequency.
+9. Tune target match duration.
+10. Remove snowball states that become irreversible too early.
 
-- clean generation from empty managed scene;
-- deterministic repeatability;
-- 5 objectives;
-- 2 bases;
-- all required routes;
-- ramps;
-- pockets;
-- resources;
-- cover;
-- LOS;
-- minion routes;
-- gameplay markers;
-- map export;
-- validation PASS;
-- no unexplained geometry regressions.
+### Exit gate
+The game produces meaningful map-control advantage without making the first successful rotation decide the match.
 
-At MAP LOCK freeze:
+---
 
-- objective anchors;
-- base anchors;
+# PHASE 3 — MAP LOCK
+
+## v0.6.6.0 — FINAL MAP VALIDATION
+
+### Goal
+Freeze the Blender/Python map as the source asset for UE5.
+
+### Actions
+1. Clean generation from empty managed scene.
+2. Determinism test with identical seed.
+3. Full navigation regression.
+4. Full LOS regression.
+5. Full symmetry regression.
+6. Full objective/base/resource validation.
+7. Full minion-route validation.
+8. Full export validation.
+9. Validate object IDs and transforms.
+10. Compare final metrics against baseline.
+
+### Exit gate
+Validation PASS with no unexplained regressions.
+
+---
+
+## v0.6.6.1 — MAP LOCK
+
+Freeze:
+
+- objective positions;
+- base positions;
 - macro route topology;
-- gameplay geometry;
-- resource locations;
-- marker IDs;
-- export schema.
-
-After MAP LOCK, map changes require an explicit map revision.
-
----
-
-# 7. PHASE 2 — UNREAL ENGINE 5
-
-## v0.7.0 — UE5 FOUNDATION
-
-Import the locked Blender map into UE5.
-
-### v0.7.0.1 — Project foundation
-- project structure;
-- C++ modules;
-- source control;
-- naming conventions;
-- gameplay folder structure.
-
-### v0.7.0.2 — Map import
-- terrain;
-- structures;
 - roads;
 - ramps;
-- rocks;
-- environment;
-- boundary.
+- pockets;
+- gameplay cover;
+- resource positions;
+- gameplay markers;
+- export schema.
 
-### v0.7.0.3 — Collision / NavMesh
-- player walkability;
-- minion navigation;
-- ramps;
-- collision;
-- perimeter.
-
-### v0.7.0.4 — Map-data import
-Import and bind:
-
-- objectives;
-- bases;
-- shops;
-- capture zones;
-- markers;
-- resources;
-- UI anchors;
-- route data.
-
-### v0.7.0.5 — Blender ↔ UE5 parity
-Compare:
-
-- dimensions;
-- transforms;
-- IDs;
-- collision;
-- navigation;
-- gameplay zones.
+After MAP LOCK, gameplay development must not casually modify fundamental map topology. Changes become explicit map revisions.
 
 ---
 
-# 8. PHASE 3 — DOMINION-STYLE GAMEPLAY CORE
+# PHASE 4 — UNREAL ENGINE 5 FOUNDATION
 
-## v0.8.x — MATCH / OBJECTIVES
+## v0.7.0.0 — UE5 PROJECT FOUNDATION
 
-- match state;
-- Team Core/Ticket system;
-- objective ownership;
-- neutralization;
-- capture/contest;
-- objective drain;
-- win/lose conditions;
-- event system.
+### Goal
+Create the runtime architecture around the locked map.
 
-## v0.9.x — PLAYER FOUNDATION
+### Actions
+1. UE5 project structure.
+2. C++ gameplay modules.
+3. source control integration.
+4. gameplay folder/naming conventions.
+5. GameMode.
+6. GameState.
+7. PlayerState.
+8. TeamState.
+9. data assets/config strategy.
+10. logging/debug strategy.
 
-- character;
-- controller;
-- movement;
-- camera;
-- spawn;
+---
+
+## v0.7.1.0 — MAP IMPORT + PARITY
+
+### Actions
+1. Import terrain.
+2. Import structures.
+3. Import roads and ramps.
+4. Import rocks/environment/boundary.
+5. Import `map_data.json`.
+6. Bind stable IDs.
+7. Rebuild collision.
+8. Rebuild NavMesh.
+9. Verify Blender ↔ UE5 transform parity.
+
+### Exit gate
+UE5 map matches the locked Blender map within defined tolerances.
+
+---
+
+# PHASE 5 — PLAYABLE AETHERFLOW CORE
+
+## v0.8.0 — OBJECTIVE RUNTIME
+
+1. Objective Actor.
+2. Ownership.
+3. Neutralization.
+4. Capture.
+5. Contest.
+6. Capture interruption.
+7. Objective UI data.
+8. Objective alerts.
+9. Team Core / Ticket integration.
+10. Victory/defeat.
+
+### Exit gate
+A player can join a match and change the state of all five objectives through actual gameplay.
+
+---
+
+## v0.8.1 — MATCH FLOW
+
+1. Match initialization.
+2. Team assignment.
+3. Spawn.
+4. Pre-match countdown.
+5. Live match.
+6. Victory/defeat.
+7. Post-match state.
+8. Restart/reset.
+
+---
+
+## v0.9.0 — PLAYER FOUNDATION
+
+1. Character.
+2. Controller.
+3. Camera.
+4. Movement.
+5. interaction.
+6. targeting.
+7. death.
+8. respawn.
+9. capture interaction.
+10. movement modifiers from map resources.
+
+---
+
+## v0.10.0 — COMBAT FOUNDATION
+
+1. Health.
+2. Damage.
+3. Death.
+4. Basic attack.
+5. Targeting.
+6. Combat states.
+7. Damage feedback.
+8. Basic combat logging.
+
+---
+
+## v0.11.0 — HERO FRAMEWORK
+
+1. Hero stats.
+2. Ability framework.
+3. Cooldowns.
+4. Resources.
+5. Status effects.
+6. Targeting rules.
+7. Ability feedback.
+8. Hero data assets.
+
+---
+
+## v0.12.0 — HERO #1
+
+Build the first complete playable AetherFlow hero and use it as the reference implementation for the hero framework.
+
+Exit gate: one hero can move, fight, capture, die, respawn and participate meaningfully in objective play.
+
+---
+
+# PHASE 6 — MINIONS / ECONOMY / ITEMS
+
+## v0.13.0 — MINIONS
+
+1. Wave spawning.
+2. Objective source/destination.
+3. Navigation.
+4. AI.
+5. Combat.
+6. Targeting.
+7. Capture pressure.
+8. Death/reward.
+9. Wave pacing.
+
+## v0.14.0 — ECONOMY
+
+1. Gold.
+2. Kill rewards.
+3. Objective rewards.
+4. Resource rewards.
+5. Match economy.
+6. Anti-snowball rules.
+
+## v0.15.0 — SHOP + ITEMS
+
+1. Shop runtime.
+2. Item definitions.
+3. Purchases.
+4. Inventory.
+5. Stats.
+6. Item effects.
+7. Base shop interaction.
+
+---
+
+# PHASE 7 — TEAM / FULL 5v5
+
+## v0.16.0 — TEAM SYSTEM
+
+1. Teams.
+2. Allies/enemies.
+3. Team spawn.
+4. Team score.
+5. Team state.
+6. shared objective state.
+
+## v0.17.0 — COMPLETE 5v5 PLAYABLE
+
+The first complete playable AetherFlow match:
+
+- 5 players per team;
+- five objectives;
+- Team Core/Ticket model;
+- minions;
+- combat;
+- economy;
+- shop/items;
+- resources;
 - respawn;
-- interaction;
-- objective capture interaction.
+- victory conditions.
 
-## v0.10.x — COMBAT FOUNDATION
+This is the major **vertical slice** milestone.
 
-- health;
-- damage;
-- death;
-- targeting;
-- basic attack;
+---
+
+# PHASE 8 — AETHERFLOW GAME MODES
+
+## v0.18.0 — STATIC
+
+The stable baseline mode. Geometry and core rules remain predictable.
+
+## v0.19.0 — HYBRID
+
+Controlled combination of fixed and dynamic objective/event rules.
+
+## v0.20.0 — DYNAMIC
+
+Dynamic objective state and controlled map-state events.
+
+Each mode must reuse the same authoritative core systems instead of creating parallel objective/combat implementations.
+
+---
+
+# PHASE 9 — MULTIPLAYER
+
+## v0.21.0 — NETWORK FOUNDATION
+
+1. Server authority.
+2. Replication.
+3. Player state.
+4. Team state.
+5. Objective replication.
+6. Minion replication.
+7. Resource replication.
+
+## v0.22.0 — ONLINE MATCH FLOW
+
+1. Lobby.
+2. Session.
+3. Match start.
+4. Connect/disconnect.
+5. Rejoin handling.
+6. Match completion.
+
+---
+
+# PHASE 10 — UI / GAME FEEL / CONTENT
+
+## v0.23.0 — CORE HUD
+
+The HUD must prioritize battlefield information:
+
+- Team Core/Ticket state;
+- five objective states;
+- minimap;
+- player state;
+- active event/resource state;
 - combat feedback.
 
-## v0.11.x — ABILITY FRAMEWORK
-
-- abilities;
-- cooldowns;
-- resources;
-- targeting;
-- effects;
-- status effects.
-
-## v0.12.x — HERO #1
-
-First complete AetherFlow hero used as the combat/reference implementation.
-
-## v0.13.x — MINIONS
-
-- objective-directed spawning;
-- route-following;
-- objective combat;
-- capture pressure;
-- anti-stall rules;
-- rewards.
-
-## v0.14.x — ECONOMY
-
-- passive income;
-- kill rewards;
-- objective rewards;
-- resource rewards;
-- match economy.
-
-## v0.15.x — SHOP / ITEMS
-
-- shop;
-- item definitions;
-- purchases;
-- inventory;
-- item stats;
-- item effects.
-
-## v0.16.x — TEAM SYSTEM
-
-- allies/enemies;
-- team state;
-- team score;
-- spawn ownership;
-- team events.
-
-## v0.17.x — COMPLETE 5v5 MATCH
-
-Complete local/online-capable match loop:
-
-- 5v5;
-- objectives;
-- combat;
-- minions;
-- economy;
-- items;
-- respawn;
-- victory.
-
----
-
-# 9. PHASE 4 — AETHERFLOW GAME MODES
-
-## v0.18.x — STATIC MODE
-
-Stable core mode. Objective locations and primary rules remain fixed.
-
-## v0.19.x — HYBRID MODE
-
-Combination of fixed macro structure and controlled dynamic objectives/events.
-
-## v0.20.x — DYNAMIC MODE
-
-Dynamic objective/event behavior and controlled map-state changes.
-
----
-
-# 10. PHASE 5 — MULTIPLAYER
-
-## v0.21.x — MULTIPLAYER FOUNDATION
-
-- authoritative server;
-- replication;
-- networked movement;
-- player state;
-- team state;
-- objective state.
-
-## v0.22.x — ONLINE MATCH
-
-- lobby;
-- sessions;
-- connect/disconnect;
-- matchmaking foundation;
-- full online match flow.
-
----
-
-# 11. PHASE 6 — UI / GAME FEEL / CONTENT
-
-## v0.23.x — INFORMATION-FIRST HUD
-
-The HUD must make macro control immediately readable.
-
-Required:
-
-- Team Core/Ticket bars;
-- five-objective state strip;
-- objective ownership colors/state;
-- contested indicators;
-- minimap;
-- player HUD;
-- capture progress;
-- event banners;
-- objective alerts;
-- resource timers;
-- scoreboard.
-
-Historical Dominion screenshots support the architectural principle of a persistent team-state area, player combat HUD, minimap and event messaging. citeturn444619image2turn278551image1
-
-## v0.24.x — GAME FEEL
+## v0.24.0 — GAME FEEL
 
 - VFX;
 - SFX;
@@ -663,64 +554,66 @@ Historical Dominion screenshots support the architectural principle of a persist
 - capture feedback;
 - movement feedback;
 - camera polish;
-- objective audio states.
+- objective feedback.
 
-## v0.25.x — HERO ROSTER
+## v0.25.0 — HERO ROSTER
 
-Expand the hero roster while balancing around the capture-and-rotate structure.
+Expand the hero roster only after the first hero and core combat framework are stable.
 
-## v0.26.x — CONTENT
+## v0.26.0 — CONTENT
 
-- additional environments;
-- objective variants;
-- VFX/SFX content;
-- cosmetics where applicable.
+- environment polish;
+- additional objectives/events;
+- audio;
+- effects;
+- cosmetics where appropriate;
+- additional map/content only after the primary loop is stable.
 
 ---
 
-# 12. PHASE 7 — BALANCE / QA / RELEASE
+# PHASE 11 — BALANCE / QA / RELEASE
 
-## v0.27.x — BALANCE
+## v0.27.0 — BALANCE
 
-Balance around:
-
+- objective balance;
 - heroes;
 - items;
 - economy;
-- objectives;
 - minions;
 - resources;
-- modes.
+- game modes;
+- match duration.
 
-## v0.28.x — QA
+## v0.28.0 — QA
 
 - functional testing;
 - regression;
+- multiplayer testing;
 - exploit testing;
 - edge cases;
-- multiplayer QA;
-- objective-state testing.
+- save/load/reset tests where applicable.
 
-## v0.29.x — PERFORMANCE
+## v0.29.0 — PERFORMANCE
 
 - CPU;
 - GPU;
 - memory;
 - network;
 - loading;
-- scalability.
+- scalability;
+- server performance.
 
-## v0.30+ — ALPHA
+## v0.30 — ALPHA
 
-First complete playable build.
+First internally complete playable build.
 
-## v0.40+ — BETA
+## v0.40 — BETA
 
-Feature-complete build focused on balance, retention and stability.
+Feature-complete candidate focused on balance and stability.
 
-## v0.90+ — RELEASE CANDIDATE
+## v0.90 — RELEASE CANDIDATE
 
-Final release hardening.
+Final stabilization and certification.
 
 ## v1.0.0 — RELEASE
 
@@ -728,39 +621,21 @@ First official AetherFlow release.
 
 ---
 
-# 13. NON-NEGOTIABLE DEVELOPMENT RULES
+# DEVELOPMENT RULES
 
-1. **Gameplay first.** Every major geometry or environment change must have a gameplay reason.
-2. **One authoritative implementation.** Do not create parallel objective, capture, cover or navigation systems.
-3. **No topology drift before MAP LOCK.** Change layout only when test evidence proves that the current topology is inadequate.
-4. **No three-lane conversion.** AetherFlow is a capture-and-rotate game, not Summoner's Rift with different art.
-5. **Objective state is authoritative.** UI, minimap, minions and simulation must consume the same objective state.
-6. **Minions need destinations.** No infinite wandering.
-7. **Resources must affect decisions.** Decorative pickups are not gameplay systems.
-8. **Macro readability is mandatory.** A player must quickly understand the five-objective battlefield.
-9. **Evidence before balance changes.** Do not nerf or buff geometry from intuition alone.
-10. **Validation truth matters.** `PASS`, `FAILED`, `WARNING`, `DATA MISSING` retain their literal meanings.
-11. **Original identity.** We use Dominion as a systems reference, not as a source of copied assets or copied level geometry.
-12. **Every completed milestone must have measurable acceptance criteria.**
+1. **Start from the current verified state, never from zero.**
+2. **No duplicate gameplay systems.** One authoritative source of truth per state.
+3. **Map topology stays frozen after MAP LOCK.**
+4. **Gameplay first, decoration second.**
+5. **Every major mechanic gets design + acceptance criteria before implementation.**
+6. **Use measured simulation and test results for balance decisions.**
+7. **Do not copy League of Legends assets, names, UI art, proprietary map geometry or exact rules.** Use Dominion only as a system-level reference.
+8. **Never claim PASS, TESTED or DONE without evidence.**
+9. **Every version must have an explicit exit gate.**
+10. **Every regression must be recorded in `Aetherflow Docs/08_Testing_QA`.**
+11. **Version documentation belongs in `Aetherflow Docs/01_Versions/<version>/`.**
+12. **The roadmap is the canonical development order; implementation details belong in the relevant Design/Gameplay/Technical documents.**
 
----
+# CURRENT PRIORITY
 
-# 14. CURRENT PRIORITY
-
-## Active
-
-**v0.6.4 — Dominion-style map loop completion**
-
-Immediate priority order:
-
-1. close genuine Stage 9 validation errors;
-2. runtime-verify ramp/group width;
-3. resolve or measure Crown structural overlaps;
-4. implement resource foundations;
-5. finalize objective route/resource fairness;
-6. add minion objective-route metadata;
-7. finish vision/fog gameplay markers;
-8. rerun full Blender 5.2 validation;
-9. only then advance to v0.6.5 simulation.
-
-**Current state:** MAP LOCK = NO. UE5 transition = NOT STARTED.
+**v0.6.4.0 closure → v0.6.4.1 resources → v0.6.4.2 environment → v0.6.4.3 gameplay data contract → v0.6.4.4 map readability → v0.6.5 match simulation → v0.6.6 MAP LOCK → v0.7 UE5.**
