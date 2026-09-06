@@ -1,9 +1,8 @@
 """AetherFlow V0.6.4.3 — Environment + Perimeter.
 
 Visual-only environment pass layered on top of authoritative gameplay geometry.
-It adds perimeter formations, height-language accents, and landmark framing for
-Crown and AetherCore without changing terrain, roads, ramps, navigation, LOS,
-or gameplay blockers.
+Perimeter spires are intentionally disabled; remaining environment accents do
+not change terrain, roads, ramps, navigation, LOS, or gameplay blockers.
 """
 import math
 
@@ -119,7 +118,7 @@ def audit_symmetry(objects):
 
 
 def generate_environment_perimeter(ctx):
-    """Generate V0.6.4.3 visual environment without touching gameplay geometry."""
+    """Generate V0.6.4.3 visual environment without perimeter spires."""
     cfg = ctx.config.get("environment_perimeter", {})
     if not cfg.get("enabled", True):
         return {"enabled": False, "objects": [], "symmetry_passed": True, "max_error_m": 0.0}
@@ -128,20 +127,9 @@ def generate_environment_perimeter(ctx):
     aether_mat = _material(ctx, "outer_boundary_aether", "rock")
     created = []
 
-    # 1) Perimeter rock formations: authored once on +X and mirrored exactly.
-    perimeter_specs = [
-        ("EnvPerimeterSpire01", 91.0, 24.0, 3.2, 8.0, 0.68),
-        ("EnvPerimeterSpire02", 93.0, 5.0, 3.8, 10.5, 0.64),
-        ("EnvPerimeterSpire03", 88.0, -18.0, 3.0, 7.5, 0.70),
-        ("EnvPerimeterSpire04", 86.0, -42.0, 4.2, 11.0, 0.62),
-        ("EnvPerimeterSpire05", 76.0, -73.0, 3.6, 9.5, 0.66),
-        ("EnvPerimeterSpire06", 58.0, 82.0, 4.0, 11.5, 0.60),
-    ]
-    for name, x, y, radius, height, taper in perimeter_specs:
-        created.extend(_mirror_cone_pair(ctx, rock_mat, name, x, y, radius, height, taper, "perimeter_rock_formation"))
+    # Perimeter spires intentionally disabled after visual review.
+    perimeter_specs = []
 
-    # 2) Low ridge accents visually connect elevation changes already present in
-    # the authoritative terrain; they do not modify the terrain heightfield.
     ridge_specs = [
         ("EnvHeightRidge01", 74.0, 58.0, 15.0, 7.0, 2.8),
         ("EnvHeightRidge02", 83.0, -56.0, 18.0, 8.0, 3.2),
@@ -150,8 +138,6 @@ def generate_environment_perimeter(ctx):
     for name, x, y, width, depth, height in ridge_specs:
         created.extend(_mirror_ridge_pair(ctx, rock_mat, name, x, y, width, depth, height, "existing_height_language"))
 
-    # 3) Crown approach: four paired guardian spires create a readable arrival
-    # corridor while leaving the objective surface and paths authoritative.
     crown = ctx.layout["Crown"]
     for idx, (dx, dy, r, h) in enumerate(((7.5, -2.5, 1.35, 4.8), (5.5, 7.0, 1.1, 4.2))):
         created.extend(_mirror_cone_pair(
@@ -159,7 +145,6 @@ def generate_environment_perimeter(ctx):
             float(crown.x) + dx, float(crown.y) + dy,
             r, h, 0.58, "crown_approach_landmark"))
 
-    # 4) AetherCore: a compact symmetric landmark frame focused on the core.
     core = ctx.layout["Center"]
     for idx, (x, y, r, h) in enumerate(((5.8, -1.5, 1.25, 4.6), (4.2, 4.5, 1.0, 3.8), (7.0, 3.0, 1.15, 4.2)), start=1):
         created.extend(_mirror_cone_pair(
@@ -167,15 +152,13 @@ def generate_environment_perimeter(ctx):
             float(core.x) + x, float(core.y) + y,
             r, h, 0.60, "aethercore_landmark"))
 
-    # The center objective frame is completed with one low ridge on the symmetry
-    # axis. Because it is visual-only it cannot alter routing or collision.
     created.append(_low_ridge(
         "AetherCoreNorthFrame", float(core.x), float(core.y) + 6.8,
         7.0, 2.0, 2.4, aether_mat, ctx, role="aethercore_north_frame"))
 
     report = audit_symmetry(created)
     print(
-        "  -> V0.6.4.3 environment perimeter: objects={} | perimeter_spires=12 | "
+        "  -> V0.6.4.3 environment perimeter: objects={} | perimeter_spires=0 | "
         "height_ridges=6 | crown_landmarks=4 | core_landmarks=7 | symmetry={} | "
         "max_error={:.6f}m".format(
             len(created),
