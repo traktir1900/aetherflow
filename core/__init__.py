@@ -99,5 +99,16 @@ def _install_crown_sanctum_guard():
     _structures.generate_capture_points = _generate_capture_points_with_crown
 
 
+def _install_v064_map_guard():
+    """Install v0.6.4 cleanup/opening patches at package-import level."""
+    try:
+        import geometry.boundary as _boundary
+        import geometry.map_v064_runtime as _map_v064
+    except Exception:
+        return
+    _map_v064.install_outer_boundary_crown_opening(_boundary)
+
+
 _install_pocket_arc_opening_guard()
 _install_crown_sanctum_guard()
+_install_v064_map_guard()
