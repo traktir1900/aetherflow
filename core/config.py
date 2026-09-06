@@ -113,12 +113,12 @@ CONFIG = {
     "base_platform_height": _gs(1.5),
     "base_crystal_height": _gs(15.0),
     "base_crystal_radius": _gs(5.0),
-    # Temporary shop placeholder: one rectangle spanning the full straight
-    # rear edge of each semi-oval base. This is decorative for now.
+    # Temporary shop placeholder: exact-width rectangle placed immediately
+    # outside the straight D/diameter edge of each semi-oval base.
     "base_shop_width": _gs(105.0),
     "base_shop_depth": _gs(18.0),
     "base_shop_height": _gs(16.0),
-    "base_shop_gap": _gs(1.0),
+    "base_shop_gap": _gs(0.0),
     "rock": {"count_core": 6, "radius_min": _gs(2.0), "radius_max": _gs(4.2),
              "scale_y_min": 0.7, "scale_y_max": 1.15, "irregularity": 0.32},
     "navigation": {"cells": 128, "max_slope_deg": 50.0},
