@@ -64,7 +64,7 @@ CONFIG = {
     "shrine_road_offset": _s(25.0), "speed_shrine_radius": _gs(8.75), "health_relic_radius": _gs(6.25),
     "resource_foundation": {"enabled": True, "speed_anchor_t": 0.52, "health_anchor_t": 0.52,
         "speed_offset_y": -3.5, "health_offset_y": -3.5, "speed_shrine_radius": 1.4,
-        "health_relic_radius": 1.2, "capture_health_offset": 0.75, "require_exact_mirror": True},
+        "health_relic_radius": 1.2, "capture_health_offset_m": 0.75, "require_exact_mirror": True},
     "base_platform_width_radius": _gs(52.5), "base_platform_depth": _gs(52.5),
     "base_platform_height": _gs(1.5), "base_crystal_height": _gs(15.0), "base_crystal_radius": _gs(5.0),
     "base_shop_width": _gs(105.0), "base_shop_depth": _gs(18.0), "base_shop_height": _gs(16.0),
