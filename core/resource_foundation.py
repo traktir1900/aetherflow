@@ -27,7 +27,18 @@ def _material(ctx, name, fallback="rock"):
 
 def _cylinder(name, center, radius, depth, material, ctx, kind="resource_marker", sides=24, meta=None):
     bm = bmesh.new()
-    bmesh.ops.create_cylinder(bm, vertices=sides, radius=radius, depth=depth)
+    # Blender 5.2 exposes this primitive through create_cone(); equal top and
+    # bottom radii produce a cylinder. create_cylinder is not a BMesh operator.
+    bmesh.ops.create_cone(
+        bm,
+        cap_ends=True,
+        cap_tris=False,
+        segments=sides,
+        radius1=radius,
+        radius2=radius,
+        depth=depth,
+        calc_uvs=False,
+    )
     x, y, z = center
     obj = finalize_bmesh(
         bm, name, COLLECTION, material, ctx, kind=kind,
@@ -153,21 +164,14 @@ def generate_resource_foundation(ctx):
     if not cfg.get("enabled", True):
         return {"enabled": False, "objects": [], "symmetry_passed": True, "max_error_m": 0.0}
 
-    # Resource positions are derived from authoritative objective/base layout,
-    # not hard-coded world coordinates. This guarantees equal topology/access
-    # if the approved layout scale changes later.
     layout = ctx.layout
     center = layout["Center"]
     west = layout["WestMonolith"]
-    east = layout["EastMonolith"]
     sw = layout["SWMonolith"]
-    se = layout["SEMonolith"]
 
     west_anchor = center.lerp(west, float(cfg.get("speed_anchor_t", 0.52)))
     south_anchor = center.lerp(sw, float(cfg.get("health_anchor_t", 0.52)))
 
-    # Offset the visual marker slightly away from the principal route axis so
-    # it reads as an interaction space without becoming a route obstacle.
     speed_offset = float(cfg.get("speed_offset_y", -3.5))
     health_offset = float(cfg.get("health_offset_y", -3.5))
 
