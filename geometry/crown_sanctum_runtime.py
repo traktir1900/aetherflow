@@ -2,9 +2,8 @@
 
 Crown Boss Sanctum keeps the existing Crown XY anchor. The boss button is
 physically seated on top of the smooth semi-oval rise. The rear half-oval
-coliseum is layered upward with two architectural plate tiers and tapered
-columns. The added throne elements sit OUTSIDE/ON TOP of the existing wall
-silhouette instead of penetrating into the original coliseum blocks.
+coliseum remains a ruined half-coliseum with only the single lower stone plate
+layer retained as the architectural ledge.
 """
 import math
 import bmesh
@@ -31,33 +30,6 @@ def _cube(ctx, name, center, size, rot_z, kind="cover", material_key="rock", met
     return finalize_bmesh(
         bm, name, COLLECTION, ctx.get_material(material_key), ctx,
         kind=kind, dims=size, meta=meta or {},
-    )
-
-
-def _tapered_column(ctx, name, center, height, radius_bottom, radius_top, material_key="rock", meta=None):
-    bm = bmesh.new()
-    bmesh.ops.create_cone(
-        bm,
-        cap_ends=True,
-        segments=12,
-        radius1=radius_bottom,
-        radius2=radius_top,
-        depth=height,
-    )
-    bmesh.ops.translate(
-        bm,
-        verts=bm.verts,
-        vec=Vector((center[0], center[1], center[2] + height / 2.0)),
-    )
-    return finalize_bmesh(
-        bm,
-        name,
-        COLLECTION,
-        ctx.get_material(material_key),
-        ctx,
-        kind="cover",
-        dims=(radius_bottom * 2, radius_bottom * 2, height),
-        meta=meta or {},
     )
 
 
@@ -164,6 +136,7 @@ def _half_coliseum(ctx, center, ground_z):
     segments = 16
     created = []
 
+    # Existing ruined half-coliseum wall.
     for i in range(segments):
         theta0 = math.pi * i / segments
         theta1 = math.pi * (i + 1) / segments
@@ -199,6 +172,7 @@ def _half_coliseum(ctx, center, ground_z):
             )
         )
 
+    # Original four broken flanking pillars.
     for idx, (px, py, h) in enumerate(
         (
             (-0.88, 0.36, 1.65),
@@ -227,13 +201,14 @@ def _half_coliseum(ctx, center, ground_z):
             )
         )
 
-    tiers = (
-        (1, 1.10, 0.16, 0.30, 0.72),
-        (2, 1.04, 1.55, 0.26, 0.55),
-    )
-    col_angles = (30.0, 60.0, 120.0, 150.0)
+    # SINGLE LOWER architectural plate layer only.
+    # Keep the first/lowest ledge that was already established; remove every
+    # upper plate, connector, and throne column so the wall ends cleanly here.
+    tier = (1, 1.10, 0.16, 0.30, 0.72)
+    _, radial_mul, z_lift, slab_t, plate_depth = tier
+    ta = a * radial_mul
+    tb = b * radial_mul
 
-    wall_h_at = {}
     for i in range(segments):
         theta0 = math.pi * i / segments
         theta1 = math.pi * (i + 1) / segments
@@ -242,88 +217,32 @@ def _half_coliseum(ctx, center, ground_z):
             continue
         wave = 0.5 + 0.5 * math.sin(theta * 3.0 + 1.37)
         centre_bias = math.sin(theta)
-        wall_h_at[i] = max(
-            min_h,
-            min(max_h, min_h + (max_h - min_h) * (0.65 * centre_bias + 0.35 * wave)),
-        )
-
-    for tier, radial_mul, z_lift, slab_t, plate_depth in tiers:
-        ta = a * radial_mul
-        tb = b * radial_mul
-        for i in range(segments):
-            theta0 = math.pi * i / segments
-            theta1 = math.pi * (i + 1) / segments
-            theta = 0.5 * (theta0 + theta1)
-            if i in (3, 7, 11, 15):
-                continue
-            wall_h = wall_h_at[i]
-            x = ta * math.cos(theta)
-            y = tb * math.sin(theta)
-            tx = -ta * math.sin(theta)
-            ty = tb * math.cos(theta)
-            yaw = math.degrees(math.atan2(ty, tx))
-            span = max(0.82, min(1.42, ta * math.pi / segments * 0.88))
-            plate_z = ground_z + wall_h + z_lift + slab_t / 2.0
-            created.append(
-                _cube(
-                    ctx,
-                    "Crown_ThronePlate_T{}_{:02d}".format(tier, i + 1),
-                    (center.x + x, center.y + y, plate_z),
-                    (span, plate_depth, slab_t),
-                    yaw,
-                    kind="cover",
-                    material_key="stone",
-                    meta={
-                        "landmark": "CrownBossSanctum",
-                        "element": "throne_plate",
-                        "tier": tier,
-                        "tier_count": 2,
-                        "placement": "ON_LOWER_WALL_AND_STEPPED_UPWARD",
-                        "symmetry": "x -> -x",
-                        "open_direction": "south",
-                        "progressive_taper": tier == 2,
-                    },
-                )
-            )
-
-    lower_tier = tiers[0]
-    upper_tier = tiers[1]
-    lower_mul, lower_lift, lower_slab_t = lower_tier[1], lower_tier[2], lower_tier[3]
-    upper_mul, upper_lift, upper_slab_t = upper_tier[1], upper_tier[2], upper_tier[3]
-    ta = a * lower_mul
-    tb = b * lower_mul
-    col_r_x = ta + 0.14
-    col_r_y = tb + 0.14
-
-    for idx, angle_deg in enumerate(col_angles, 1):
-        ang = math.radians(angle_deg)
-        x = col_r_x * math.cos(ang)
-        y = col_r_y * math.sin(ang)
-        lower_wall_h = min_h + (max_h - min_h) * (
-            0.65 * math.sin(ang) + 0.35 * (0.5 + 0.5 * math.sin(ang * 3.0 + 1.37))
-        )
-        lower_wall_h = max(min_h, min(max_h, lower_wall_h))
-        base_z = ground_z + lower_wall_h + lower_lift + lower_slab_t
-        top_z = ground_z + lower_wall_h + upper_lift
-        col_h = max(0.55, top_z - base_z)
+        wall_h = min_h + (max_h - min_h) * (0.65 * centre_bias + 0.35 * wave)
+        wall_h = max(min_h, min(max_h, wall_h))
+        x = ta * math.cos(theta)
+        y = tb * math.sin(theta)
+        tx = -ta * math.sin(theta)
+        ty = tb * math.cos(theta)
+        yaw = math.degrees(math.atan2(ty, tx))
+        span = max(0.82, min(1.42, ta * math.pi / segments * 0.88))
+        plate_z = ground_z + wall_h + z_lift + slab_t / 2.0
         created.append(
-            _tapered_column(
+            _cube(
                 ctx,
-                "Crown_ThroneColumn_{:02d}".format(idx),
-                (center.x + x, center.y + y, base_z),
-                col_h,
-                0.40,
-                0.18,
-                material_key="rock",
+                "Crown_ThronePlate_Lower_{:02d}".format(i + 1),
+                (center.x + x, center.y + y, plate_z),
+                (span, plate_depth, slab_t),
+                yaw,
+                kind="cover",
+                material_key="stone",
                 meta={
                     "landmark": "CrownBossSanctum",
-                    "element": "tapered_throne_column",
-                    "support": "LOWER_TIER_TO_UPPER_TIER",
-                    "tier_base": 1,
-                    "tier_support": 2,
+                    "element": "lower_throne_plate",
+                    "tier": 1,
+                    "tier_count": 1,
+                    "placement": "LOWER_WALL_LEDGE_ONLY",
                     "symmetry": "x -> -x",
                     "open_direction": "south",
-                    "taper": "WIDE_BOTTOM_NARROW_TOP",
                 },
             )
         )
@@ -341,6 +260,6 @@ def generate(ctx):
     print(
         "  -> Crown Sanctum: rise=0.441m | button seated on rise | "
         "semi-oval=7.88x5.25m | coliseum=18.4x11.5m | "
-        "throne tiers=2 | columns anchored on lower tier | symmetric"
+        "throne tiers=1 LOWER ONLY | symmetric"
     )
     return created
