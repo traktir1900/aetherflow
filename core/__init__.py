@@ -71,4 +71,33 @@ def _install_pocket_arc_opening_guard():
     _pockets._build_rock_arc = _build_rock_arc_guard
 
 
+def _install_crown_sanctum_guard():
+    """Install Crown Sanctum at the geometry source import level.
+
+    This makes the Crown Boss terrain/rise/button/ruined coliseum independent of
+    which Blender entry-point script is used. Existing capture-point generation
+    remains authoritative; Sanctum geometry is appended immediately afterward.
+    """
+    try:
+        import geometry.structures as _structures
+        import geometry.crown_sanctum_runtime as _crown
+    except Exception:
+        return
+
+    original = getattr(_structures, "generate_capture_points", None)
+    if original is None or getattr(original, "_aetherflow_crown_guard", False):
+        return
+
+    def _generate_capture_points_with_crown(*args, **kwargs):
+        result = original(*args, **kwargs)
+        ctx = args[0] if args else kwargs.get("ctx")
+        if ctx is not None:
+            _crown.generate(ctx)
+        return result
+
+    _generate_capture_points_with_crown._aetherflow_crown_guard = True
+    _structures.generate_capture_points = _generate_capture_points_with_crown
+
+
 _install_pocket_arc_opening_guard()
+_install_crown_sanctum_guard()
