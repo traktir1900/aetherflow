@@ -1,54 +1,89 @@
-# AetherFlow v0.6.4.0 — Canonical Terminology
+# AetherFlow v0.6.4 — New Canonical Terms
 
-This document records the terminology introduced or clarified by the v0.6.4.0 runtime/presentation work.
+This file records the terminology introduced or clarified by the v0.6.4 runtime/presentation work. The main glossary remains authoritative; these definitions explain the v0.6.4 additions.
 
 ## Capture Platform
-`CapturePlatform_<Point>` is the real physical platform of the capture objective. For Crown specifically, it remains the capture objective platform even though the separate Crown Sanctum boss geometry occupies the same northern gameplay area.
+`CapturePlatform_<Point>` is the **real physical platform of the capture objective**. It is the gameplay surface on which the capture indicator and capture control are presented.
+
+For Crown specifically, `CapturePlatform_Crown` remains the capture objective platform even though the separate Crown Sanctum boss geometry occupies the same northern gameplay area.
 
 ## Capture Button
-`CaptureButton_<Point>` is the logical interaction control for a capture objective. It is gameplay-relevant and occupies 70% of the objective platform radius.
+`CaptureButton_<Point>` is the logical interaction control for a capture objective. It is gameplay-relevant and is not merely decorative.
+
+The capture button occupies **70% of the objective platform radius** and is seated on its capture platform.
 
 ## Capture Indicator Ring
-`CaptureIndicatorRing_<Point>` is the visual capture-state indicator surrounding the central capture button. It occupies the remaining 30% of the platform radius and is visual-only.
+`CaptureIndicatorRing_<Point>` is the visual capture-state indicator surrounding the central capture button. It occupies the remaining **30% of the objective platform radius** and is visual-only.
 
 ## Crown Boss Button / Aether Button
-`Crown_BossButton` is the separate boss-state pressure button on the Crown Throne / Crown Boss Rise. It is not the Crown capture platform, capture button, or capture indicator.
+`Crown_BossButton` is the separate boss-state pressure button on the Crown Throne / Crown Boss Rise. It belongs to the Crown Boss system and is **not** the Crown capture platform, capture button or capture indicator.
+
+## Crown Capture Stack
+The canonical Crown capture presentation stack is:
+
+```text
+CapturePlatform_Crown
+├── CaptureIndicatorRing_Crown
+└── CaptureButton_Crown
+```
+
+The boss stack is separate:
+
+```text
+Crown_BossRise / Crown_Throne
+└── Crown_BossButton (Aether Button)
+```
 
 ## Altar Reward
-While a team controls the central Altar:
-- +20 Gold/min to the controlling team;
-- +5% Movement Speed only on Roads / Flow roads for the controlling team.
+`Altar Reward` is the modest strategic reward package granted while a team controls the central Altar and when the team captures it.
+
+While controlled:
+
+- **+20 Gold/min** to the controlling team;
+- **+5% Movement Speed only on Roads / Flow roads** for the controlling team.
 
 On capture:
-- 10-second global enemy-hero reveal for the capturing team.
 
-This remains separate from `Crown Blessing` and must not create an automatic stacked super-buff state.
+- **10-second global enemy-hero reveal** for the capturing team.
+
+The reveal is a capture pulse, not permanent vision. Altar is intended to provide economy, rotation and information advantages rather than a direct combat-power super-buff.
+
+`Altar Reward` must remain separate from `Crown Blessing`; the design must not create an automatic stacked super-buff state from controlling Altar and obtaining Crown Blessing.
 
 ## Road Light Guide
-A thin luminous visual guide following the center of a road or route. It exists for readability and must not affect navigation, collision, or route topology.
+A thin luminous visual guide following the center of a road or route. It exists for readability/presentation and must not affect navigation, collision, or route topology.
 
 ## Capture Button Route Binding
-The explicit association between an objective-touching road/ramp endpoint and its corresponding `CaptureButton_<Point>` logical anchor. All five objectives are expected to have complete binding coverage.
+The explicit association between an objective-touching road/ramp endpoint and the corresponding `CaptureButton_<Point>` logical anchor. All five objectives are expected to have complete binding coverage.
 
 ## Raised-Platform Correction
-A post-generation presentation pass that reads the actual world-space mesh elevation of the physical capture platform and repositions the capture indicator/button so they remain attached to that platform.
+A post-generation presentation pass that reads the actual world-space mesh elevation of the **physical capture platform** and repositions the capture indicator/button so they remain visibly attached to that platform.
+
+The correction must not use `Crown_BossRise` or `Crown_BossButton` as the capture-system support surface.
 
 ## Crown Capture Link
-A visual-only link from the Crown capture button to an adjacent Monolith capture button. Current links: Crown → WestMonolith and Crown → EastMonolith.
+A visual-only link from the Crown capture button to an adjacent Monolith capture button. Current v0.6.4 links:
+
+- Crown → WestMonolith;
+- Crown → EastMonolith.
+
+These links do not create additional gameplay routes.
 
 ## Boundary Footprint Validation
-Dedicated hard validation of outer-boundary wall geometry using its real rendered footprint. It is distinct from the ordinary gameplay-object bbox check.
+The dedicated hard validation of outer-boundary wall geometry using its real rendered footprint. It is distinct from the ordinary gameplay-object bbox check because the external wall intentionally occupies the map-edge envelope.
 
 ## Runtime Validation Compatibility Pass
 A narrowly scoped runtime layer that removes only confirmed false-positive diagnostics for known visual-only guide meshes and dedicated outer-boundary geometry. It must never hide unrelated validation errors.
 
-## Mandatory distinctions
-- Crown = fifth northern capture objective;
-- Capture Platform = physical objective platform;
-- Capture Button = capture interaction control on that platform;
-- Capture Indicator Ring = visual capture-state indicator;
-- Altar Reward = strategic economy/rotation/information reward;
-- Crown Boss = separate neutral PvE boss;
-- Crown Sanctum = boss location/structure;
-- Aether Button = boss-state pressure button;
-- Road Light Guide = visual-only route presentation element.
+## v0.6.4 Terminology Rule
+The following distinctions are mandatory:
+
+- **Crown** = fifth northern capture objective;
+- **Capture Platform** = physical objective platform;
+- **Capture Button** = separate capture interaction control on that platform;
+- **Capture Indicator Ring** = separate visual capture-state indicator on that platform;
+- **Altar Reward** = +20 Gold/min while controlled, +5% movement speed only on Roads / Flow roads while controlled, and a 10-second enemy-hero reveal pulse on capture;
+- **Crown Boss** = separate neutral PvE boss;
+- **Crown Sanctum** = boss location/structure;
+- **Aether Button** = boss-state pressure button on the Crown boss structure;
+- **Road Light Guide** = visual-only route presentation element.
