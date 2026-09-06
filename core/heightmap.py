@@ -13,6 +13,48 @@ from mathutils import Vector
 from core.terrain_refinement import get_effective_heights, get_transition_radius
 
 
+def _terrain_unevenness(pos, cfg, layout):
+    """Add only a subtle, deterministic, gameplay-safe surface unevenness.
+
+    This is an additive relief layer: the existing macro height field remains
+    authoritative. Absolute X guarantees exact team-side symmetry.
+    """
+    amplitude = 0.18
+    ax = abs(float(pos.x))
+    y = float(pos.y)
+
+    # Two broad frequencies create natural-looking undulation without sharp
+    # cell-to-cell steps. The seed keeps the pattern deterministic.
+    seed = float(cfg.get("seed", 1337))
+    value = (
+        math.sin(ax * 0.19 + y * 0.11 + seed * 0.001) * 0.60 +
+        math.cos(ax * 0.07 - y * 0.17 - seed * 0.002) * 0.30 +
+        math.sin(ax * 0.035 + y * 0.043 + seed * 0.003) * 0.10
+    )
+
+    # Keep authored gameplay anchors visually stable. This does not move them;
+    # it only fades the additive unevenness around their immediate areas.
+    anchors = (
+        ("Center", 12.0),
+        ("Crown", 10.0),
+        ("EastMonolith", 9.0),
+        ("SEMonolith", 9.0),
+        ("SWMonolith", 9.0),
+        ("WestMonolith", 9.0),
+        ("BlueBase", 12.0),
+        ("RedBase", 12.0),
+    )
+    suppression = 0.0
+    for name, radius in anchors:
+        anchor = layout[name]
+        d = math.hypot(pos.x - anchor.x, pos.y - anchor.y)
+        t = max(0.0, min(1.0, d / radius))
+        smooth = t * t * (3.0 - 2.0 * t)
+        suppression = max(suppression, 1.0 - smooth)
+
+    return amplitude * value * (1.0 - suppression)
+
+
 def get_height_at_point(pos, cfg, layout):
     p2d = Vector((pos.x, pos.y))
     dist_center = p2d.length
@@ -45,7 +87,7 @@ def get_height_at_point(pos, cfg, layout):
             target_h = heights["EastMonolith"]
 
         z = target_h * smooth_t
-        return _clamp(z, cfg)
+        return _clamp(z + _terrain_unevenness(pos, cfg, layout), cfg)
 
     # Build the smooth raised-sector field first. South Rift is then applied
     # as a continuous depression on top of that field, so its outer edge is
@@ -74,9 +116,9 @@ def get_height_at_point(pos, cfg, layout):
         t = 1.0 - (dist_south / rift_r)
         blend = t ** 1.5
         z = base_z * (1.0 - blend) + heights["SouthRift"] * blend
-        return _clamp(z, cfg)
+        return _clamp(z + _terrain_unevenness(pos, cfg, layout), cfg)
 
-    return _clamp(base_z, cfg)
+    return _clamp(base_z + _terrain_unevenness(pos, cfg, layout), cfg)
 
 
 def _clamp(z, cfg):
