@@ -58,7 +58,7 @@ def _annulus(ctx, name, center, inner_r, outer_r, height, material, meta=None):
     )
 
 
-def _button(ctx, pname, center, radius, height):
+def _button(ctx, pname, center, radius, height, neighbors=None):
     bm = bmesh.new()
     segments = max(24, int(ctx.config.get("circle_segments", 28)))
     bmesh.ops.create_cone(
@@ -82,8 +82,18 @@ def _button(ctx, pname, center, radius, height):
             "logical_capture_control": True,
             "road_anchor": pname,
             "capture_zone_center": [round(center.x, 3), round(center.y, 3), round(center.z, 3)],
+            "neighbor_capture_buttons": ["CaptureButton_{}".format(n) for n in (neighbors or [])],
         },
     )
+
+
+def _platform_neighbors(pname):
+    """Return the two adjacent capture platforms on the authoritative ring."""
+    idx = RING_NODES.index(pname)
+    return [
+        RING_NODES[(idx - 1) % len(RING_NODES)],
+        RING_NODES[(idx + 1) % len(RING_NODES)],
+    ]
 
 
 def _build_overlays(ctx):
@@ -105,6 +115,7 @@ def _build_overlays(ctx):
         terrain_z = get_height_at_point(pos, cfg, ctx.layout)
         platform_top_z = terrain_z + plat_h
         ring_base = Vector((pos.x, pos.y, platform_top_z + platform_lift))
+        neighbors = _platform_neighbors(pname)
 
         _annulus(
             ctx,
@@ -122,17 +133,25 @@ def _build_overlays(ctx):
                 "visual_only": True,
                 "logical_capture_ring": True,
                 "capture_anchor": pname,
+                "neighbor_platforms": neighbors,
             },
         )
 
         button_base = Vector((pos.x, pos.y, platform_top_z + platform_lift + ring_h))
-        button = _button(ctx, pname, button_base, button_r, button_h)
+        button = _button(ctx, pname, button_base, button_r, button_h, neighbors=neighbors)
         ctx.capture_buttons[pname] = button
         built += 2
 
+    crown_neighbors = _platform_neighbors("Crown")
     print(
         "  -> Capture platform overlays: button=70% radius | "
         "remaining 30%=capture indicator ring | logical anchors=5 | built={}".format(built)
+    )
+    print(
+        "  -> Crown capture node: button=CaptureButton_Crown | "
+        "indicator=CaptureIndicatorRing_Crown | neighbors={}".format(
+            ", ".join("CaptureButton_{}".format(n) for n in crown_neighbors)
+        )
     )
     return built
 
