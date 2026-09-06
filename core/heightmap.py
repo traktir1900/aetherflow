@@ -62,14 +62,15 @@ def get_height_at_point(pos, cfg, layout):
     heights = get_effective_heights(cfg)
     core_r = cfg["center_radius"]
 
-    # Central AetherCore bowl is preserved, but the historic central raised
-    # landform is restored on top of it as a smooth radial lift. It reaches its
-    # maximum exactly at the center and fades to zero at core_r, so the outer
-    # shoulder remains continuous and the gameplay topology is unchanged.
+    # Central AetherCore bowl is preserved, with the historic central raised
+    # landform restored as a real positive radial lift.  The lift is deliberately
+    # strong enough to make the center visibly higher than the surrounding
+    # terrain, while still fading smoothly to zero at core_r.
     if dist_center < core_r:
         t = dist_center / core_r
-        bowl = heights["AetherCore"] * ((1.0 - t) ** 2)
-        center_lift = abs(heights["AetherCore"]) * 0.75 * ((1.0 - t) ** 2)
+        profile = (1.0 - t) ** 2
+        bowl = heights["AetherCore"] * profile
+        center_lift = abs(heights["AetherCore"]) * 1.75 * profile
         z = bowl + center_lift
         return _clamp(z + _terrain_unevenness(pos, cfg, layout), cfg)
 
