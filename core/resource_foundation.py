@@ -1,9 +1,10 @@
 """AetherFlow V0.6.4.1 — Resource Foundation.
 
-Creates neutral visual resource locations from the authoritative map layout.
-Each gameplay-relevant resource marker is authored from one canonical side and
-mirrored on X for the opposing side. Geometry is visual-only and non-blocking;
-actual resource gameplay remains a future UE5/runtime system.
+Creates six neutral visual resource locations from the authoritative map layout:
+three Speed Shrines and three Health Relics. The placement is gameplay-driven,
+deterministic, and team-symmetric wherever a flank pair exists. Geometry is
+visual-only and non-blocking; actual resource gameplay remains a future
+UE5/runtime system.
 """
 import math
 
@@ -15,6 +16,7 @@ from core.heightmap import get_height_at_point
 
 COLLECTION = "Decorations"
 MIRROR_TOLERANCE_M = 1e-5
+CENTERLINE_TOLERANCE_M = 1e-5
 
 
 def _terrain_z(ctx, x, y):
@@ -25,63 +27,74 @@ def _material(ctx, name, fallback="rock"):
     return ctx.get_material(name) or ctx.get_material(fallback) or ctx.get_material("ground")
 
 
-def _cylinder(name, center, radius, depth, material, ctx, kind="resource_marker", sides=24, meta=None):
+def _new_resource_mesh(name, center, radius, material, ctx, resource_type, resource_id,
+                       anchor, supporting, role, mirror_id=None):
+    """Create one complete resource marker as one Blender object.
+
+    Keeping each gameplay resource as a single object makes the six-resource
+    layout explicit and avoids turning one gameplay pickup into four unrelated
+    scene objects.
+    """
     bm = bmesh.new()
-    # Blender 5.2 does not expose bmesh.ops.create_cylinder; create_cone with
-    # equal top and bottom radii is the compatible cylinder primitive.
+
+    # Low technical plinth.
     bmesh.ops.create_cone(
         bm,
         cap_ends=True,
         cap_tris=False,
-        segments=sides,
+        segments=24,
         radius1=radius,
-        radius2=radius,
-        depth=depth,
+        radius2=radius * 0.92,
+        depth=0.34,
         calc_uvs=False,
     )
-    x, y, z = center
-    obj = finalize_bmesh(
-        bm, name, COLLECTION, material, ctx, kind=kind,
-        dims=(radius * 2.0, radius * 2.0, depth),
-        meta={
-            "visual_only": True,
-            "navigation_blocker": False,
-            "los_blocker": False,
-            "gameplay_marker": True,
-            **(meta or {}),
-        },
+
+    # Raised central beacon.
+    beacon_radius = radius * 0.18
+    beacon_height = radius * 0.95
+    beacon = bmesh.ops.create_cone(
+        bm,
+        cap_ends=True,
+        cap_tris=False,
+        segments=12,
+        radius1=beacon_radius,
+        radius2=beacon_radius * 0.72,
+        depth=beacon_height,
+        calc_uvs=False,
     )
-    obj.location = Vector((x, y, z))
-    return obj
+    bmesh.ops.translate(
+        bm,
+        vec=Vector((0.0, 0.0, 0.17 + beacon_height * 0.5)),
+        verts=beacon.get("verts", []),
+    )
 
-
-def _ring(name, center, radius, tube, material, ctx, meta=None, segments=32):
-    """Create a torus ring procedurally, avoiding version-dependent BMesh ops."""
-    bm = bmesh.new()
-    minor_segments = 8
-
-    verts = []
+    # One visible ring, built procedurally for Blender 5.2 compatibility.
+    ring_radius = radius * 0.78
+    tube = max(radius * 0.08, 0.06)
+    segments = 28
+    minor_segments = 6
+    ring_verts = []
     for i in range(segments):
         a = (2.0 * math.pi * i) / segments
         ca, sa = math.cos(a), math.sin(a)
         for j in range(minor_segments):
             b = (2.0 * math.pi * j) / minor_segments
             cb, sb = math.cos(b), math.sin(b)
-            r = radius + tube * cb
-            verts.append((r * ca, r * sa, tube * sb))
+            r = ring_radius + tube * cb
+            ring_verts.append((r * ca, r * sa, 0.38 + tube * sb))
 
-    for co in verts:
+    for co in ring_verts:
         bm.verts.new(co)
     bm.verts.ensure_lookup_table()
-
+    ring_start = len(bm.verts) - len(ring_verts)
     for i in range(segments):
         ni = (i + 1) % segments
         for j in range(minor_segments):
             nj = (j + 1) % minor_segments
-            a = i * minor_segments + j
-            b = ni * minor_segments + j
-            c = ni * minor_segments + nj
-            d = i * minor_segments + nj
+            a = ring_start + i * minor_segments + j
+            b = ring_start + ni * minor_segments + j
+            c = ring_start + ni * minor_segments + nj
+            d = ring_start + i * minor_segments + nj
             try:
                 bm.faces.new((bm.verts[a], bm.verts[b], bm.verts[c], bm.verts[d]))
             except ValueError:
@@ -90,102 +103,69 @@ def _ring(name, center, radius, tube, material, ctx, meta=None, segments=32):
     bm.faces.ensure_lookup_table()
     x, y, z = center
     obj = finalize_bmesh(
-        bm, name, COLLECTION, material, ctx, kind="resource_marker",
-        dims=(2.0 * (radius + tube), 2.0 * (radius + tube), 2.0 * tube),
+        bm,
+        name,
+        COLLECTION,
+        material,
+        ctx,
+        kind="resource_marker",
+        dims=(radius * 2.0, radius * 2.0, max(0.80, beacon_height + 0.40)),
         meta={
             "visual_only": True,
             "navigation_blocker": False,
             "los_blocker": False,
             "gameplay_marker": True,
-            **(meta or {}),
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "resource_anchor": anchor,
+            "supporting_landmark": supporting,
+            "resource_role": role,
+            "mirror_id": mirror_id,
         },
     )
     obj.location = Vector((x, y, z))
     return obj
 
 
-def _pillar(name, center, radius, height, material, ctx, meta=None):
-    return _cylinder(name, center, radius, height, material, ctx,
-                      kind="resource_landmark", sides=8, meta=meta)
-
-
-def _make_resource_pair(ctx, resource_type, pair_name, x, y, radius, anchor, supporting):
-    """Create the canonical L marker and its exact mirrored R counterpart."""
-    mats = {
-        "SpeedShrine": _material(ctx, "outer_boundary_aether"),
-        "HealthRelic": _material(ctx, "outer_boundary_stone"),
-    }
-    marker_mat = mats.get(resource_type) or _material(ctx, "rock")
+def _resource_location(ctx, resource_type, resource_id, x, y, radius, anchor,
+                       supporting, role, material, mirror_id=None):
     z = _terrain_z(ctx, x, y)
-    mirror_z = _terrain_z(ctx, -x, y)
-    assert abs(z - mirror_z) <= MIRROR_TOLERANCE_M, (
-        "resource terrain is not symmetric: {} {}".format(resource_type, pair_name)
+    return _new_resource_mesh(
+        resource_id,
+        (x, y, z + 0.01),
+        radius,
+        material,
+        ctx,
+        resource_type,
+        resource_id,
+        anchor,
+        supporting,
+        role,
+        mirror_id=mirror_id,
     )
-
-    objects = []
-    for suffix, mx in (("L", x), ("R", -x)):
-        base = _cylinder(
-            "{}_Base_{}".format(pair_name, suffix),
-            (mx, y, z + 0.20),
-            radius,
-            0.40,
-            _material(ctx, "outer_boundary_stone"),
-            ctx,
-            meta={
-                "resource_type": resource_type,
-                "resource_id": pair_name,
-                "team_pair": "{}_L<->{}_R".format(pair_name, pair_name),
-                "resource_anchor": anchor,
-                "supporting_landmark": supporting,
-            },
-        )
-        ring = _ring(
-            "{}_Ring_{}".format(pair_name, suffix),
-            (mx, y, z + 0.42),
-            radius * 0.78,
-            0.18,
-            marker_mat,
-            ctx,
-            meta={"resource_type": resource_type, "resource_id": pair_name},
-        )
-        post = _pillar(
-            "{}_Pillar_{}".format(pair_name, suffix),
-            (mx, y, z + 1.35),
-            radius * 0.16,
-            1.90,
-            marker_mat,
-            ctx,
-            meta={"resource_type": resource_type, "resource_id": pair_name},
-        )
-        post2 = _pillar(
-            "{}_PillarB_{}".format(pair_name, suffix),
-            (mx, y, z + 1.00),
-            radius * 0.10,
-            1.20,
-            _material(ctx, "outer_boundary_stone"),
-            ctx,
-            meta={"resource_type": resource_type, "resource_id": pair_name},
-        )
-        objects.extend((base, ring, post, post2))
-    return objects
 
 
 def audit_resource_symmetry(objects):
-    by_name = {o.name: o for o in objects}
+    """Validate paired flank resources and centerline resources."""
+    by_id = {o.get("resource_id"): o for o in objects}
     failures = []
     max_error = 0.0
+
     for obj in objects:
-        if not obj.name.endswith("_L"):
-            continue
-        pair = by_name.get(obj.name[:-2] + "_R")
-        if pair is None:
-            failures.append((obj.name, "missing counterpart"))
-            continue
-        expected = Vector((-obj.location.x, obj.location.y, obj.location.z))
-        err = (pair.location - expected).length
-        max_error = max(max_error, err)
-        if err > MIRROR_TOLERANCE_M:
-            failures.append((obj.name, err))
+        mirror_id = obj.get("mirror_id")
+        if mirror_id:
+            pair = by_id.get(mirror_id)
+            if pair is None:
+                failures.append((obj.name, "missing counterpart"))
+                continue
+            expected = Vector((-obj.location.x, obj.location.y, obj.location.z))
+            err = (pair.location - expected).length
+            max_error = max(max_error, err)
+            if err > MIRROR_TOLERANCE_M:
+                failures.append((obj.name, err))
+        elif abs(obj.location.x) > CENTERLINE_TOLERANCE_M:
+            failures.append((obj.name, "center resource is off symmetry axis"))
+
     return {"passed": not failures, "max_error_m": max_error, "failures": failures}
 
 
@@ -197,36 +177,80 @@ def generate_resource_foundation(ctx):
     layout = ctx.layout
     center = layout["Center"]
     west = layout["WestMonolith"]
+    east = layout["EastMonolith"]
     sw = layout["SWMonolith"]
+    se = layout["SEMonolith"]
+    crown = layout["Crown"]
+    blue_base = layout["BlueBase"]
+    red_base = layout["RedBase"]
 
-    west_anchor = center.lerp(west, float(cfg.get("speed_anchor_t", 0.52)))
-    south_anchor = center.lerp(sw, float(cfg.get("health_anchor_t", 0.52)))
+    speed_t = float(cfg.get("speed_anchor_t", 0.52))
+    health_t = float(cfg.get("health_anchor_t", 0.52))
+    speed_offset_y = float(cfg.get("speed_offset_y", -3.5))
+    health_offset_y = float(cfg.get("health_offset_y", -3.5))
+    speed_north_t = float(cfg.get("speed_north_t", 0.55))
+    health_south_t = float(cfg.get("health_south_t", 0.55))
 
-    speed_offset = float(cfg.get("speed_offset_y", -3.5))
-    health_offset = float(cfg.get("health_offset_y", -3.5))
+    speed_flank = center.lerp(west, speed_t)
+    speed_flank_y = float(speed_flank.y) + speed_offset_y
+    speed_x = abs(float(speed_flank.x))
 
-    speed_x = abs(float(west_anchor.x))
-    speed_y = float(west_anchor.y) + speed_offset
-    health_x = abs(float(south_anchor.x))
-    health_y = float(south_anchor.y) + health_offset
+    health_flank = center.lerp(sw, health_t)
+    health_flank_y = float(health_flank.y) + health_offset_y
+    health_x = abs(float(health_flank.x))
 
-    created = []
-    created.extend(_make_resource_pair(
-        ctx, "SpeedShrine", "SpeedShrinePair",
-        speed_x, speed_y, float(cfg.get("speed_shrine_radius", 2.8)),
-        anchor="Center↔West/EastMonolith", supporting="SideApproachLandmark"))
-    created.extend(_make_resource_pair(
-        ctx, "HealthRelic", "HealthRelicPair",
-        health_x, health_y, float(cfg.get("health_relic_radius", 2.4)),
-        anchor="Center↔SW/SEMonolith", supporting="SouthApproachLandmark"))
+    # Central Speed Shrine controls the Crown approach / north rotation.
+    speed_north = center.lerp(crown, speed_north_t)
+
+    # Central Health Relic controls the south return / base approach. The
+    # midpoint between the two bases keeps the location team-neutral.
+    base_midpoint = blue_base.lerp(red_base, 0.5)
+    health_south = center.lerp(base_midpoint, health_south_t)
+
+    speed_material = _material(ctx, "outer_boundary_aether")
+    health_material = _material(ctx, "outer_boundary_stone")
+    speed_radius = float(cfg.get("speed_shrine_radius", 1.4))
+    health_radius = float(cfg.get("health_relic_radius", 1.2))
+
+    created = [
+        _resource_location(
+            ctx, "SpeedShrine", "SpeedShrine_West", speed_x, speed_flank_y,
+            speed_radius, "Center↔West/EastMonolith", "SideApproachLandmark",
+            "flank_west", speed_material, mirror_id="SpeedShrine_East"),
+        _resource_location(
+            ctx, "SpeedShrine", "SpeedShrine_East", -speed_x, speed_flank_y,
+            speed_radius, "Center↔West/EastMonolith", "SideApproachLandmark",
+            "flank_east", speed_material, mirror_id="SpeedShrine_West"),
+        _resource_location(
+            ctx, "SpeedShrine", "SpeedShrine_North", float(speed_north.x), float(speed_north.y),
+            speed_radius, "Center↔Crown", "CrownApproach", "north_central",
+            speed_material),
+        _resource_location(
+            ctx, "HealthRelic", "HealthRelic_SW", health_x, health_flank_y,
+            health_radius, "Center↔SW/SEMonolith", "SouthApproachLandmark",
+            "flank_southwest", health_material, mirror_id="HealthRelic_SE"),
+        _resource_location(
+            ctx, "HealthRelic", "HealthRelic_SE", -health_x, health_flank_y,
+            health_radius, "Center↔SW/SEMonolith", "SouthApproachLandmark",
+            "flank_southeast", health_material, mirror_id="HealthRelic_SW"),
+        _resource_location(
+            ctx, "HealthRelic", "HealthRelic_South", float(health_south.x), float(health_south.y),
+            health_radius, "Center↔Bases", "SouthReturnApproach", "south_central",
+            health_material),
+    ]
 
     report = audit_resource_symmetry(created)
-    print("  -> V0.6.4.1 resources: pairs=2 | markers=2 | visual_objects={} | symmetry={} | max_error={:.6f}m".format(
-        len(created), "PASS" if report["passed"] else "FAIL", report["max_error_m"]))
+    print(
+        "  -> V0.6.4.1 resources: total=6 | SpeedShrine=3 | HealthRelic=3 | "
+        "visual_objects={} | symmetry={} | max_error={:.6f}m".format(
+            len(created), len([o for o in created if o.get("resource_type") == "SpeedShrine"]),
+            len([o for o in created if o.get("resource_type") == "HealthRelic"]),
+            "PASS" if report["passed"] else "FAIL", report["max_error_m"])
     return {
         "enabled": True,
-        "pairs": ["SpeedShrinePair", "HealthRelicPair"],
+        "pairs": ["SpeedShrine", "HealthRelic"],
         "resource_types": ["SpeedShrine", "HealthRelic"],
+        "markers": 6,
         "objects": created,
         **report,
     }
