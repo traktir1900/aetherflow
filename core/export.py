@@ -16,6 +16,8 @@ from core.layout import capture_point_names, BASES
 
 _TYPE_BUCKETS = {
     "capture_point": "capture_points",
+    "capture_button": "capture_buttons",
+    "capture_indicator": "capture_indicators",
     "base": "bases",
     "road": "roads",
     "ramp": "ramps",
@@ -88,6 +90,8 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
         "position": _vec3(layout[p]),
         "radius": cfg["capture_platform_radius"],
         "height": cfg["capture_platform_height"],
+        "button": "CaptureButton_{}".format(p),
+        "indicator": "CaptureIndicatorRing_{}".format(p),
     } for p in capture_point_names()]
 
     bases = [{
@@ -108,6 +112,8 @@ def build_map_data(ctx, sim=None, nav=None, validation=None):
         },
         "terrain": terrain,
         "capture_points": capture_points,
+        "capture_buttons": buckets["capture_buttons"],
+        "capture_indicators": buckets["capture_indicators"],
         "bases": bases,
         "pockets": getattr(ctx, "pockets", []),
         "roads": buckets["roads"],
