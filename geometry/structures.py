@@ -73,9 +73,77 @@ def generate_capture_points(ctx):
         )
 
 
+def _create_semi_oval_platform(ctx, name, pos, width_radius, depth, height,
+                               material, team):
+    """Create a thick semi-oval/D-shaped base platform.
+
+    Local +Y is the gameplay-facing direction toward the map center. The
+    straight diameter is the rear/outward edge; the half-ellipse rounds toward
+    the battlefield. Both team bases therefore get the exact same mirrored
+    geometry without moving their gameplay anchors.
+    """
+    flat_dir = Vector((-pos.x, -pos.y, 0.0))
+    if flat_dir.length < 1e-6:
+        flat_dir = Vector((0.0, 1.0, 0.0))
+    flat_dir.normalize()
+    side_dir = Vector((-flat_dir.y, flat_dir.x, 0.0))
+
+    segments = max(24, int(ctx.config.get("circle_segments", 28)))
+    bottom = []
+    top = []
+
+    # Flat rear edge: local y = 0.
+    for sx in (-width_radius, width_radius):
+        p = pos + side_dir * sx
+        p.z = pos.z
+        bottom.append(p)
+        top.append(p + Vector((0.0, 0.0, height)))
+
+    # Rounded front half: local x = width_radius*cos(theta),
+    # local y = depth*sin(theta), theta from 0..pi.
+    arc = []
+    for i in range(segments + 1):
+        theta = math.pi * (i / float(segments))
+        local_x = width_radius * math.cos(theta)
+        local_y = depth * math.sin(theta)
+        p = pos + side_dir * local_x + flat_dir * local_y
+        p.z = pos.z
+        arc.append(p)
+
+    # Boundary order: right rear -> full front arc -> left rear.
+    boundary = [bottom[1]] + arc[1:-1] + [bottom[0]]
+    boundary_top = [p + Vector((0.0, 0.0, height)) for p in boundary]
+
+    bm = bmesh.new()
+    bottom_verts = [bm.verts.new(p) for p in boundary]
+    top_verts = [bm.verts.new(p) for p in boundary_top]
+
+    # Solid top/bottom caps and side walls.
+    bm.faces.new(tuple(reversed(bottom_verts)))
+    bm.faces.new(tuple(top_verts))
+    count = len(bottom_verts)
+    for i in range(count):
+        j = (i + 1) % count
+        bm.faces.new((bottom_verts[i], bottom_verts[j], top_verts[j], top_verts[i]))
+
+    return finalize_bmesh(
+        bm, name, "Bases", material, ctx, kind="base",
+        dims=(width_radius * 2.0, depth, height),
+        meta={
+            "team": team,
+            "shape": "semi_oval",
+            "flat_edge": "outward",
+            "rounded_edge": "toward_center",
+            "width": round(width_radius * 2.0, 3),
+            "depth": round(depth, 3),
+        },
+    )
+
+
 def generate_bases(ctx):
     cfg = ctx.config
-    plat_r = cfg["base_platform_radius"]
+    width_radius = cfg["base_platform_width_radius"]
+    depth = cfg["base_platform_depth"]
     plat_h = cfg["base_platform_height"]
 
     for team, base_key, mat_team, mat_cryst in [
@@ -85,32 +153,36 @@ def generate_bases(ctx):
         pos = ctx.layout[base_key].copy()
         pos.z = get_height_at_point(pos, cfg, ctx.layout)
 
-        bm = bmesh.new()
-        bmesh.ops.create_cone(
-            bm, cap_ends=True, segments=cfg["circle_segments"],
-            radius1=plat_r, radius2=plat_r, depth=plat_h,
-        )
-        bmesh.ops.translate(bm, verts=bm.verts,
-                            vec=pos + Vector((0, 0, plat_h / 2.0)))
-        finalize_bmesh(
-            bm, "{}_BasePlatform".format(team), "Bases",
-            ctx.get_material(mat_team), ctx, kind="base",
-            dims=(plat_r * 2, plat_r * 2, plat_h),
-            meta={"team": team, "radius": plat_r},
+        _create_semi_oval_platform(
+            ctx,
+            "{}_BasePlatform".format(team),
+            pos,
+            width_radius,
+            depth,
+            plat_h,
+            ctx.get_material(mat_team),
+            team,
         )
 
+        # Keep the crystal scale unchanged, but place it on the usable middle
+        # of the enlarged platform rather than exactly on its flat rear edge.
+        toward_center = Vector((-pos.x, -pos.y, 0.0))
+        if toward_center.length > 1e-6:
+            toward_center.normalize()
+        crystal_pos = pos + toward_center * (depth * 0.38)
         bm_c = bmesh.new()
         bmesh.ops.create_icosphere(
             bm_c, subdivisions=2, radius=cfg["base_crystal_radius"],
         )
         bmesh.ops.translate(
             bm_c, verts=bm_c.verts,
-            vec=pos + Vector((0, 0, cfg["base_crystal_height"] * 0.5)),
+            vec=crystal_pos + Vector((0, 0, cfg["base_crystal_height"] * 0.5)),
         )
         finalize_bmesh(
             bm_c, "{}_Crystal".format(team), "Bases",
             ctx.get_material(mat_cryst), ctx, kind="landmark",
             dims=(cfg["base_crystal_radius"] * 2,) * 3,
+            meta={"team": team, "platform": "{}_BasePlatform".format(team)},
         )
 
 
