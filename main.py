@@ -142,8 +142,6 @@ def _install_crown_sanctum():
         ctx = args[0] if args else kwargs.get("ctx")
         if ctx is not None:
             geometry.crown_sanctum_runtime.generate(ctx)
-            # Crown Sanctum should keep the architectural half-coliseum, rise,
-            # and boss button, but not the four legacy flanking pillar props.
             try:
                 import bpy
                 for obj in list(bpy.data.objects):
@@ -185,7 +183,7 @@ def _install_v064_map_patches():
 
 
 def _install_viz01():
-    """Append VIZ-01 and V0.6.4.3 visual generation after the perimeter pass."""
+    """Append visual generation and clean all reviewed-out environment accents."""
     original = geometry.boundary.generate_outer_boundary
     if getattr(original, "_aetherflow_viz01", False):
         return
@@ -195,17 +193,23 @@ def _install_viz01():
         if ctx is not None:
             viz = core.world_silhouette.generate_world_silhouette(ctx)
             env = core.environment_perimeter.generate_environment_perimeter(ctx)
-            # Reviewed out: all Environment Perimeter Spire props along the circle.
-            removed_perimeter_spires = _remove_named_prefix_objects(
+
+            # Reviewed out: all Environment Perimeter Spires, Height Ridges,
+            # and the AetherCore North Frame. Remove legacy instances too.
+            removed_environment_accents = _remove_named_prefix_objects(
                 ctx,
-                ("EnvPerimeterSpire", "EnvironmentPerimeterSpire"),
+                (
+                    "EnvPerimeterSpire",
+                    "EnvironmentPerimeterSpire",
+                    "EnvHeightRidge",
+                    "AetherCoreNorthFrame",
+                ),
             )
-            if removed_perimeter_spires:
-                print("  -> removed unwanted Environment Perimeter Spires: {}".format(
-                    removed_perimeter_spires
+            if removed_environment_accents:
+                print("  -> removed unwanted environment accents: {}".format(
+                    removed_environment_accents
                 ))
-            # Reviewed out: Crown approach props. Keep Crown itself, its
-            # platform, boss sanctum, and authoritative gameplay geometry.
+
             removed_crown_props = _remove_named_prefix_objects(
                 ctx,
                 ("CrownApproachLandmark01", "CrownApproachLandmark02"),
@@ -229,9 +233,9 @@ core.pipeline = importlib.reload(core.pipeline)
 print("[POCKET OPENING] PATCH ACTIVE: ArcRock01-04 + ArcRock25-28 removed")
 print("[CROWN SANCTUM] PATCH ACTIVE: smooth rise + boss button + ruined half-coliseum")
 print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall opening")
-print("[VIZ-01] PATCH ACTIVE: mirrored macro world silhouette, non-blocking")
+print("[VIZ-01] PATCH ACTIVE: reviewed visual accents disabled")
 print("[V0.6.4.1] RESOURCE FOUNDATION: loaded by core.pipeline as Stage 6C")
-print("[V0.6.4.3] ENVIRONMENT + PERIMETER: visual-only perimeter formations + Crown/Core landmarks")
+print("[V0.6.4.3] ENVIRONMENT + PERIMETER: all reviewed-out environment accents disabled")
 print("[LEGACY PROPS] PATCH ACTIVE: Turret_Crown + Blue_Shop + Red_Shop removed")
 
 def run():
