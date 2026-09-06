@@ -116,8 +116,7 @@ def get_height_at_point(pos, cfg, layout):
     if dist_center < core_r:
         t = dist_center / core_r
         z = heights["AetherCore"] * ((1.0 - t) ** 2)
-        relief = 0.0
-        return _clamp(z + relief, cfg)
+        return _clamp(z, cfg)
 
     # Wider smooth shoulder into the surrounding sectors. IMPORTANT: the
     # outer field starts at the same z=0 boundary used by the core bowl.
@@ -137,7 +136,7 @@ def get_height_at_point(pos, cfg, layout):
             target_h = heights["EastMonolith"]
 
         z = target_h * smooth_t
-        return _clamp(z + _gameplay_relief(pos, cfg, layout), cfg)
+        return _clamp(z + _gameplay_relief(pos, cfg, layout) * smooth_t, cfg)
 
     # Build the smooth raised-sector field first. South Rift is then applied
     # as a continuous depression on top of that field, so its outer edge is
