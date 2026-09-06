@@ -1,8 +1,8 @@
-"""AetherFlow road-center light guides.
+"""AetherFlow capture-platform road-center light guides.
 
-Adds a thin luminous strip down the center of every generated strategic road,
-using 20% of that road's width. The guide follows the exact road centerline
-and visually links capture platforms together without changing navigation.
+One luminous strip runs along the exact center of every ring road connecting
+one capture platform to the next. Its width is exactly 20% of the parent road
+width. This is visual-only geometry and does not alter navigation.
 """
 import math
 import bmesh
@@ -13,7 +13,17 @@ from core.heightmap import get_height_at_point
 from core.utils import finalize_bmesh
 
 COLLECTION = "Roads"
-WRAPPER_MARKER = "_aetherflow_road_light_guides_runtime"
+
+
+def _arc_points(radius, start_deg, end_deg, segments=14):
+    delta = end_deg - start_deg
+    while delta > 180.0:
+        delta -= 360.0
+    while delta < -180.0:
+        delta += 360.0
+    count = max(8, int(abs(delta) / 6.0) + 1, segments)
+    return [polar(radius, start_deg + delta * i / float(count))
+            for i in range(count + 1)]
 
 
 def _ribbon(ctx, name, points, width, material, meta=None):
@@ -36,10 +46,12 @@ def _ribbon(ctx, name, points, width, material, meta=None):
             tangent = Vector((1.0, 0.0, 0.0))
         tangent.normalize()
         perp = Vector((-tangent.y, tangent.x, 0.0)) * (width / 2.0)
+
         left = point - perp
         right = point + perp
         left.z = get_height_at_point(left, cfg, ctx.layout) + lift
         right.z = get_height_at_point(right, cfg, ctx.layout) + lift
+
         vl = bm.verts.new(left)
         vr = bm.verts.new(right)
         if prev is not None:
@@ -56,36 +68,26 @@ def _ribbon(ctx, name, points, width, material, meta=None):
     )
 
 
-def _arc_points(radius, start_deg, end_deg, segments=14):
-    delta = end_deg - start_deg
-    while delta > 180.0:
-        delta -= 360.0
-    while delta < -180.0:
-        delta += 360.0
-    count = max(8, int(abs(delta) / 6.0) + 1, segments)
-    return [polar(radius, start_deg + delta * i / float(count)) for i in range(count + 1)]
-
-
-def _quadratic_points(p0, p1, inward_bend, samples=18):
-    p0, p1 = Vector(p0), Vector(p1)
-    mid = (p0 + p1) * 0.5
-    radial = Vector((mid.x, mid.y, 0.0))
-    control = mid if radial.length < 1e-6 else mid - radial.normalized() * inward_bend
-    n = max(10, samples)
-    return [(1-t)*(1-t)*p0 + 2*(1-t)*t*control + t*t*p1 for t in [i/n for i in range(n+1)]]
-
-
 def generate(ctx):
     cfg = ctx.config
     guide_width = cfg["ring_road_width"] * 0.20
     built = []
 
+    # The authoritative road network already forms the complete 5-platform
+    # ring. Mirror its exact objective order and radius for the light guide.
     for i in range(len(RING_NODES)):
         a = RING_NODES[i]
         b = RING_NODES[(i + 1) % len(RING_NODES)]
-        points = _arc_points(cfg["outer_ring_radius"], RING_ANGLES[a], RING_ANGLES[b])
-        built.append(_ribbon(
-            ctx, "RoadLightGuide_{}_{}".format(a, b), points, guide_width,
+        points = _arc_points(
+            cfg["outer_ring_radius"],
+            RING_ANGLES[a],
+            RING_ANGLES[b],
+        )
+        obj = _ribbon(
+            ctx,
+            "RoadLightGuide_{}_{}".format(a, b),
+            points,
+            guide_width,
             ctx.get_material("road_light"),
             meta={
                 "guide": "road_center_light",
@@ -95,40 +97,15 @@ def generate(ctx):
                 "to_platform": b,
                 "visual_only": True,
                 "connects_capture_platforms": True,
-            }
-        ))
+                "platform_endpoint_a": "CaptureButton_{}".format(a),
+                "platform_endpoint_b": "CaptureButton_{}".format(b),
+            },
+        )
+        if obj is not None:
+            built.append(obj)
 
-    base_pairs = [("BlueBase", "SWMonolith", "Blue_SW"), ("RedBase", "SEMonolith", "Red_SE")]
-    for start, end, tag in base_pairs:
-        points = _quadratic_points(ctx.layout[start], ctx.layout[end], inward_bend=7.5, samples=18)
-        built.append(_ribbon(
-            ctx, "RoadLightGuide_Base_{}".format(tag), points, cfg["base_road_width"] * 0.20,
-            ctx.get_material("road_light"),
-            meta={
-                "guide": "road_center_light",
-                "width_fraction_of_parent_road": 0.20,
-                "parent_road": "BaseRoad_{}".format(tag),
-                "from_platform": start,
-                "to_platform": end,
-                "visual_only": True,
-                "connects_capture_platforms": start in RING_NODES or end in RING_NODES,
-            }
-        ))
-
-    points = _quadratic_points(ctx.layout["Crown"], polar(cfg["center_radius"], 90.0), inward_bend=0.0, samples=18)
-    built.append(_ribbon(
-        ctx, "RoadLightGuide_Crown_Core", points, cfg["north_ramp_width"] * 0.20,
-        ctx.get_material("road_light"),
-        meta={
-            "guide": "road_center_light",
-            "width_fraction_of_parent_road": 0.20,
-            "parent_road": "North_Ramp_Crown_Core",
-            "from_platform": "Crown",
-            "to_platform": "Center",
-            "visual_only": True,
-            "connects_capture_platforms": True,
-        }
-    ))
-
-    print("  -> Road center light guides: width=20% of parent road | segments={} | platform-linked".format(len(built)))
+    print(
+        "  -> Road center light guides: 20% road width | "
+        "platform-to-platform ring links={} | visual-only".format(len(built))
+    )
     return built
