@@ -27,8 +27,8 @@ def _material(ctx, name, fallback="rock"):
 
 def _cylinder(name, center, radius, depth, material, ctx, kind="resource_marker", sides=24, meta=None):
     bm = bmesh.new()
-    # Blender 5.2 exposes this primitive through create_cone(); equal top and
-    # bottom radii produce a cylinder. create_cylinder is not a BMesh operator.
+    # Blender 5.2 does not expose bmesh.ops.create_cylinder; create_cone with
+    # equal top and bottom radii is the compatible cylinder primitive.
     bmesh.ops.create_cone(
         bm,
         cap_ends=True,
@@ -56,17 +56,65 @@ def _cylinder(name, center, radius, depth, material, ctx, kind="resource_marker"
 
 
 def _ring(name, center, radius, tube, material, ctx, meta=None, segments=32):
+    """Create a torus ring without relying on version-dependent BMesh operators."""
     bm = bmesh.new()
-    bmesh.ops.create_torus(bm, major_segments=segments, minor_segments=8,
-                           location=(0.0, 0.0, 0.0),
-                           major_radius=radius, minor_radius=tube)
+    minor_segments = 8
+    verts = []
+    faces = []
+    for i in range(segments):
+        a = (2.0 * math.pi * i) / segments
+        ca, sa = math.cos(a), math.sin(a)
+        for j in range(minor_segments):
+            b = (2.0 * math.pi * j) / minor_segments
+            cb, sb = math.cos(b), math.sin(b)
+            r = radius + tube * cb
+            z = tube * sb
+            verts.append((r * ca, r * sa, z))
+
+    for i in range(segments):
+        ni = (i + 1) % segments
+        for j in range(minor_segments):
+            nj = (j + 1) % minor_segments
+            a = i * minor_segments + j
+            b = ni * minor_segments + j
+            c = ni * minor_segments + nj
+            d = i * minor_segments + nj
+            faces.append((a, b, c, d))
+
+    mesh = bmesh.new()
+    bm_verts = [mesh.verts.new(v) for v in verts]
+    mesh.verts.ensure_lookup_table()
+    for face in faces:
+        try:
+            mesh.faces.new([bm_verts[idx] for idx in face])
+        except ValueError:
+            pass
+    mesh.faces.ensure_lookup_table()
+    bm.from_mesh(mesh.to_mesh()) if False else None
+    # Transfer the manually constructed BMesh into the standard finalizer.
+    obj_mesh = bm
+    # The temporary construction above used a second mesh to keep indexing simple;
+    # rebuild directly in bm so this remains independent of bpy context state.
+    bm.clear()
+    for v in verts:
+        bm.verts.new(v)
+    bm.verts.ensure_lookup_table()
+    for face in faces:
+        try:
+            bm.faces.new([bm.verts[idx] for idx in face])
+        except ValueError:
+            pass
+    bm.faces.ensure_lookup_table()
+
     x, y, z = center
     obj = finalize_bmesh(
         bm, name, COLLECTION, material, ctx, kind="resource_marker",
         dims=(2.0 * (radius + tube), 2.0 * (radius + tube), 2.0 * tube),
         meta={
-            "visual_only": True, "navigation_blocker": False,
-            "los_blocker": False, "gameplay_marker": True,
+            "visual_only": True,
+            "navigation_blocker": False,
+            "los_blocker": False,
+            "gameplay_marker": True,
             **(meta or {}),
         },
     )
