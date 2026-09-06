@@ -164,7 +164,6 @@ def _half_coliseum(ctx, center, ground_z):
     segments = 16
     created = []
 
-    # Existing ruined wall.
     for i in range(segments):
         theta0 = math.pi * i / segments
         theta1 = math.pi * (i + 1) / segments
@@ -200,7 +199,6 @@ def _half_coliseum(ctx, center, ground_z):
             )
         )
 
-    # Original four broken flanking pillars.
     for idx, (px, py, h) in enumerate(
         (
             (-0.88, 0.36, 1.65),
@@ -229,19 +227,29 @@ def _half_coliseum(ctx, center, ground_z):
             )
         )
 
-    # NEW: two throne-like architectural layers are attached just OUTSIDE the
-    # existing wall centerline, not placed at the same ellipse.  Each tier is
-    # a narrow ledge running along the top of the ruined wall.  Its Z follows
-    # the corresponding wall block height so it visibly sits on the wall.
-    # The second tier is smaller and slightly higher, creating the stepped
-    # crown/throne silhouette without burying the original wall.
-    for tier, radial_mul, z_lift, slab_t in (
-        (1, 1.10, 0.16, 0.30),
-        (2, 1.18, 0.34, 0.26),
-    ):
+    # Two-tier throne: both stone plate tiers remain on the wall line.
+    # The four tapered columns belong to the LOWER/FIRST plate and rise from
+    # that plate to support the SECOND/UPPER plate, like a compact stone throne.
+    tiers = (
+        (1, 1.10, 0.16, 0.30, 0.72),
+        (2, 1.04, 1.55, 0.26, 0.55),
+    )
+    col_angles = (30.0, 60.0, 120.0, 150.0)
+
+    wall_h_at = {}
+    for i in range(segments):
+        theta0 = math.pi * i / segments
+        theta1 = math.pi * (i + 1) / segments
+        theta = 0.5 * (theta0 + theta1)
+        if i in (3, 7, 11, 15):
+            continue
+        wave = 0.5 + 0.5 * math.sin(theta * 3.0 + 1.37)
+        centre_bias = math.sin(theta)
+        wall_h_at[i] = max(min_h, min(max_h, min_h + (max_h - min_h) * (0.65 * centre_bias + 0.35 * wave)))
+
+    for tier, radial_mul, z_lift, slab_t, plate_depth in tiers:
         ta = a * radial_mul
         tb = b * radial_mul
-        plate_depth = 0.72 if tier == 1 else 0.62
 
         for i in range(segments):
             theta0 = math.pi * i / segments
@@ -249,20 +257,13 @@ def _half_coliseum(ctx, center, ground_z):
             theta = 0.5 * (theta0 + theta1)
             if i in (3, 7, 11, 15):
                 continue
-
-            # Estimate the underlying wall top at the same angular position.
-            wave = 0.5 + 0.5 * math.sin(theta * 3.0 + 1.37)
-            centre_bias = math.sin(theta)
-            wall_h = min_h + (max_h - min_h) * (0.65 * centre_bias + 0.35 * wave)
-            wall_h = max(min_h, min(max_h, wall_h))
-
+            wall_h = wall_h_at[i]
             x = ta * math.cos(theta)
             y = tb * math.sin(theta)
             tx = -ta * math.sin(theta)
             ty = tb * math.cos(theta)
             yaw = math.degrees(math.atan2(ty, tx))
-            span = max(0.95, min(1.50, ta * math.pi / segments * 0.92))
-
+            span = max(0.82, min(1.42, ta * math.pi / segments * 0.88))
             plate_z = ground_z + wall_h + z_lift + slab_t / 2.0
             created.append(
                 _cube(
@@ -277,49 +278,59 @@ def _half_coliseum(ctx, center, ground_z):
                         "landmark": "CrownBossSanctum",
                         "element": "throne_plate",
                         "tier": tier,
-                        "placement": "OUTSIDE_ON_TOP_OF_EXISTING_WALL",
+                        "tier_count": 2,
+                        "placement": "ON_LOWER_WALL_AND_STEPPED_UPWARD",
                         "symmetry": "x -> -x",
                         "open_direction": "south",
+                        "progressive_taper": tier == 2,
                     },
                 )
             )
 
-        # Four tapered throne columns, placed in the outer tier line and seated
-        # on the previous plate. Wide at the base, narrow at the top.
-        col_angles = (30.0, 60.0, 120.0, 150.0)
-        col_r = ta + 0.15
-        for idx, angle_deg in enumerate(col_angles, 1):
-            ang = math.radians(angle_deg)
-            wall_h = min_h + (max_h - min_h) * (
-                0.65 * math.sin(ang) + 0.35 * (0.5 + 0.5 * math.sin(ang * 3.0 + 1.37))
+    # Columns are anchored ONLY on the first/lower plate. They bridge from its
+    # top to the underside of the second plate and visibly support the upper tier.
+    lower_tier = tiers[0]
+    upper_tier = tiers[1]
+    lower_mul, lower_lift, lower_slab_t, _ = lower_tier[1], lower_tier[2], lower_tier[3], lower_tier[4]
+    upper_mul, upper_lift, upper_slab_t = upper_tier[1], upper_tier[2], upper_tier[3]
+    ta = a * lower_mul
+    tb = b * lower_mul
+    col_r_x = ta + 0.14
+    col_r_y = tb + 0.14
+
+    for idx, angle_deg in enumerate(col_angles, 1):
+        ang = math.radians(angle_deg)
+        # Column base sits directly on lower/first plate outer line.
+        x = col_r_x * math.cos(ang)
+        y = col_r_y * math.sin(ang)
+        lower_wall_h = min_h + (max_h - min_h) * (
+            0.65 * math.sin(ang) + 0.35 * (0.5 + 0.5 * math.sin(ang * 3.0 + 1.37))
+        )
+        lower_wall_h = max(min_h, min(max_h, lower_wall_h))
+        base_z = ground_z + lower_wall_h + lower_lift + lower_slab_t
+        top_z = ground_z + lower_wall_h + upper_lift
+        col_h = max(0.55, top_z - base_z)
+        created.append(
+            _tapered_column(
+                ctx,
+                "Crown_ThroneColumn_{:02d}".format(idx),
+                (center.x + x, center.y + y, base_z),
+                col_h,
+                0.40,
+                0.18,
+                material_key="rock",
+                meta={
+                    "landmark": "CrownBossSanctum",
+                    "element": "tapered_throne_column",
+                    "support": "LOWER_TIER_TO_UPPER_TIER",
+                    "tier_base": 1,
+                    "tier_support": 2,
+                    "symmetry": "x -> -x",
+                    "open_direction": "south",
+                    "taper": "WIDE_BOTTOM_NARROW_TOP",
+                },
             )
-            wall_h = max(min_h, min(max_h, wall_h))
-            base_z = ground_z + wall_h + z_lift + slab_t
-            col_h = 1.10 if tier == 1 else 0.88
-            rb = 0.38 if tier == 1 else 0.32
-            rt = 0.18 if tier == 1 else 0.14
-            x = col_r * math.cos(ang)
-            y = (b * radial_mul + 0.15) * math.sin(ang)
-            created.append(
-                _tapered_column(
-                    ctx,
-                    "Crown_ThroneColumn_T{}_{:02d}".format(tier, idx),
-                    (center.x + x, center.y + y, base_z),
-                    col_h,
-                    rb,
-                    rt,
-                    material_key="rock",
-                    meta={
-                        "landmark": "CrownBossSanctum",
-                        "element": "tapered_throne_column",
-                        "tier": tier,
-                        "placement": "OUTER_WALL_LINE",
-                        "symmetry": "x -> -x",
-                        "open_direction": "south",
-                        "taper": "WIDE_BOTTOM_NARROW_TOP",
-                    },
-                )
-            )
+        )
 
     return created
 
@@ -334,6 +345,6 @@ def generate(ctx):
     print(
         "  -> Crown Sanctum: rise=0.441m | button seated on rise | "
         "semi-oval=7.88x5.25m | coliseum=18.4x11.5m | "
-        "throne tiers=2 OUTSIDE wall | tapered columns | symmetric"
+        "throne tiers=2 | columns anchored on lower tier | symmetric"
     )
     return created
