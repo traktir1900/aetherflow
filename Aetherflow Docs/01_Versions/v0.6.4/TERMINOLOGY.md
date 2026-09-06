@@ -34,6 +34,22 @@ Crown_BossRise / Crown_Throne
 └── Crown_BossButton (Aether Button)
 ```
 
+## Altar Reward
+`Altar Reward` is the modest strategic reward package granted while a team controls the central Altar and when the team captures it.
+
+While controlled:
+
+- **+20 Gold/min** to the controlling team;
+- **+5% Movement Speed only on Roads / Flow roads** for the controlling team.
+
+On capture:
+
+- **10-second global enemy-hero reveal** for the capturing team.
+
+The reveal is a capture pulse, not permanent vision. Altar is intended to provide economy, rotation and information advantages rather than a direct combat-power super-buff.
+
+`Altar Reward` must remain separate from `Crown Blessing`; the design must not create an automatic stacked super-buff state from controlling Altar and obtaining Crown Blessing.
+
 ## Road Light Guide
 A thin luminous visual guide following the center of a road or route. It exists for readability/presentation and must not affect navigation, collision, or route topology.
 
@@ -66,6 +82,7 @@ The following distinctions are mandatory:
 - **Capture Platform** = physical objective platform;
 - **Capture Button** = separate capture interaction control on that platform;
 - **Capture Indicator Ring** = separate visual capture-state indicator on that platform;
+- **Altar Reward** = +20 Gold/min while controlled, +5% movement speed only on Roads / Flow roads while controlled, and a 10-second enemy-hero reveal pulse on capture;
 - **Crown Boss** = separate neutral PvE boss;
 - **Crown Sanctum** = boss location/structure;
 - **Aether Button** = boss-state pressure button on the Crown boss structure;
