@@ -46,11 +46,15 @@ print("=" * 60)
 import core.pipeline
 import geometry.structures
 import geometry.pockets
+import geometry.boundary
 import geometry.crown_sanctum_runtime
+import geometry.map_v064_runtime
 
 geometry.structures = importlib.reload(geometry.structures)
 geometry.pockets = importlib.reload(geometry.pockets)
+geometry.boundary = importlib.reload(geometry.boundary)
 geometry.crown_sanctum_runtime = importlib.reload(geometry.crown_sanctum_runtime)
+geometry.map_v064_runtime = importlib.reload(geometry.map_v064_runtime)
 
 KEEP_MIN, KEEP_MAX = 5, 24
 
@@ -101,14 +105,23 @@ def _install_crown_sanctum():
     wrapper._aetherflow_crown_sanctum = True
     geometry.structures.generate_capture_points = wrapper
 
+
+def _install_v064_map_patches():
+    geometry.map_v064_runtime.install_outer_boundary_crown_opening(geometry.boundary)
+
 _install_pocket_opening()
 _install_crown_sanctum()
+_install_v064_map_patches()
 core.pipeline = importlib.reload(core.pipeline)
 
 print("[POCKET OPENING] PATCH ACTIVE: ArcRock01-04 + ArcRock25-28 removed")
 print("[CROWN SANCTUM] PATCH ACTIVE: smooth rise + boss button + ruined half-coliseum")
+print("[v0.6.4] PATCH ACTIVE: obsolete central cube cleanup + Crown outer-wall opening")
 
 def run():
+    # Remove the obsolete/default cube before every generation, including maps
+    # opened from older Blender scenes where it sits outside managed collections.
+    geometry.map_v064_runtime.remove_obsolete_central_cube()
     return core.pipeline.run_pipeline()
 
 if __name__ == "__main__":
