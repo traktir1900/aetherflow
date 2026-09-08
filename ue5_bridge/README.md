@@ -1,31 +1,34 @@
-# AetherFlow UE5 Remote Control Bridge v1
+# AetherFlow UE5 Remote Control Bridge
 
-## Purpose
-
-This package creates the first executable bridge between the AetherFlow generator and Unreal Editor.
-
-Architecture:
+## Architecture
 
 ```text
 AetherFlow / Blender
         |
-        | manifest.json
+        | manifest.json (schema v2)
+        | semantic objects + transforms + metadata
         v
 external ue5_bridge/cli.py
         |
         | HTTP JSON
         v
-UE5 Remote Control API :30010
+UE5 Web Remote Control :30010
         |
         | ExecutePythonCommand
         v
 Content/Python/aetherflow_ue5_bridge.py
         |
+        +--> explicit project asset registry
+        |       |
+        |       +--> Blueprint actors
+        |       +--> Static Mesh actors
+        |
+        +--> deterministic marker fallback
         v
 Current Unreal Level
 ```
 
-Unreal's Remote Control API exposes HTTP endpoints for calling Blueprint-callable functions and batching requests. The default HTTP port is 30010, configurable in Project Settings. The Python Editor Script Plugin is required for the Python-side bridge. See the official Epic documentation before enabling this in a project distributed outside development environments.
+AetherFlow remains the source of truth for topology, object identity and generated metadata. Unreal remains the authority for project assets, actor instances, collision, navigation, rendering and runtime gameplay.
 
 ## UE5 setup
 
@@ -35,38 +38,46 @@ Enable these Editor plugins:
 - Python Editor Script Plugin
 - Editor Scripting Utilities
 
-Copy `ue5/aetherflow_ue5_bridge.py` into the UE project's `Content/Python/` folder, or add the directory containing that file to the UE Python path.
+Copy `ue5/aetherflow_ue5_bridge.py` into the UE project's `Content/Python/` folder, or add the directory to the UE Python path.
 
-Make sure Web Remote Control is listening on `127.0.0.1:30010` (or configure another host/port in the CLI).
+Configure Web Remote Control on `127.0.0.1:30010` or pass another host/port to the CLI.
 
-## First synchronization
+## Asset registry
 
-Generate an AetherFlow `manifest.json` with the existing Blender pipeline, then run from a normal Python installation:
+Start from `asset_registry.example.json` and create a project-owned registry. Do not put guessed or machine-specific asset paths into AetherFlow core code.
 
-```text
-python ue5_bridge/cli.py --manifest "C:\path\to\manifest.json"
-```
-
-The bridge connects to the currently running Unreal Editor and executes the UE-side synchronization script.
-
-## v1 behavior
-
-v1 deliberately creates tagged Editor actors as synchronization markers. It does **not** guess project-specific art assets, collision meshes, materials, Landscape assets, or gameplay Blueprints.
-
-Tags use the prefix `AetherFlow:` and group names such as `AetherFlow:Terrain`, `AetherFlow:Objectives`, `AetherFlow:Roads`, etc.
-
-Running synchronization again removes only actors carrying the AetherFlow bridge tags unless `--keep-generated` is supplied.
-
-## Next implementation layer
-
-The next bridge milestone is an explicit project asset registry, for example:
+Example:
 
 ```json
 {
-  "Terrain": {"asset": "/Game/AetherFlow/Meshes/M_AetherTerrain"},
-  "Objectives": {"asset": "/Game/AetherFlow/Blueprints/BP_AetherObjective"},
-  "Bases": {"asset": "/Game/AetherFlow/Blueprints/BP_AetherBase"}
+  "registry_version": 1,
+  "groups": {
+    "Bases": {"mode": "blueprint", "asset": "/Game/AetherFlow/Blueprints/BP_AetherBase"},
+    "Objectives": {"mode": "blueprint", "asset": "/Game/AetherFlow/Blueprints/BP_AetherObjective"},
+    "Roads": {"mode": "auto_static_mesh", "asset": "/Game/AetherFlow/Meshes/SM_AetherRoad"}
+  },
+  "fallback": {"enabled": true, "create_markers_when_asset_missing": true}
 }
 ```
 
-The registry must be project-owned. AetherFlow remains the source of truth for map topology and generated metadata; UE5 remains the authority for engine assets, actors, collision, navigation and runtime gameplay.
+Supported registry modes in v2:
+
+- `blueprint`: spawn the registered Blueprint class.
+- `static_mesh` / `auto_static_mesh`: spawn a StaticMeshActor with the registered mesh.
+- missing/empty asset: create a tagged synchronization marker when fallback is enabled.
+
+## Synchronization
+
+Generate the AetherFlow manifest through the existing Blender pipeline, then run:
+
+```text
+python ue5_bridge/cli.py --manifest "C:\path\to\manifest.json" --asset-registry "C:\path\to\asset_registry.json"
+```
+
+The bridge removes only previous AetherFlow-tagged actors, converts metres to Unreal centimetres, preserves transforms and metadata, spawns mapped project assets where possible, and reports fallback markers/failures.
+
+Run without an asset registry for a safe structural import using markers only.
+
+## Verification status
+
+The repository implementation is statically reviewed and isolated on the feature branch. Live execution requires a running Unreal Editor project with the required plugins enabled; that environment is not available inside this development session, so live UE execution is **NOT TESTED** here.
