@@ -1,6 +1,6 @@
 # AetherFlow UE5 Remote Control Bridge
 
-## Architecture
+## End-to-end architecture
 
 ```text
 AetherFlow / Blender
@@ -44,7 +44,7 @@ Configure Web Remote Control on `127.0.0.1:30010` or pass another host/port to t
 
 ## Asset registry
 
-Start from `asset_registry.example.json` and create a project-owned registry. Do not put guessed or machine-specific asset paths into AetherFlow core code.
+Copy `asset_registry.example.json` to a project-owned location and replace empty asset paths with real paths from that UE5 project's Content Browser.
 
 Example:
 
@@ -68,19 +68,30 @@ Supported registry modes:
 
 ## Synchronization
 
-Generate the AetherFlow manifest through the existing Blender pipeline, then run:
+Generate the AetherFlow manifest through the existing Blender pipeline, then run from the repository root:
 
 ```text
-python ue5_bridge/cli.py --manifest "C:\path\to\manifest.json" --asset-registry "C:\path\to\asset_registry.json"
+python ue5_bridge/cli.py --manifest "C:\AetherFlow\export\manifest.json" --asset-registry "C:\AetherFlow\ue5\asset_registry.json"
 ```
 
-The bridge removes only previous AetherFlow-tagged actors, converts metres to Unreal centimetres, applies recorded transforms and metadata, spawns mapped project assets where possible, and reports fallback markers and failures.
+The bridge:
 
-Run without an asset registry for a safe structural import using markers only.
+1. Contacts the running Unreal Editor through Web Remote Control.
+2. Executes the UE-side Python bridge.
+3. Removes only previous AetherFlow-tagged actors when cleanup is enabled.
+4. Reads semantic object records from manifest schema v2.
+5. Converts Blender metres to Unreal centimetres.
+6. Applies recorded location/rotation.
+7. Spawns mapped Blueprint or Static Mesh assets.
+8. Falls back to tagged markers for missing asset mappings.
+9. Saves dirty UE packages.
+10. Returns a machine-readable synchronization report.
+
+Run without `--asset-registry` for structural marker import only.
 
 ## Current scope
 
-The bridge now carries actual object transforms and metadata from Blender to UE5. This is enough to establish deterministic placement and asset binding, but it does not fabricate Landscape assets, materials, collision authoring or gameplay Blueprints. Those remain explicit UE5 project assets/systems.
+The bridge carries object transforms and metadata from Blender to UE5. It establishes deterministic placement and explicit asset binding. It does not fabricate Landscape assets, materials, collision authoring or gameplay Blueprints; those remain explicit UE5 project assets/systems.
 
 ## Verification status
 
