@@ -1,56 +1,18 @@
 {
   "registry_version": 1,
-  "root_paths": [
-    "/Game/AetherFlow"
-  ],
+  "root_paths": ["/Game/AetherFlow"],
   "groups": {
-    "Terrain": {
-      "mode": "auto_static_mesh",
-      "asset": ""
-    },
-    "Bases": {
-      "mode": "blueprint",
-      "asset": ""
-    },
-    "Objectives": {
-      "mode": "blueprint",
-      "asset": ""
-    },
-    "Roads": {
-      "mode": "auto_static_mesh",
-      "asset": ""
-    },
-    "Ramps": {
-      "mode": "auto_static_mesh",
-      "asset": ""
-    },
-    "Pockets": {
-      "mode": "auto_static_mesh",
-      "asset": ""
-    },
-    "Crown": {
-      "mode": "blueprint",
-      "asset": ""
-    },
-    "Altar": {
-      "mode": "blueprint",
-      "asset": ""
-    },
-    "Resources": {
-      "mode": "blueprint",
-      "asset": ""
-    },
-    "GameplayCover": {
-      "mode": "auto_static_mesh",
-      "asset": ""
-    },
-    "Boundary": {
-      "mode": "auto_static_mesh",
-      "asset": ""
-    }
+    "Terrain": {"mode": "auto_static_mesh", "asset": ""},
+    "Bases": {"mode": "blueprint", "asset": ""},
+    "Objectives": {"mode": "blueprint", "asset": ""},
+    "Roads": {"mode": "auto_static_mesh", "asset": ""},
+    "Ramps": {"mode": "auto_static_mesh", "asset": ""},
+    "Pockets": {"mode": "auto_static_mesh", "asset": ""},
+    "Crown": {"mode": "blueprint", "asset": ""},
+    "Altar": {"mode": "blueprint", "asset": ""},
+    "Resources": {"mode": "blueprint", "asset": ""},
+    "GameplayCover": {"mode": "auto_static_mesh", "asset": ""},
+    "Boundary": {"mode": "auto_static_mesh", "asset": ""}
   },
-  "fallback": {
-    "enabled": true,
-    "create_markers_when_asset_missing": true
-  }
+  "fallback": {"enabled": true, "create_markers_when_asset_missing": true}
 }
