@@ -1,9 +1,7 @@
 """Deterministic UE5 export grouping and manifest generation.
 
-This module deliberately does not export a monolithic scene.  It arranges
-generated objects under ``AetherFlow_EXPORT`` into isolated logical
-collections, then writes a manifest that a Blender/UE5 export operator can
-consume per group.
+The manifest contains semantic object records so the UE5 bridge can place
+real project-owned assets without reverse-engineering Blender scene state.
 """
 import json
 import os
@@ -24,11 +22,9 @@ FORBIDDEN_PREFIXES = (
 
 
 def export_group_for_record(record):
-    """Return the one UE5 export group for a registered generated object."""
     name = str(record.get("name", ""))
     kind = str(record.get("type", ""))
     meta = record.get("meta") or {}
-
     if name.startswith("Crown_") or name.startswith("CaptureButton_Crown") or name.startswith("CaptureIndicatorRing_Crown"):
         return "Crown"
     if name.startswith("Altar_") or kind in ("altar", "altar_obstacle"):
@@ -54,23 +50,57 @@ def export_group_for_record(record):
     return "Terrain" if name.startswith("Terrain_") else "GameplayCover"
 
 
+def _vec3(value):
+    if value is None:
+        return None
+    return {"x": float(value[0]), "y": float(value[1]), "z": float(value[2])}
+
+
+def _record_for_ue5(record, group):
+    obj = record.get("object")
+    location = rotation = scale = None
+    dimensions = record.get("dimensions")
+    if obj is not None:
+        try:
+            location = _vec3((obj.location.x, obj.location.y, obj.location.z))
+            rotation = {"pitch": float(obj.rotation_euler.x * 57.29577951308232), "yaw": float(obj.rotation_euler.z * 57.29577951308232), "roll": float(obj.rotation_euler.y * 57.29577951308232)}
+            scale = _vec3((obj.scale.x, obj.scale.y, obj.scale.z))
+            dimensions = _vec3((obj.dimensions.x, obj.dimensions.y, obj.dimensions.z))
+        except AttributeError:
+            pass
+    return {
+        "name": str(record.get("name", "")),
+        "type": str(record.get("type", "")),
+        "group": group,
+        "location_m": location,
+        "rotation_deg": rotation,
+        "scale": scale,
+        "dimensions_m": dimensions,
+        "meta": record.get("meta") or {},
+    }
+
+
 def build_manifest(ctx, validation=None, collection_report=None):
     grouped = {group: [] for group in EXPORT_GROUPS}
     legacy = []
+    object_records = []
     for record in getattr(ctx, "generated_objects", []):
         name = str(record.get("name", ""))
         group = export_group_for_record(record)
         grouped[group].append(name)
+        object_records.append(_record_for_ue5(record, group))
         if name.startswith(FORBIDDEN_PREFIXES):
             legacy.append(name)
     for names in grouped.values():
         names.sort()
-
+    object_records.sort(key=lambda item: (item["group"], item["name"]))
     speed = [n for n in grouped["Resources"] if n.startswith("SpeedShrine_")]
     health = [n for n in grouped["Resources"] if n.startswith("HealthRelic_")]
     return {
+        "schema_version": 2,
         "map_version": get_version(),
         "seed": ctx.config.get("seed"),
+        "unit_system": {"source": "meters", "ue5": "centimeters"},
         "map_dimensions": [ctx.config.get("ground_half_size", 0) * 2] * 2,
         "objectives": {"logical": 5, "physical_capture_platforms": 4},
         "bases": 2,
@@ -79,6 +109,7 @@ def build_manifest(ctx, validation=None, collection_report=None):
         "crown_mode": "PVE_LORD_SANCTUM",
         "export_root": EXPORT_ROOT,
         "export_groups": {group: {"object_count": len(names), "objects": names} for group, names in grouped.items()},
+        "objects": object_records,
         "legacy_objects_present": legacy,
         "naming_passed": not legacy and len({n for names in grouped.values() for n in names}) == sum(len(names) for names in grouped.values()),
         "collection_report": collection_report or {"prepared": False, "reason": "NOT_RUN"},
@@ -87,12 +118,7 @@ def build_manifest(ctx, validation=None, collection_report=None):
 
 
 def prepare_collections(ctx):
-    """Move every registered object into exactly one child of EXPORT_ROOT.
-
-    Runs only inside Blender; the JSON manifest remains pure-Python testable.
-    """
     import bpy
-
     root = bpy.data.collections.get(EXPORT_ROOT) or bpy.data.collections.new(EXPORT_ROOT)
     if root.name not in bpy.context.scene.collection.children:
         bpy.context.scene.collection.children.link(root)
@@ -102,7 +128,6 @@ def prepare_collections(ctx):
         if coll.name not in root.children:
             root.children.link(coll)
         groups[name] = coll
-
     moved = 0
     missing = []
     for record in getattr(ctx, "generated_objects", []):
