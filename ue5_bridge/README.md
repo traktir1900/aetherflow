@@ -60,11 +60,11 @@ Example:
 }
 ```
 
-Supported registry modes in v2:
+Supported registry modes:
 
 - `blueprint`: spawn the registered Blueprint class.
 - `static_mesh` / `auto_static_mesh`: spawn a StaticMeshActor with the registered mesh.
-- missing/empty asset: create a tagged synchronization marker when fallback is enabled.
+- Empty or missing asset: create a tagged marker when fallback is enabled.
 
 ## Synchronization
 
@@ -74,10 +74,14 @@ Generate the AetherFlow manifest through the existing Blender pipeline, then run
 python ue5_bridge/cli.py --manifest "C:\path\to\manifest.json" --asset-registry "C:\path\to\asset_registry.json"
 ```
 
-The bridge removes only previous AetherFlow-tagged actors, converts metres to Unreal centimetres, preserves transforms and metadata, spawns mapped project assets where possible, and reports fallback markers/failures.
+The bridge removes only previous AetherFlow-tagged actors, converts metres to Unreal centimetres, applies recorded transforms and metadata, spawns mapped project assets where possible, and reports fallback markers and failures.
 
 Run without an asset registry for a safe structural import using markers only.
 
+## Current scope
+
+The bridge now carries actual object transforms and metadata from Blender to UE5. This is enough to establish deterministic placement and asset binding, but it does not fabricate Landscape assets, materials, collision authoring or gameplay Blueprints. Those remain explicit UE5 project assets/systems.
+
 ## Verification status
 
-The repository implementation is statically reviewed and isolated on the feature branch. Live execution requires a running Unreal Editor project with the required plugins enabled; that environment is not available inside this development session, so live UE execution is **NOT TESTED** here.
+Repository implementation is isolated on the Bridge feature branch. Live Unreal execution requires the user's UE5 project with the required plugins enabled; live UE execution is **NOT TESTED** in this session.
