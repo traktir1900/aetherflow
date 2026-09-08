@@ -3,17 +3,20 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
 from remote_client import RemoteControlClient, RemoteControlConfig, RemoteControlError
 
 
+def _escape(value: str) -> str:
+    return str(value).replace("\\", "/").replace("'", "\\'")
+
+
 def _python_bootstrap(ue_bridge_dir: Path, manifest_path: Path, registry_path: Path | None, clear_previous: bool) -> str:
-    module_dir = str(ue_bridge_dir.resolve()).replace("\\", "/").replace("'", "\\'")
-    manifest = str(manifest_path.resolve()).replace("\\", "/").replace("'", "\\'")
-    registry = "None" if registry_path is None else "r'{}'".format(str(registry_path.resolve()).replace("\\", "/").replace("'", "\\'"))
+    module_dir = _escape(ue_bridge_dir.resolve())
+    manifest = _escape(manifest_path.resolve())
+    registry = "None" if registry_path is None else "r'{}'".format(_escape(registry_path.resolve()))
     flag = "True" if clear_previous else "False"
     return (
         "import sys; "
@@ -39,7 +42,6 @@ def main(argv: list[str] | None = None) -> int:
     if not manifest.is_file():
         print(f"ERROR: manifest does not exist: {manifest}", file=sys.stderr)
         return 2
-
     registry = Path(args.asset_registry).resolve() if args.asset_registry else None
     if registry is not None and not registry.is_file():
         print(f"ERROR: asset registry does not exist: {registry}", file=sys.stderr)
@@ -69,15 +71,7 @@ def main(argv: list[str] | None = None) -> int:
         "ue_bridge": str(script),
         "execute_result": result,
     }
-    if args.json:
-        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
-    else:
-        print("AetherFlow UE5 Bridge: PASS")
-        print(f"Manifest: {manifest}")
-        print(f"Asset registry: {registry or 'not supplied (marker fallback)'}")
-        print(f"Remote Control: {args.host}:{args.port}")
-        print(f"UE bridge: {script}")
-        print(f"Execute result: {result}")
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) if args.json else "AetherFlow UE5 Bridge: PASS\n" + f"Manifest: {manifest}\nRemote Control: {args.host}:{args.port}\nAsset registry: {registry or 'not supplied (marker fallback)'}\nUE bridge: {script}\nExecute result: {result}")
     return 0
 
 
