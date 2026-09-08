@@ -271,14 +271,13 @@ def _install_runtime_height_fix():
 
 
 def _install_runtime_validation_fix():
-    """Teach Stage 9 about visual-only guides and the hard-fitted outer wall.
+    """Teach Stage 9 about the hard-fitted outer wall.
 
-    The source validator classifies any registered object that is not a terrain,
-    road or ramp as a solid for dimension/bounds checks. Crown capture links are
-    planar visual guides, while OuterBoundary segments are deliberate perimeter
-    rocks whose own generator already enforces the hard world-bound constraint.
-    Remove only those exact false-positive diagnostics; all other validation
-    errors remain untouched and still fail the gate.
+    OuterBoundary segments are deliberate perimeter rocks whose generator
+    already enforces the hard world-bound constraint. Remove only the legacy
+    duplicate bbox diagnostic; all other validation errors remain untouched and
+    still fail the gate. Planar visual guides are classified directly by
+    ``core.validation`` and therefore need no string-based post-filter.
     """
     try:
         import core.validation as _validation
@@ -293,9 +292,6 @@ def _install_runtime_validation_fix():
         kept = []
         filtered = 0
         for err in report.get("errors", []):
-            if err.startswith("INVALID DIMENSIONS: CrownCaptureLink_Crown_"):
-                filtered += 1
-                continue
             if err.startswith("OUT OF MAP BOUNDS (bbox): OuterBoundary_Segment"):
                 filtered += 1
                 continue

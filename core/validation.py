@@ -32,12 +32,16 @@ from core.layout import BASES, physical_capture_point_names
 
 _TERRAIN_EXEMPT = ("terrain", "safety_floor")
 
-# Terrain-following ribbons: zero thickness is LEGITIMATE for these (they are
-# planar gameplay surfaces laid over the heightmap; the terrain below provides
-# collision).  Their dims are a world-space AABB, so dims[2] may be ~0 on flat
-# ground — but width/length must still be positive and the mesh must have
-# real vertices and faces (checked separately against the actual mesh data).
-_PLANAR_SURFACE_TYPES = ("road", "ramp")
+# Terrain-following ribbons and non-colliding presentation guides are planar
+# surfaces. Their dims are a world-space AABB, so dims[2] may be ~0 on flat
+# ground — but width/length must still be positive and the mesh must have real
+# vertices and faces (checked separately against the actual mesh data).
+#
+# ``road_light_guide`` is deliberately explicit here: it is a generated visual
+# ribbon, not a gameplay solid. Treating it as a solid previously produced a
+# false ``INVALID DIMENSIONS`` error when a guide ended at the same elevation
+# at which it began.
+_PLANAR_SURFACE_TYPES = ("road", "ramp", "road_light_guide")
 
 
 def _is_bad(v):

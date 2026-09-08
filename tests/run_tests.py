@@ -389,6 +389,13 @@ def t8_validation():
            dims=(3, 3, 3)), "OUT OF MAP BOUNDS")
     expect("invalid dimensions", lambda c: c.add("Bad_Dims", "rock", 20.0, 20.0, 0.0,
            dims=(-1, 2, 2), meta={"footprint_radius": 1.0}), "INVALID DIMENSIONS")
+    visual_guide_scene = good_scene()
+    visual_guide_scene.add("CrownCaptureLink_Crown_WestMonolith", "road_light_guide",
+                           0.0, 55.0, 0.2, dims=(20.0, 0.6, 0.0),
+                           meta={"visual_only": True})
+    visual_guide_report = run_validation(visual_guide_scene)
+    check(g, "planar visual guide allows zero thickness", visual_guide_report["ok"],
+          visual_guide_report["errors"])
     expect("NaN transform", lambda c: c.add("NaN_Obj", "rock", float("nan"), 0.0, 0.0,
            dims=(2, 2, 2), meta={"footprint_radius": 1.0}), "INVALID TRANSFORM")
     expect("ramp too steep",

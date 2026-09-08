@@ -1,22 +1,26 @@
-# AetherFlow 0.6.1 — VerdantTrail Natural Perimeter
+# AetherFlow 0.6.4.0
 
-Replaces the procedural placeholder natural-perimeter assets with real linked
-VerdantTrail collections already attached to the AetherFlow Blender scene.
+Procedural Blender pipeline for the AetherFlow arena map. It creates the
+terrain, objectives, bases, roads, ramps, pockets, gameplay cover, resources,
+navigation report, validation report and UE5 export manifest.
 
-Expected linked collections:
-- cliffs_boulders
-- rocks
-- island_tree_01
-- jacaranda_tree
-- tree_small_02
-- shrub_01
-- shrub_02
-- shrub_03
-- shrub_04
-- grass_medium_02
-- hanging_grass
-- plants_groups
+The current map contract is a 200 × 200 m gameplay arena with five objectives,
+two mirrored team bases and four pockets. The project is inspired by the
+capture-and-rotation structure of Dominion, while retaining its own world,
+geometry and systems.
 
-Only `geometry/natural_perimeter.py` is changed by this patch.
-No gameplay geometry, navigation, simulation, pockets, bases, Altar or wall
-geometry is modified.
+## Run
+
+Open the project in Blender and execute `main.py`. The pipeline writes
+`export/map_data.json` and `AetherFlow_UE5_Export/manifest.json` only when its
+validation gate passes.
+
+## Verification
+
+Run the engine-free regression suite from the repository root:
+
+```text
+python tests/run_tests.py
+```
+
+Blender runtime validation remains required before a release or MAP LOCK.
