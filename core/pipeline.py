@@ -34,6 +34,7 @@ import geometry.terrain as terrain
 import geometry.structures as structures
 import geometry.pockets as pockets
 import geometry.boundary as boundary
+import geometry.natural_perimeter as natural_perimeter
 import geometry.capture_platform_runtime as capture_platform_runtime
 import combat.simulation as simulation
 
@@ -51,6 +52,7 @@ def _reload_runtime_modules():
     global gameplay_cover_module, altar_rotation_module, validation_module
     global terrain_refinement_module, gameplay_symmetry_module, height_transitions_module, terrain
     global capture_platform_runtime, resource_foundation_module, ue5_export_module
+    global natural_perimeter
     terrain_refinement_module = importlib.reload(terrain_refinement_module)
     import core.heightmap as heightmap_module
     heightmap_module = importlib.reload(heightmap_module)
@@ -61,6 +63,7 @@ def _reload_runtime_modules():
     gameplay_symmetry_module = importlib.reload(gameplay_symmetry_module)
     height_transitions_module = importlib.reload(height_transitions_module)
     capture_platform_runtime = importlib.reload(capture_platform_runtime)
+    natural_perimeter = importlib.reload(natural_perimeter)
     resource_foundation_module = importlib.reload(resource_foundation_module)
     ue5_export_module = importlib.reload(ue5_export_module)
     capture_platform_runtime.install_capture_platform_runtime(structures)
@@ -273,6 +276,12 @@ def run_pipeline(ctx=None, export=True):
         boundary.generate_outer_boundary(ctx)
         moved_boundary = gameplay_cover_module.repair_outer_boundary_for_legacy_bounds(ctx)
         print("  -> legacy-bounds boundary repair: {} sections adjusted".format(moved_boundary))
+
+        print("[STAGE 6B1/10] VerdantTrail natural perimeter")
+        natural_report = natural_perimeter.generate_natural_perimeter(ctx)
+        print("  -> linked natural assets: {} objects across {} macro zones".format(
+            natural_report.get("objects", 0),
+            natural_report.get("macro_zones", 0)))
 
         print("[STAGE 6C/10] Resource Foundation")
         resource_report = resource_foundation_module.generate_resource_foundation(ctx)
