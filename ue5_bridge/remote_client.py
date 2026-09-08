@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Iterable
@@ -56,6 +57,27 @@ class RemoteControlClient:
 
     def info(self) -> Any:
         return self.request("GET", "/remote/info")
+
+    def presets(self) -> Any:
+        return self.request("GET", "/remote/presets")
+
+    def preset(self, preset_name: str) -> Any:
+        name = urllib.parse.quote(preset_name, safe="")
+        return self.request("GET", f"/remote/preset/{name}")
+
+    def call_preset_function(
+        self,
+        preset_name: str,
+        function_label: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> Any:
+        preset = urllib.parse.quote(preset_name, safe="")
+        function = urllib.parse.quote(function_label, safe="")
+        return self.request(
+            "PUT",
+            f"/remote/preset/{preset}/function/{function}",
+            {"Parameters": parameters or {}},
+        )
 
     def call(
         self,
